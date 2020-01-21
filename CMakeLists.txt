@@ -29,12 +29,8 @@ install(FILES norlab_icp_mapper/Mapper.h
 configure_file(norlab_icp_mapperConfig.cmake.in
   "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/norlab_icp_mapperConfig.cmake" @ONLY
   )
-configure_file(norlab_icp_mapperConfigVersion.cmake.in
-  "${PROJECT_BINARY_DIR}/norlab_icp_mapperConfigVersion.cmake" @ONLY
-  )
 install(FILES
   "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/norlab_icp_mapperConfig.cmake"
-  "${PROJECT_BINARY_DIR}/norlab_icp_mapperConfigVersion.cmake"
   DESTINATION ${DEF_INSTALL_CMAKE_DIR}
   COMPONENT dev
   )
