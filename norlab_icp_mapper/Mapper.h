@@ -1,9 +1,12 @@
+#ifndef NORLAB_ICP_MAPPER_MAPPER_H
+#define NORLAB_ICP_MAPPER_MAPPER_H
+
 #include <pointmatcher/PointMatcher.h>
 #include <future>
+#include "State.h"
 
 namespace norlab_icp_mapper
 {
-	typedef float T;
 	typedef PointMatcher<T> PM;
 	
 	class Mapper
@@ -68,7 +71,7 @@ namespace norlab_icp_mapper
 		void loadYamlConfig();
 		
 		void processInput(PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedSensorPose,
-						  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp);
+						  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp, const State& estimatedState);
 		
 		PM::DataPoints getMap();
 		
@@ -79,3 +82,5 @@ namespace norlab_icp_mapper
 		const PM::TransformationParameters& getSensorPose();
 	};
 }
+
+#endif

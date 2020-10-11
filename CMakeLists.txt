@@ -22,7 +22,7 @@ set(DEF_INSTALL_CMAKE_DIR lib/cmake/norlab_icp_mapper CACHE PATH "Installation d
 
 install(TARGETS norlab_icp_mapper DESTINATION ${INSTALL_LIB_DIR})
 
-install(FILES norlab_icp_mapper/Mapper.h
+install(FILES norlab_icp_mapper/Mapper.h norlab_icp_mapper/State.h
   DESTINATION ${INSTALL_INCLUDE_DIR}/norlab_icp_mapper
   )
 
