@@ -3,10 +3,12 @@
 #include <fstream>
 #include <chrono>
 
-norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inputFiltersConfigFilePath, std::string mapPostFiltersConfigFilePath, std::string mapUpdateCondition,
-			   float mapUpdateOverlap, float mapUpdateDelay, float mapUpdateDistance, float minDistNewPoint, float sensorMaxRange,
-			   float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
-			   bool is3D, bool isOnline, bool computeProbDynamic, bool isMapping):
+norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inputFiltersConfigFilePath, std::string mapPostFiltersConfigFilePath,
+								  std::string mapUpdateCondition,
+								  float mapUpdateOverlap, float mapUpdateDelay, float mapUpdateDistance, float minDistNewPoint, float sensorMaxRange,
+								  float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
+								  bool is3D, bool isOnline, bool computeProbDynamic, bool useSkewWeights, bool isMapping, int skewModel,
+								  float cornerPointWeight, float weightQuantile, float rangePrecision):
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
 		icpConfigFilePath(icpConfigFilePath),
 		inputFiltersConfigFilePath(inputFiltersConfigFilePath),
@@ -27,9 +29,14 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 		is3D(is3D),
 		isOnline(isOnline),
 		computeProbDynamic(computeProbDynamic),
+		useSkewWeights(useSkewWeights),
 		isMapping(isMapping),
 		newMapAvailable(false),
-		isMapEmpty(true)
+		isMapEmpty(true),
+		skewModel(skewModel),
+		cornerPointWeight(cornerPointWeight),
+		weightQuantile(weightQuantile),
+		rangePrecision(rangePrecision)
 {
 	loadYamlConfig();
 	
@@ -72,10 +79,28 @@ void norlab_icp_mapper::Mapper::loadYamlConfig()
 }
 
 void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedSensorPose,
-						  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp)
+											 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp, const T& linearSpeedNoise,
+											 const T& linearAccelerationNoise, const T& angularSpeedNoise, const T& angularAccelerationNoise)
 {
 	radiusFilter->inPlaceFilter(inputInSensorFrame);
 	inputFilters.apply(inputInSensorFrame);
+	
+	if(useSkewWeights)
+	{
+		inputInSensorFrame.addTime("stamps", inputInSensorFrame.getDescriptorViewByName("t").cast<std::int64_t>());
+		PM::Parameters skewFilterParams;
+		skewFilterParams["skewModel"] = std::to_string(skewModel);
+		skewFilterParams["linearSpeedNoise"] = std::to_string(linearSpeedNoise);
+		skewFilterParams["linearAccelerationNoise"] = std::to_string(linearAccelerationNoise);
+		skewFilterParams["angularSpeedNoise"] = std::to_string(angularSpeedNoise);
+		skewFilterParams["angularAccelerationNoise"] = std::to_string(angularAccelerationNoise);
+		skewFilterParams["cornerPointWeight"] = std::to_string(cornerPointWeight);
+		skewFilterParams["weightQuantile"] = std::to_string(weightQuantile);
+		skewFilterParams["rangePrecision"] = std::to_string(rangePrecision);
+		std::shared_ptr<PM::DataPointsFilter> skewFilter = PM::get().DataPointsFilterRegistrar.create("NoiseSkewDataPointsFilter", skewFilterParams);
+		skewFilter->inPlaceFilter(inputInSensorFrame);
+	}
+	
 	PM::DataPoints inputInMapFrame = transformation->compute(inputInSensorFrame, estimatedSensorPose);
 	
 	if(isMapEmpty)
@@ -99,8 +124,9 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 	}
 }
 
-bool norlab_icp_mapper::Mapper::shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime, const PM::TransformationParameters& currentSensorPose,
-							 const float& currentOverlap)
+bool norlab_icp_mapper::Mapper::shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime,
+												const PM::TransformationParameters& currentSensorPose,
+												const float& currentOverlap)
 {
 	if(!isMapping)
 	{
@@ -178,7 +204,7 @@ void norlab_icp_mapper::Mapper::buildMap(PM::DataPoints currentInput, PM::DataPo
 }
 
 void norlab_icp_mapper::Mapper::computeProbabilityOfPointsBeingDynamic(const PM::DataPoints& currentInput, PM::DataPoints& currentMap,
-													const PM::TransformationParameters& currentSensorPose)
+																	   const PM::TransformationParameters& currentSensorPose)
 {
 	typedef Nabo::NearestNeighbourSearch<T> NNS;
 	const float eps = 0.0001;
@@ -284,8 +310,9 @@ void norlab_icp_mapper::Mapper::computeProbabilityOfPointsBeingDynamic(const PM:
 	}
 }
 
-norlab_icp_mapper::PM::DataPoints norlab_icp_mapper::Mapper::retrievePointsFurtherThanMinDistNewPoint(const PM::DataPoints& currentInput, const PM::DataPoints& currentMap,
-																const PM::TransformationParameters& currentSensorPose)
+norlab_icp_mapper::PM::DataPoints
+norlab_icp_mapper::Mapper::retrievePointsFurtherThanMinDistNewPoint(const PM::DataPoints& currentInput, const PM::DataPoints& currentMap,
+																	const PM::TransformationParameters& currentSensorPose)
 {
 	typedef Nabo::NearestNeighbourSearch<T> NNS;
 	
