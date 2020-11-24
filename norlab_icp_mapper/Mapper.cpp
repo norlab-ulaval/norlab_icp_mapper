@@ -79,8 +79,11 @@ void norlab_icp_mapper::Mapper::loadYamlConfig()
 }
 
 void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedSensorPose,
-											 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp, const T& linearSpeedNoise,
-											 const T& linearAccelerationNoise, const T& angularSpeedNoise, const T& angularAccelerationNoise)
+											 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp, const T& linearSpeedNoiseX,
+											 const T& linearSpeedNoiseY, const T& linearSpeedNoiseZ, const T& linearAccelerationNoiseX,
+											 const T& linearAccelerationNoiseY, const T& linearAccelerationNoiseZ, const T& angularSpeedNoiseX,
+											 const T& angularSpeedNoiseY, const T& angularSpeedNoiseZ, const T& angularAccelerationNoiseX,
+											 const T& angularAccelerationNoiseY, const T& angularAccelerationNoiseZ)
 {
 	radiusFilter->inPlaceFilter(inputInSensorFrame);
 	inputFilters.apply(inputInSensorFrame);
@@ -90,10 +93,18 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 		inputInSensorFrame.addTime("stamps", inputInSensorFrame.getDescriptorViewByName("t").cast<std::int64_t>());
 		PM::Parameters skewFilterParams;
 		skewFilterParams["skewModel"] = std::to_string(skewModel);
-		skewFilterParams["linearSpeedNoise"] = std::to_string(linearSpeedNoise);
-		skewFilterParams["linearAccelerationNoise"] = std::to_string(linearAccelerationNoise);
-		skewFilterParams["angularSpeedNoise"] = std::to_string(angularSpeedNoise);
-		skewFilterParams["angularAccelerationNoise"] = std::to_string(angularAccelerationNoise);
+		skewFilterParams["linearSpeedNoiseX"] = std::to_string(linearSpeedNoiseX);
+		skewFilterParams["linearSpeedNoiseY"] = std::to_string(linearSpeedNoiseY);
+		skewFilterParams["linearSpeedNoiseZ"] = std::to_string(linearSpeedNoiseZ);
+		skewFilterParams["linearAccelerationNoiseX"] = std::to_string(linearAccelerationNoiseX);
+		skewFilterParams["linearAccelerationNoiseY"] = std::to_string(linearAccelerationNoiseY);
+		skewFilterParams["linearAccelerationNoiseZ"] = std::to_string(linearAccelerationNoiseZ);
+		skewFilterParams["angularSpeedNoiseX"] = std::to_string(angularSpeedNoiseX);
+		skewFilterParams["angularSpeedNoiseY"] = std::to_string(angularSpeedNoiseY);
+		skewFilterParams["angularSpeedNoiseZ"] = std::to_string(angularSpeedNoiseZ);
+		skewFilterParams["angularAccelerationNoiseX"] = std::to_string(angularAccelerationNoiseX);
+		skewFilterParams["angularAccelerationNoiseY"] = std::to_string(angularAccelerationNoiseY);
+		skewFilterParams["angularAccelerationNoiseZ"] = std::to_string(angularAccelerationNoiseZ);
 		skewFilterParams["cornerPointWeight"] = std::to_string(cornerPointWeight);
 		skewFilterParams["weightQuantile"] = std::to_string(weightQuantile);
 		skewFilterParams["rangePrecision"] = std::to_string(rangePrecision);
