@@ -45,6 +45,15 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 	radiusFilterParams["dist"] = std::to_string(sensorMaxRange);
 	radiusFilterParams["removeInside"] = "0";
 	radiusFilter = PM::get().DataPointsFilterRegistrar.create("DistanceLimitDataPointsFilter", radiusFilterParams);
+
+	if(useSkewWeights)
+	{
+		PM::Parameters outlierFilterParams;
+		outlierFilterParams["descName"] = "skewWeight";
+		outlierFilterParams["useSoftThreshold"] = "1";
+		std::shared_ptr<PM::OutlierFilter> outlierFilter = PM::get().OutlierFilterRegistrar.create("GenericDescriptorOutlierFilter", outlierFilterParams);
+		icp.outlierFilters.push_back(outlierFilter);
+	}
 	
 	int homogeneousDim = is3D ? 4 : 3;
 	sensorPose = PM::Matrix::Identity(homogeneousDim, homogeneousDim);
