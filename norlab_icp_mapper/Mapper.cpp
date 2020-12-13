@@ -8,7 +8,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 								  float mapUpdateOverlap, float mapUpdateDelay, float mapUpdateDistance, float minDistNewPoint, float sensorMaxRange,
 								  float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
 								  bool is3D, bool isOnline, bool computeProbDynamic, bool useSkewWeights, bool isMapping, int skewModel,
-								  float cornerPointWeight, float weightQuantile, float rangePrecision):
+								  float cornerPointUncertainty, float uncertaintyQuantile):
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
 		icpConfigFilePath(icpConfigFilePath),
 		inputFiltersConfigFilePath(inputFiltersConfigFilePath),
@@ -34,9 +34,8 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 		newMapAvailable(false),
 		isMapEmpty(true),
 		skewModel(skewModel),
-		cornerPointWeight(cornerPointWeight),
-		weightQuantile(weightQuantile),
-		rangePrecision(rangePrecision)
+		cornerPointUncertainty(cornerPointUncertainty),
+		uncertaintyQuantile(uncertaintyQuantile)
 {
 	loadYamlConfig();
 	
@@ -118,9 +117,8 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 		skewFilterParams["angularAccelerationsY"] = angularAccelerationsY;
 		skewFilterParams["angularAccelerationsZ"] = angularAccelerationsZ;
 		skewFilterParams["measureTimes"] = measureTimes;
-		skewFilterParams["cornerPointWeight"] = std::to_string(cornerPointWeight);
-		skewFilterParams["weightQuantile"] = std::to_string(weightQuantile);
-		skewFilterParams["rangePrecision"] = std::to_string(rangePrecision);
+		skewFilterParams["cornerPointUncertainty"] = std::to_string(cornerPointUncertainty);
+		skewFilterParams["uncertaintyQuantile"] = std::to_string(uncertaintyQuantile);
 		std::shared_ptr<PM::DataPointsFilter> skewFilter = PM::get().DataPointsFilterRegistrar.create("NoiseSkewDataPointsFilter", skewFilterParams);
 		skewFilter->inPlaceFilter(inputInSensorFrame);
 	}
