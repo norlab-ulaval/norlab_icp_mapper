@@ -74,12 +74,12 @@ namespace norlab_icp_mapper
 		void loadYamlConfig();
 		
 		void processInput(PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedSensorPose,
-						  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp, const std::string& linearSpeedNoisesX,
-						  const std::string& linearSpeedNoisesY, const std::string& linearSpeedNoisesZ, const std::string& linearAccelerationNoisesX,
-						  const std::string& linearAccelerationNoisesY, const std::string& linearAccelerationNoisesZ,
-						  const std::string& angularSpeedNoisesX, const std::string& angularSpeedNoisesY, const std::string& angularSpeedNoisesZ,
-						  const std::string& angularAccelerationNoisesX, const std::string& angularAccelerationNoisesY,
-						  const std::string& angularAccelerationNoisesZ, const std::string& measureTimes);
+						  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp, const std::string& linearSpeedsX,
+						  const std::string& linearSpeedsY, const std::string& linearSpeedsZ, const std::string& linearAccelerationsX,
+						  const std::string& linearAccelerationsY, const std::string& linearAccelerationsZ,
+						  const std::string& angularSpeedsX, const std::string& angularSpeedsY, const std::string& angularSpeedsZ,
+						  const std::string& angularAccelerationsX, const std::string& angularAccelerationsY,
+						  const std::string& angularAccelerationsZ, const std::string& measureTimes);
 		
 		PM::DataPoints getMap();
 		
