@@ -8,7 +8,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 								  float mapUpdateOverlap, float mapUpdateDelay, float mapUpdateDistance, float minDistNewPoint, float sensorMaxRange,
 								  float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
 								  bool is3D, bool isOnline, bool computeProbDynamic, bool useSkewWeights, bool isMapping, int skewModel,
-								  float cornerPointUncertainty, float uncertaintyQuantile):
+								  float cornerPointUncertainty, float uncertaintyQuantile, bool softUncertaintyThreshold, float uncertaintyThreshold):
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
 		icpConfigFilePath(icpConfigFilePath),
 		inputFiltersConfigFilePath(inputFiltersConfigFilePath),
@@ -48,9 +48,9 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 	if(useSkewWeights)
 	{
 		PM::Parameters outlierFilterParams;
-		outlierFilterParams["descName"] = "skewWeight";
-		outlierFilterParams["useSoftThreshold"] = "1";
-		std::shared_ptr<PM::OutlierFilter> outlierFilter = PM::get().OutlierFilterRegistrar.create("GenericDescriptorOutlierFilter", outlierFilterParams);
+		outlierFilterParams["useSoftThreshold"] = softUncertaintyThreshold ? "1" : "0";
+		outlierFilterParams["threshold"] = std::to_string(uncertaintyThreshold);
+		std::shared_ptr<PM::OutlierFilter> outlierFilter = PM::get().OutlierFilterRegistrar.create("UncertaintyOutlierFilter", outlierFilterParams);
 		icp.outlierFilters.push_back(outlierFilter);
 	}
 	
