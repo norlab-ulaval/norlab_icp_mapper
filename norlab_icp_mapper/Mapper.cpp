@@ -8,7 +8,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 								  float mapUpdateOverlap, float mapUpdateDelay, float mapUpdateDistance, float minDistNewPoint, float sensorMaxRange,
 								  float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
 								  bool is3D, bool isOnline, bool computeProbDynamic, bool useSkewWeights, bool isMapping, int skewModel,
-								  float cornerPointUncertainty, float uncertaintyQuantile, bool softUncertaintyThreshold, float uncertaintyThreshold):
+								  float cornerPointUncertainty, float uncertaintyQuantile, bool softUncertaintyThreshold, float uncertaintyThreshold, bool afterDeskewing):
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
 		icpConfigFilePath(icpConfigFilePath),
 		inputFiltersConfigFilePath(inputFiltersConfigFilePath),
@@ -30,6 +30,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 		isOnline(isOnline),
 		computeProbDynamic(computeProbDynamic),
 		useSkewWeights(useSkewWeights),
+		afterDeskewing(afterDeskewing),
 		isMapping(isMapping),
 		newMapAvailable(false),
 		isMapEmpty(true),
@@ -119,6 +120,7 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 		skewFilterParams["measureTimes"] = measureTimes;
 		skewFilterParams["cornerPointUncertainty"] = std::to_string(cornerPointUncertainty);
 		skewFilterParams["uncertaintyQuantile"] = std::to_string(uncertaintyQuantile);
+		skewFilterParams["afterDeskewing"] = afterDeskewing ? "1" : "0";
 		std::shared_ptr<PM::DataPointsFilter> skewFilter = PM::get().DataPointsFilterRegistrar.create("NoiseSkewDataPointsFilter", skewFilterParams);
 		skewFilter->inPlaceFilter(inputInSensorFrame);
 	}

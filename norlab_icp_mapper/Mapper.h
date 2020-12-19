@@ -38,6 +38,7 @@ namespace norlab_icp_mapper
 		bool isOnline;
 		bool computeProbDynamic;
 		bool useSkewWeights;
+		bool afterDeskewing;
 		bool isMapping;
 		int skewModel;
 		float cornerPointUncertainty;
@@ -68,7 +69,7 @@ namespace norlab_icp_mapper
 			   float mapUpdateOverlap, float mapUpdateDelay, float mapUpdateDistance, float minDistNewPoint, float sensorMaxRange,
 			   float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
 			   bool is3D, bool isOnline, bool computeProbDynamic, bool useSkewWeights, bool isMapping, int skewModel, float cornerPointUncertainty,
-			   float uncertaintyQuantile, bool softUncertaintyThreshold, float uncertaintyThreshold);
+			   float uncertaintyQuantile, bool softUncertaintyThreshold, float uncertaintyThreshold, bool afterDeskewing);
 		
 		void loadYamlConfig();
 		
