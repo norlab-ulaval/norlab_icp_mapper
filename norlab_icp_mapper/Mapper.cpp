@@ -8,7 +8,8 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 								  float mapUpdateOverlap, float mapUpdateDelay, float mapUpdateDistance, float minDistNewPoint, float sensorMaxRange,
 								  float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
 								  bool is3D, bool isOnline, bool computeProbDynamic, bool useSkewWeights, bool isMapping, int skewModel,
-								  float cornerPointUncertainty, float uncertaintyQuantile, bool softUncertaintyThreshold, float uncertaintyThreshold, bool afterDeskewing):
+								  float cornerPointUncertainty, float uncertaintyThreshold, float uncertaintyQuantile, bool softUncertaintyThreshold,
+								  float binaryUncertaintyThreshold, bool afterDeskewing):
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
 		icpConfigFilePath(icpConfigFilePath),
 		inputFiltersConfigFilePath(inputFiltersConfigFilePath),
@@ -36,6 +37,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 		isMapEmpty(true),
 		skewModel(skewModel),
 		cornerPointUncertainty(cornerPointUncertainty),
+		uncertaintyThreshold(uncertaintyThreshold),
 		uncertaintyQuantile(uncertaintyQuantile)
 {
 	loadYamlConfig();
@@ -50,7 +52,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 	{
 		PM::Parameters outlierFilterParams;
 		outlierFilterParams["useSoftThreshold"] = softUncertaintyThreshold ? "1" : "0";
-		outlierFilterParams["threshold"] = std::to_string(uncertaintyThreshold);
+		outlierFilterParams["threshold"] = std::to_string(binaryUncertaintyThreshold);
 		std::shared_ptr<PM::OutlierFilter> outlierFilter = PM::get().OutlierFilterRegistrar.create("UncertaintyOutlierFilter", outlierFilterParams);
 		icp.outlierFilters.push_back(outlierFilter);
 	}
@@ -119,6 +121,7 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 		skewFilterParams["angularAccelerationsZ"] = angularAccelerationsZ;
 		skewFilterParams["measureTimes"] = measureTimes;
 		skewFilterParams["cornerPointUncertainty"] = std::to_string(cornerPointUncertainty);
+		skewFilterParams["uncertaintyThreshold"] = std::to_string(uncertaintyThreshold);
 		skewFilterParams["uncertaintyQuantile"] = std::to_string(uncertaintyQuantile);
 		skewFilterParams["afterDeskewing"] = afterDeskewing ? "1" : "0";
 		std::shared_ptr<PM::DataPointsFilter> skewFilter = PM::get().DataPointsFilterRegistrar.create("NoiseSkewDataPointsFilter", skewFilterParams);
