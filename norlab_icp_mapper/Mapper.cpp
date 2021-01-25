@@ -6,7 +6,7 @@
 norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inputFiltersConfigFilePath, std::string mapPostFiltersConfigFilePath, std::string mapUpdateCondition,
 			   float mapUpdateOverlap, float mapUpdateDelay, float mapUpdateDistance, float minDistNewPoint, float sensorMaxRange,
 			   float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
-			   bool is3D, bool isOnline, bool computeProbDynamic, bool isMapping):
+			   bool is3D, bool isOnline, bool computeProbDynamic, bool isMapping, bool isCalibrating):
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
 		icpConfigFilePath(icpConfigFilePath),
 		inputFiltersConfigFilePath(inputFiltersConfigFilePath),
@@ -28,6 +28,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 		isOnline(isOnline),
 		computeProbDynamic(computeProbDynamic),
 		isMapping(isMapping),
+		isCalibrating(isCalibrating),
 		newMapAvailable(false),
 		isMapEmpty(true)
 {
@@ -90,6 +91,15 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 		PM::TransformationParameters correction = icp(inputInMapFrame);
 		icpMapLock.unlock();
 		
+		if(!isCalibrating)
+		{
+			// int homogeneousDim = is3D ? 4 : 3;
+                        // correction = PM::Matrix::Identity(homogeneousDim, homogeneousDim);
+			correction(0, 3) = 0;
+			correction(1, 3) = 0;
+			correction(2, 3) = 0;
+		}
+
 		sensorPose = correction * estimatedSensorPose;
 		
 		if(shouldUpdateMap(timeStamp, sensorPose, icp.errorMinimizer->getOverlap()))

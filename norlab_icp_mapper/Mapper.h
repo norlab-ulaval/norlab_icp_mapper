@@ -38,6 +38,7 @@ namespace norlab_icp_mapper
 		bool isOnline;
 		bool computeProbDynamic;
 		bool isMapping;
+		bool isCalibrating;
 		bool newMapAvailable;
 		std::atomic_bool isMapEmpty;
 		std::mutex mapLock;
@@ -63,7 +64,7 @@ namespace norlab_icp_mapper
 		Mapper(std::string icpConfigFilePath, std::string inputFiltersConfigFilePath, std::string mapPostFiltersConfigFilePath, std::string mapUpdateCondition,
 			   float mapUpdateOverlap, float mapUpdateDelay, float mapUpdateDistance, float minDistNewPoint, float sensorMaxRange,
 			   float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
-			   bool is3D, bool isOnline, bool computeProbDynamic, bool isMapping);
+			   bool is3D, bool isOnline, bool computeProbDynamic, bool isMapping, bool isCalibrating);
 		
 		void loadYamlConfig();
 		
