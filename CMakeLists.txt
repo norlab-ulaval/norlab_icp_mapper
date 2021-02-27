@@ -12,7 +12,7 @@ set(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${libpointmatcher_LIBRARIES})
 
 # norlab_icp_mapper target
 include_directories(norlab_icp_mapper ${libpointmatcher_INCLUDE_DIRS})
-add_library(norlab_icp_mapper SHARED norlab_icp_mapper/Mapper.cpp)
+add_library(norlab_icp_mapper SHARED norlab_icp_mapper/Mapper.cpp norlab_icp_mapper/MapManager.cpp)
 target_link_libraries(norlab_icp_mapper ${libpointmatcher_LIBRARIES})
 
 # install target
@@ -22,7 +22,7 @@ set(DEF_INSTALL_CMAKE_DIR lib/cmake/norlab_icp_mapper CACHE PATH "Installation d
 
 install(TARGETS norlab_icp_mapper DESTINATION ${INSTALL_LIB_DIR})
 
-install(FILES norlab_icp_mapper/Mapper.h
+install(FILES norlab_icp_mapper/Mapper.h norlab_icp_mapper/MapManager.h
   DESTINATION ${INSTALL_INCLUDE_DIR}/norlab_icp_mapper
   )
 

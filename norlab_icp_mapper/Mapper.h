@@ -1,18 +1,16 @@
 #include <pointmatcher/PointMatcher.h>
 #include <future>
+#include "MapManager.h"
 
 namespace norlab_icp_mapper
 {
-	typedef float T;
-	typedef PointMatcher<T> PM;
-	
 	class Mapper
 	{
 	private:
 		PM::DataPointsFilters inputFilters;
 		PM::DataPointsFilters mapPostFilters;
 		PM::ICPSequence icp;
-		PM::DataPoints map;
+		MapManager mapManager;
 		PM::TransformationParameters sensorPose;
 		std::shared_ptr<PM::Transformation> transformation;
 		std::shared_ptr<PM::DataPointsFilter> radiusFilter;
@@ -49,7 +47,7 @@ namespace norlab_icp_mapper
 		
 		void updateMap(const PM::DataPoints& currentInput, const std::chrono::time_point<std::chrono::steady_clock>& timeStamp);
 		
-		void buildMap(PM::DataPoints currentInput, PM::DataPoints currentMap, PM::TransformationParameters currentSensorPose);
+		void buildMap(PM::DataPoints currentInput, PM::TransformationParameters currentSensorPose);
 		
 		PM::DataPoints retrievePointsFurtherThanMinDistNewPoint(const PM::DataPoints& currentInput, const PM::DataPoints& currentMap,
 																const PM::TransformationParameters& currentSensorPose);
@@ -75,7 +73,10 @@ namespace norlab_icp_mapper
 		void setMap(const PM::DataPoints& newMap, const PM::TransformationParameters& newSensorPose);
 		
 		bool getNewMap(PM::DataPoints& mapOut);
+
+		void setInitialMap(const PM::DataPoints& initialMap);
 		
 		const PM::TransformationParameters& getSensorPose();
 	};
 }
+

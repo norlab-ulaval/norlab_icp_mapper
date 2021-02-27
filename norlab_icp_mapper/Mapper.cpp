@@ -7,6 +7,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 			   float mapUpdateOverlap, float mapUpdateDelay, float mapUpdateDistance, float minDistNewPoint, float sensorMaxRange,
 			   float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
 			   bool is3D, bool isOnline, bool computeProbDynamic, bool isMapping):
+		mapManager(sensorMaxRange, mapLock, is3D, isOnline),
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
 		icpConfigFilePath(icpConfigFilePath),
 		inputFiltersConfigFilePath(inputFiltersConfigFilePath),
@@ -91,6 +92,8 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 		icpMapLock.unlock();
 		
 		sensorPose = correction * estimatedSensorPose;
+
+		mapManager.setCurrentPose(sensorPose);
 		
 		if(shouldUpdateMap(timeStamp, sensorPose, icp.errorMinimizer->getOverlap()))
 		{
@@ -140,27 +143,30 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 	
 	if(isOnline && !isMapEmpty)
 	{
-		mapBuilderFuture = std::async(&Mapper::buildMap, this, currentInput, getMap(), sensorPose);
+		mapBuilderFuture = std::async(&Mapper::buildMap, this, currentInput, sensorPose);
 	}
 	else
 	{
-		buildMap(currentInput, getMap(), sensorPose);
+		buildMap(currentInput, sensorPose);
 	}
 }
 
-void norlab_icp_mapper::Mapper::buildMap(PM::DataPoints currentInput, PM::DataPoints currentMap, PM::TransformationParameters currentSensorPose)
+void norlab_icp_mapper::Mapper::buildMap(PM::DataPoints currentInput, PM::TransformationParameters currentSensorPose)
 {
 	if(computeProbDynamic)
 	{
 		currentInput.addDescriptor("probabilityDynamic", PM::Matrix::Constant(1, currentInput.features.cols(), priorDynamic));
 	}
 	
+	mapLock.lock();
+	PM::DataPoints currentMap = mapManager.getLocalMap();
 	if(isMapEmpty)
 	{
 		currentMap = currentInput;
 	}
 	else
 	{
+
 		if(computeProbDynamic)
 		{
 			computeProbabilityOfPointsBeingDynamic(currentInput, currentMap, currentSensorPose);
@@ -174,7 +180,15 @@ void norlab_icp_mapper::Mapper::buildMap(PM::DataPoints currentInput, PM::DataPo
 	mapPostFilters.apply(mapInSensorFrame);
 	currentMap = transformation->compute(mapInSensorFrame, currentSensorPose);
 	
-	setMap(currentMap, currentSensorPose);
+	icpMapLock.lock();
+    icp.setMap(currentMap);
+    icpMapLock.unlock();
+
+    mapManager.setLocalMap(currentMap);
+
+    isMapEmpty = currentMap.getNbPoints() == 0;
+
+	mapLock.unlock();
 }
 
 void norlab_icp_mapper::Mapper::computeProbabilityOfPointsBeingDynamic(const PM::DataPoints& currentInput, PM::DataPoints& currentMap,
@@ -189,32 +203,32 @@ void norlab_icp_mapper::Mapper::computeProbabilityOfPointsBeingDynamic(const PM:
 	PM::Matrix currentInputInSensorFrameAngles;
 	convertToSphericalCoordinates(currentInputInSensorFrame, currentInputInSensorFrameRadii, currentInputInSensorFrameAngles);
 	
-	PM::DataPoints cutMapInSensorFrame = transformation->compute(currentMap, currentSensorPose.inverse());
+	PM::DataPoints currentMapInSensorFrame = transformation->compute(currentMap, currentSensorPose.inverse());
 	PM::Matrix globalId(1, currentMap.getNbPoints());
 	int nbPointsCutMap = 0;
 	for(int i = 0; i < currentMap.getNbPoints(); i++)
 	{
-		if(cutMapInSensorFrame.features.col(i).head(cutMapInSensorFrame.getEuclideanDim()).norm() < sensorMaxRange)
+		if(currentMapInSensorFrame.features.col(i).head(currentMapInSensorFrame.getEuclideanDim()).norm() < sensorMaxRange)
 		{
-			cutMapInSensorFrame.setColFrom(nbPointsCutMap, cutMapInSensorFrame, i);
+			currentMapInSensorFrame.setColFrom(nbPointsCutMap, currentMapInSensorFrame, i);
 			globalId(0, nbPointsCutMap) = i;
 			nbPointsCutMap++;
 		}
 	}
-	cutMapInSensorFrame.conservativeResize(nbPointsCutMap);
+	currentMapInSensorFrame.conservativeResize(nbPointsCutMap);
 	
-	PM::Matrix cutMapInSensorFrameRadii;
-	PM::Matrix cutMapInSensorFrameAngles;
-	convertToSphericalCoordinates(cutMapInSensorFrame, cutMapInSensorFrameRadii, cutMapInSensorFrameAngles);
+	PM::Matrix currentMapInSensorFrameRadii;
+	PM::Matrix currentMapInSensorFrameAngles;
+	convertToSphericalCoordinates(currentMapInSensorFrame, currentMapInSensorFrameRadii, currentMapInSensorFrameAngles);
 	
 	std::shared_ptr<NNS> nns = std::shared_ptr<NNS>(NNS::create(currentInputInSensorFrameAngles));
-	PM::Matches::Dists dists(1, cutMapInSensorFrame.getNbPoints());
-	PM::Matches::Ids ids(1, cutMapInSensorFrame.getNbPoints());
-	nns->knn(cutMapInSensorFrameAngles, ids, dists, 1, 0, NNS::ALLOW_SELF_MATCH, 2 * beamHalfAngle);
+	PM::Matches::Dists dists(1, currentMapInSensorFrame.getNbPoints());
+	PM::Matches::Ids ids(1, currentMapInSensorFrame.getNbPoints());
+	nns->knn(currentMapInSensorFrameAngles, ids, dists, 1, 0, NNS::ALLOW_SELF_MATCH, 2 * beamHalfAngle);
 	
 	PM::DataPoints::View viewOnProbabilityDynamic = currentMap.getDescriptorViewByName("probabilityDynamic");
-	PM::DataPoints::View viewOnMapNormals = cutMapInSensorFrame.getDescriptorViewByName("normals");
-	for(int i = 0; i < cutMapInSensorFrame.getNbPoints(); i++)
+	PM::DataPoints::View viewOnMapNormals = currentMapInSensorFrame.getDescriptorViewByName("normals");
+	for(int i = 0; i < currentMapInSensorFrame.getNbPoints(); i++)
 	{
 		if(dists(i) != std::numeric_limits<float>::infinity())
 		{
@@ -222,7 +236,7 @@ void norlab_icp_mapper::Mapper::computeProbabilityOfPointsBeingDynamic(const PM:
 			const int mapPointId = globalId(0, i);
 			
 			const Eigen::VectorXf readingPoint = currentInputInSensorFrame.features.col(readingPointId).head(currentInputInSensorFrame.getEuclideanDim());
-			const Eigen::VectorXf mapPoint = cutMapInSensorFrame.features.col(i).head(cutMapInSensorFrame.getEuclideanDim());
+			const Eigen::VectorXf mapPoint = currentMapInSensorFrame.features.col(i).head(currentMapInSensorFrame.getEuclideanDim());
 			const float delta = (readingPoint - mapPoint).norm();
 			const float d_max = epsilonA * readingPoint.norm();
 			
@@ -289,12 +303,8 @@ norlab_icp_mapper::PM::DataPoints norlab_icp_mapper::Mapper::retrievePointsFurth
 {
 	typedef Nabo::NearestNeighbourSearch<T> NNS;
 	
-	PM::DataPoints cutMapInSensorFrame = transformation->compute(currentMap, currentSensorPose.inverse());
-	radiusFilter->inPlaceFilter(cutMapInSensorFrame);
-	PM::DataPoints cutMap = transformation->compute(cutMapInSensorFrame, currentSensorPose);
-	
 	PM::Matches matches(PM::Matches::Dists(1, currentInput.getNbPoints()), PM::Matches::Ids(1, currentInput.getNbPoints()));
-	std::shared_ptr<NNS> nns = std::shared_ptr<NNS>(NNS::create(cutMap.features, cutMap.features.rows() - 1, NNS::KDTREE_LINEAR_HEAP, NNS::TOUCH_STATISTICS));
+	std::shared_ptr<NNS> nns = std::shared_ptr<NNS>(NNS::create(currentMap.features, currentMap.features.rows() - 1, NNS::KDTREE_LINEAR_HEAP, NNS::TOUCH_STATISTICS));
 	
 	nns->knn(currentInput.features, matches.ids, matches.dists, 1, 0);
 	
@@ -333,7 +343,7 @@ void norlab_icp_mapper::Mapper::convertToSphericalCoordinates(const PM::DataPoin
 norlab_icp_mapper::PM::DataPoints norlab_icp_mapper::Mapper::getMap()
 {
 	std::lock_guard<std::mutex> lock(mapLock);
-	return map;
+	return mapManager.getGlobalMap();
 }
 
 void norlab_icp_mapper::Mapper::setMap(const PM::DataPoints& newMap, const PM::TransformationParameters& newSensorPose)
@@ -343,39 +353,40 @@ void norlab_icp_mapper::Mapper::setMap(const PM::DataPoints& newMap, const PM::T
 		throw std::runtime_error("compute prob dynamic is set to true, but field normals does not exist for map points.");
 	}
 	
-	PM::DataPoints cutMapInSensorFrame = transformation->compute(newMap, newSensorPose.inverse());
-	radiusFilter->inPlaceFilter(cutMapInSensorFrame);
-	PM::DataPoints cutMap = transformation->compute(cutMapInSensorFrame, newSensorPose);
-	
+	mapLock.lock();
 	icpMapLock.lock();
-	icp.setMap(cutMap);
+	icp.setMap(newMap);
 	icpMapLock.unlock();
 	
-	mapLock.lock();
-	map = newMap;
-	newMapAvailable = true;
-	mapLock.unlock();
+	mapManager.setLocalMap(newMap);
 	
 	isMapEmpty = newMap.getNbPoints() == 0;
+	mapLock.unlock();
 }
 
 bool norlab_icp_mapper::Mapper::getNewMap(PM::DataPoints& mapOut)
 {
-	bool mapReturned = false;
-	
+	std::lock_guard<std::mutex> lock(mapLock);
+	return mapManager.getNewLocalMap(mapOut);
+}
+
+void norlab_icp_mapper::Mapper::setInitialMap(const PM::DataPoints& initialMap)
+{
 	mapLock.lock();
-	if(newMapAvailable)
-	{
-		mapOut = map;
-		newMapAvailable = false;
-		mapReturned = true;
-	}
+	mapManager.setGlobalMap(initialMap);
+
+	PM::DataPoints localMap = mapManager.getLocalMap();
+
+	icpMapLock.lock();
+    icp.setMap(localMap);
+    icpMapLock.unlock();
+
+	isMapEmpty = localMap.getNbPoints() == 0;
 	mapLock.unlock();
-	
-	return mapReturned;
 }
 
 const norlab_icp_mapper::PM::TransformationParameters& norlab_icp_mapper::Mapper::getSensorPose()
 {
 	return sensorPose;
 }
+
