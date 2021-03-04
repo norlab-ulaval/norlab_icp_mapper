@@ -93,11 +93,8 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 		
 		if(!isCalibrating)
 		{
-			// int homogeneousDim = is3D ? 4 : 3;
-                        // correction = PM::Matrix::Identity(homogeneousDim, homogeneousDim);
-			correction(0, 3) = 0;
-			correction(1, 3) = 0;
-			correction(2, 3) = 0;
+			int homogeneousDim = is3D ? 4 : 3;
+			correction = PM::Matrix::Identity(homogeneousDim, homogeneousDim);
 		}
 
 		sensorPose = correction * estimatedSensorPose;
