@@ -7,7 +7,7 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 								  const float& mapUpdateDelay, const float& mapUpdateDistance, const float& minDistNewPoint, const float& sensorMaxRange,
 								  const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle, const float& epsilonA,
 								  const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
-								  const bool& computeProbDynamic, const bool& isMapping):
+								  const bool& computeProbDynamic, const bool& isMapping, const bool& saveMapCellsOnHardDrive):
 		mapUpdateCondition(mapUpdateCondition),
 		mapUpdateOverlap(mapUpdateOverlap),
 		mapUpdateDelay(mapUpdateDelay),
@@ -16,7 +16,7 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 		isOnline(isOnline),
 		isMapping(isMapping),
 		map(minDistNewPoint, sensorMaxRange, priorDynamic, thresholdDynamic, beamHalfAngle, epsilonA, epsilonD, alpha, beta, is3D,
-			isOnline, computeProbDynamic, icp, icpMapLock),
+			isOnline, computeProbDynamic, saveMapCellsOnHardDrive, icp, icpMapLock),
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation"))
 {
 	loadYamlConfig(inputFiltersConfigFilePath, icpConfigFilePath, mapPostFiltersConfigFilePath);
@@ -72,6 +72,8 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 	{
 		correctedPose = estimatedPose;
 
+		map.updatePose(correctedPose);
+
 		updateMap(input, correctedPose, timeStamp);
 	}
 	else
@@ -82,13 +84,13 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
 		correctedPose = correction * estimatedPose;
 
+		map.updatePose(correctedPose);
+
 		if(shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
 		{
 			updateMap(transformation->compute(input, correction), correctedPose, timeStamp);
 		}
 	}
-
-	map.updatePose(correctedPose);
 
 	poseLock.lock();
 	pose = correctedPose;

@@ -1,10 +1,13 @@
 #include "Map.h"
 #include "RAMCellManager.h"
+#include "HardDriveCellManager.h"
 #include <nabo/nabo.h>
+#include <unordered_map>
 
 norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic,
 							const float& beamHalfAngle, const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D,
-							const bool& isOnline, const bool& computeProbDynamic, PM::ICPSequence& icp, std::mutex& icpMapLock):
+							const bool& isOnline, const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp,
+							std::mutex& icpMapLock):
 		minDistNewPoint(minDistNewPoint),
 		sensorMaxRange(sensorMaxRange),
 		priorDynamic(priorDynamic),
@@ -23,23 +26,31 @@ norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMax
 		newLocalPointCloudAvailable(false),
 		localPointCloudEmpty(true),
 		firstPoseUpdate(true),
-		looping(true)
+		updateThreadLooping(true)
 {
-	cellManager = std::unique_ptr<CellManager>(new RAMCellManager());
+	if(saveCellsOnHardDrive)
+	{
+		cellManager = std::unique_ptr<CellManager>(new HardDriveCellManager());
+	}
+	else
+	{
+		cellManager = std::unique_ptr<CellManager>(new RAMCellManager());
+	}
 
 	if(isOnline)
 	{
-		updateLoopThread = std::thread(&Map::updateLoop, this);
+		updateThread = std::thread(&Map::updateThreadFunction, this);
 	}
 }
 
-void norlab_icp_mapper::Map::updateLoop()
+void norlab_icp_mapper::Map::updateThreadFunction()
 {
-	while(looping.load())
+	while(updateThreadLooping.load())
 	{
 		updateListLock.lock();
 		bool isUpdateListEmpty = updateList.empty();
 		updateListLock.unlock();
+
 		if(!isUpdateListEmpty)
 		{
 			updateListLock.lock();
@@ -47,19 +58,24 @@ void norlab_icp_mapper::Map::updateLoop()
 			updateList.pop_front();
 			updateListLock.unlock();
 
-			if(update.load)
-			{
-				loadCells(update.startRow, update.endRow, update.startColumn, update.endColumn, update.startAisle, update.endAisle);
-			}
-			else
-			{
-				unloadCells(update.startRow, update.endRow, update.startColumn, update.endColumn, update.startAisle, update.endAisle);
-			}
+			applyUpdate(update);
 		}
 		else
 		{
 			std::this_thread::sleep_for(std::chrono::duration<float>(0.01));
 		}
+	}
+}
+
+void norlab_icp_mapper::Map::applyUpdate(const Update& update)
+{
+	if(update.load)
+	{
+		loadCells(update.startRow, update.endRow, update.startColumn, update.endColumn, update.startAisle, update.endAisle);
+	}
+	else
+	{
+		unloadCells(update.startRow, update.endRow, update.startColumn, update.endColumn, update.startAisle, update.endAisle);
 	}
 }
 
@@ -115,11 +131,21 @@ void norlab_icp_mapper::Map::loadCells(int startRow, int endRow, int startColumn
 		{
 			for(int k = startAisle; k <= endAisle; k++)
 			{
-				loadedCells.insert(std::to_string(i) + "_" + std::to_string(j) + "_" + std::to_string(k));
+				loadedCellIds.insert(std::to_string(i) + "_" + std::to_string(j) + "_" + std::to_string(k));
 			}
 		}
 	}
 	localPointCloudLock.unlock();
+}
+
+float norlab_icp_mapper::Map::toInferiorWorldCoordinate(const int& gridCoordinate) const
+{
+	return gridCoordinate * CELL_SIZE;
+}
+
+float norlab_icp_mapper::Map::toSuperiorWorldCoordinate(const int& gridCoordinate) const
+{
+	return (gridCoordinate + 1) * CELL_SIZE;
 }
 
 void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColumn, int endColumn, int startAisle, int endAisle)
@@ -130,9 +156,6 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 		endAisle = 0;
 	}
 
-	int nbRows = endRow - startRow + 1;
-	int nbColumns = endColumn - startColumn + 1;
-	int nbAisles = endAisle - startAisle + 1;
 	float startX = toInferiorWorldCoordinate(startRow);
 	float endX = toSuperiorWorldCoordinate(endRow);
 	float startY = toInferiorWorldCoordinate(startColumn);
@@ -166,7 +189,7 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 	icp.setMap(localPointCloud);
 	icpMapLock.unlock();
 
-	if(!loadedCells.empty())
+	if(!loadedCellIds.empty())
 	{
 		for(int i = startRow; i <= endRow; i++)
 		{
@@ -174,7 +197,7 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 			{
 				for(int k = startAisle; k <= endAisle; k++)
 				{
-					loadedCells.erase(std::to_string(i) + "_" + std::to_string(j) + "_" + std::to_string(k));
+					loadedCellIds.erase(std::to_string(i) + "_" + std::to_string(j) + "_" + std::to_string(k));
 				}
 			}
 		}
@@ -187,50 +210,43 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 
 	oldChunk.conservativeResize(oldChunkNbPoints);
 
-	std::vector<std::pair<std::tuple<int, int, int>, PM::DataPoints>> cells;
-	std::vector<int> cellPointCounts;
-	for(int i = 0; i < nbRows * nbColumns * nbAisles; i++)
-	{
-		cells.push_back(std::make_pair(std::make_tuple(0, 0, 0), oldChunk.createSimilarEmpty()));
-		cellPointCounts.push_back(0);
-	}
+	std::unordered_map<std::string, PM::DataPoints> cells;
+	std::unordered_map<std::string, int> cellPointCounts;
 	for(int i = 0; i < oldChunk.getNbPoints(); i++)
 	{
 		int row = toGridCoordinate(oldChunk.features(0, i));
 		int column = toGridCoordinate(oldChunk.features(1, i));
 		int aisle = toGridCoordinate(oldChunk.features(2, i));
-		int rowOffset = row - startRow;
-		int columnOffset = column - startColumn;
-		int aisleOffset = aisle - startAisle;
-		int cellIndex = (rowOffset * nbColumns * nbAisles) + (columnOffset * nbAisles) + aisleOffset;
+		std::string cellId = std::to_string(row) + "_" + std::to_string(column) + "_" + std::to_string(aisle);
 
-		std::get<0>(cells[cellIndex].first) = row;
-		std::get<1>(cells[cellIndex].first) = column;
-		std::get<2>(cells[cellIndex].first) = aisle;
-		cells[cellIndex].second.setColFrom(cellPointCounts[cellIndex], oldChunk, i);
-		cellPointCounts[cellIndex]++;
-	}
-	for(int i = 0; i < nbRows * nbColumns * nbAisles; i++)
-	{
-		if(cellPointCounts[i] > 0)
+		if(cells[cellId].getNbPoints() == 0)
 		{
-			cells[i].second.conservativeResize(cellPointCounts[i]);
-			int row = std::get<0>(cells[i].first);
-			int column = std::get<1>(cells[i].first);
-			int aisle = std::get<2>(cells[i].first);
-			cellManagerLock.lock();
-			cellManager->saveCell(std::to_string(row) + "_" + std::to_string(column) + "_" + std::to_string(aisle), cells[i].second);
-			cellManagerLock.unlock();
+			cells[cellId] = oldChunk.createSimilarEmpty();
 		}
+
+		cells[cellId].setColFrom(cellPointCounts[cellId], oldChunk, i);
+		cellPointCounts[cellId]++;
 	}
+	for(auto& cell: cells)
+	{
+		cell.second.conservativeResize(cellPointCounts[cell.first]);
+		cellManagerLock.lock();
+		cellManager->saveCell(cell.first, cell.second);
+		cellManagerLock.unlock();
+	}
+}
+
+int norlab_icp_mapper::Map::toGridCoordinate(const float& worldCoordinate) const
+{
+	return std::floor(worldCoordinate / CELL_SIZE);
 }
 
 norlab_icp_mapper::Map::~Map()
 {
 	if(isOnline)
 	{
-		looping.store(false);
-		updateLoopThread.join();
+		updateThreadLooping.store(false);
+		updateThread.join();
 	}
 }
 
@@ -253,11 +269,11 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
 		cellManager->clearAllCells();
 		cellManagerLock.unlock();
 		localPointCloudLock.lock();
-		loadedCells.clear();
+		loadedCellIds.clear();
 		localPointCloudLock.unlock();
 
-		unloadCells(std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), std::numeric_limits<int>::min(), std::numeric_limits<int>::max(),
-					std::numeric_limits<int>::min(), std::numeric_limits<int>::max()); // might cause underflow and overflow in unloadCells...
+		unloadCells(getMinGridCoordinate(), getMaxGridCoordinate(), getMinGridCoordinate(),
+					getMaxGridCoordinate(), getMinGridCoordinate(), getMaxGridCoordinate());
 		loadCells(inferiorRowLastUpdateIndex - BUFFER_SIZE, superiorRowLastUpdateIndex + BUFFER_SIZE, inferiorColumnLastUpdateIndex - BUFFER_SIZE,
 				  superiorColumnLastUpdateIndex + BUFFER_SIZE, inferiorAisleLastUpdateIndex - BUFFER_SIZE, superiorAisleLastUpdateIndex + BUFFER_SIZE);
 
@@ -450,6 +466,16 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
 	}
 }
 
+int norlab_icp_mapper::Map::getMinGridCoordinate() const
+{
+	return std::numeric_limits<int>::lowest();
+}
+
+int norlab_icp_mapper::Map::getMaxGridCoordinate() const
+{
+	return std::numeric_limits<int>::max() - 1;
+}
+
 int norlab_icp_mapper::Map::toInferiorGridCoordinate(const float& worldCoordinate, const float& range) const
 {
 	return std::ceil(((worldCoordinate - range) / CELL_SIZE) - 1.0);
@@ -470,30 +496,8 @@ void norlab_icp_mapper::Map::scheduleUpdate(const Update& update)
 	}
 	else
 	{
-		if(update.load)
-		{
-			loadCells(update.startRow, update.endRow, update.startColumn, update.endColumn, update.startAisle, update.endAisle);
-		}
-		else
-		{
-			unloadCells(update.startRow, update.endRow, update.startColumn, update.endColumn, update.startAisle, update.endAisle);
-		}
+		applyUpdate(update);
 	}
-}
-
-float norlab_icp_mapper::Map::toInferiorWorldCoordinate(const int& gridCoordinate) const
-{
-	return gridCoordinate * CELL_SIZE;
-}
-
-float norlab_icp_mapper::Map::toSuperiorWorldCoordinate(const int& gridCoordinate) const
-{
-	return (gridCoordinate + 1) * CELL_SIZE;
-}
-
-int norlab_icp_mapper::Map::toGridCoordinate(const float& worldCoordinate) const
-{
-	return std::floor(worldCoordinate / CELL_SIZE);
 }
 
 norlab_icp_mapper::PM::DataPoints norlab_icp_mapper::Map::getLocalPointCloud()
@@ -708,8 +712,25 @@ bool norlab_icp_mapper::Map::getNewLocalPointCloud(PM::DataPoints& localPointClo
 
 norlab_icp_mapper::PM::DataPoints norlab_icp_mapper::Map::getGlobalPointCloud()
 {
-	// implement properly
-	return getLocalPointCloud();
+	localPointCloudLock.lock();
+	PM::DataPoints globalMap = localPointCloud;
+	std::unordered_set<std::string> currentLoadedCellIds = loadedCellIds;
+	localPointCloudLock.unlock();
+	cellManagerLock.lock();
+	std::vector<std::string> savedCellIds = cellManager->getAllCellIds();
+	cellManagerLock.unlock();
+
+	for(const auto& savedCellId: savedCellIds)
+	{
+		if(currentLoadedCellIds.find(savedCellId) == currentLoadedCellIds.end())
+		{
+			cellManagerLock.lock();
+			PM::DataPoints cell = cellManager->retrieveCell(savedCellId);
+			cellManagerLock.unlock();
+			globalMap.concatenate(cell);
+		}
+	}
+	return globalMap;
 }
 
 void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalPointCloud)
@@ -721,6 +742,13 @@ void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalP
 
 	localPointCloudLock.lock();
 	localPointCloud = newLocalPointCloud;
+
+	icpMapLock.lock();
+	icp.setMap(localPointCloud);
+	icpMapLock.unlock();
+
+	localPointCloudEmpty.store(localPointCloud.getNbPoints() == 0);
+
 	firstPoseUpdate.store(true);
 	localPointCloudLock.unlock();
 }

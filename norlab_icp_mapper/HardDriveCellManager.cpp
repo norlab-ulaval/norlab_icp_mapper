@@ -1,37 +1,37 @@
 #include "HardDriveCellManager.h"
-#include <dirent.h>
+#include <fstream>
+
+norlab_icp_mapper::HardDriveCellManager::~HardDriveCellManager()
+{
+	clearAllCells();
+}
 
 std::vector<std::string> norlab_icp_mapper::HardDriveCellManager::getAllCellIds() const
 {
-	DIR* dir;
-	struct dirent* diread;
-	std::vector<std::string> cellIds;
-	if((dir = opendir(CELL_FOLDER.c_str())) != nullptr)
-	{
-		while((diread = readdir(dir)) != nullptr)
-		{
-			std::string fileName(diread->d_name);
-			if(fileName.find(CELL_FILE_NAME_PREFIX) != std::string::npos)
-			{
-				cellIds.push_back(fileName.substr(CELL_FILE_NAME_PREFIX.size(),
-													fileName.size() - (CELL_FILE_NAME_PREFIX.size() + CELL_FILE_NAME_SUFFIX.size())));
-				std::cout << fileName.substr(CELL_FILE_NAME_PREFIX.size(), fileName.size() - (CELL_FILE_NAME_PREFIX.size() + CELL_FILE_NAME_SUFFIX.size()))
-						  << std::endl;
-			}
-		}
-		closedir(dir);
-	}
-	return cellIds;
+	return std::vector<std::string>(cellIds.begin(), cellIds.end());
 }
 
 void norlab_icp_mapper::HardDriveCellManager::saveCell(const std::string& cellId, const PM::DataPoints& cell)
 {
+	cell.save(CELL_FOLDER + CELL_FILE_NAME_PREFIX + cellId + CELL_FILE_NAME_SUFFIX);
+	cellIds.insert(cellId);
 }
 
 norlab_icp_mapper::PM::DataPoints norlab_icp_mapper::HardDriveCellManager::retrieveCell(const std::string& cellId) const
 {
+	PM::DataPoints cell;
+	if(cellIds.find(cellId) != cellIds.end())
+	{
+		cell = PM::DataPoints::load(CELL_FOLDER + CELL_FILE_NAME_PREFIX + cellId + CELL_FILE_NAME_SUFFIX);
+	}
+	return cell;
 }
 
 void norlab_icp_mapper::HardDriveCellManager::clearAllCells()
 {
+	for(const auto& cellId: cellIds)
+	{
+		std::remove((CELL_FOLDER + CELL_FILE_NAME_PREFIX + cellId + CELL_FILE_NAME_SUFFIX).c_str());
+	}
+	cellIds.clear();
 }
