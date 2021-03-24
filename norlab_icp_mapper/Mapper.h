@@ -1,16 +1,16 @@
 #include <pointmatcher/PointMatcher.h>
+#include "Map.h"
+#include "Trajectory.h"
 #include <future>
 #include <mutex>
-#include <Map.h>
 
 namespace norlab_icp_mapper
 {
-	typedef float T;
-	typedef PointMatcher<T> PM;
-
 	class Mapper
 	{
 	private:
+		typedef PointMatcher<float> PM;
+
 		PM::DataPointsFilters inputFilters;
 		PM::ICPSequence icp;
 		PM::DataPointsFilters mapPostFilters;
@@ -23,11 +23,13 @@ namespace norlab_icp_mapper
 		std::atomic_bool isMapping;
 		Map map;
 		PM::TransformationParameters pose;
+		Trajectory trajectory;
 		std::shared_ptr<PM::Transformation> transformation;
 		std::shared_ptr<PM::DataPointsFilter> radiusFilter;
 		std::chrono::time_point<std::chrono::steady_clock> lastTimeMapWasUpdated;
 		PM::TransformationParameters lastPoseWhereMapWasUpdated;
 		std::mutex poseLock;
+		std::mutex trajectoryLock;
 		std::mutex icpMapLock;
 		std::future<void> mapUpdateFuture;
 
@@ -51,5 +53,6 @@ namespace norlab_icp_mapper
 		bool getNewLocalMap(PM::DataPoints& mapOut);
 		PM::TransformationParameters getPose();
 		void setIsMapping(const bool& newIsMapping);
+		Trajectory getTrajectory();
 	};
 }

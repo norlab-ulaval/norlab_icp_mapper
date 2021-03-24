@@ -17,6 +17,7 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 		isMapping(isMapping),
 		map(minDistNewPoint, sensorMaxRange, priorDynamic, thresholdDynamic, beamHalfAngle, epsilonA, epsilonD, alpha, beta, is3D,
 			isOnline, computeProbDynamic, saveMapCellsOnHardDrive, icp, icpMapLock),
+		trajectory(is3D ? 3 : 2),
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation"))
 {
 	loadYamlConfig(inputFiltersConfigFilePath, icpConfigFilePath, mapPostFiltersConfigFilePath);
@@ -26,9 +27,6 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 	radiusFilterParams["dist"] = std::to_string(sensorMaxRange);
 	radiusFilterParams["removeInside"] = "0";
 	radiusFilter = PM::get().DataPointsFilterRegistrar.create("DistanceLimitDataPointsFilter", radiusFilterParams);
-
-	int homogeneousDim = is3D ? 4 : 3;
-	pose = PM::Matrix::Identity(homogeneousDim, homogeneousDim);
 }
 
 void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& inputFiltersConfigFilePath, const std::string& icpConfigFilePath,
@@ -95,6 +93,11 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 	poseLock.lock();
 	pose = correctedPose;
 	poseLock.unlock();
+
+	int euclideanDim = is3D ? 3 : 2;
+	trajectoryLock.lock();
+	trajectory.addPoint(correctedPose.topRightCorner(euclideanDim, 1));
+	trajectoryLock.unlock();
 }
 
 bool norlab_icp_mapper::Mapper::shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime,
@@ -147,7 +150,7 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 	}
 }
 
-norlab_icp_mapper::PM::DataPoints norlab_icp_mapper::Mapper::getMap()
+norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getMap()
 {
 	return map.getGlobalPointCloud();
 }
@@ -155,6 +158,9 @@ norlab_icp_mapper::PM::DataPoints norlab_icp_mapper::Mapper::getMap()
 void norlab_icp_mapper::Mapper::setMap(const PM::DataPoints& newMap)
 {
 	map.setGlobalPointCloud(newMap);
+	trajectoryLock.lock();
+	trajectory.clearPoints();
+	trajectoryLock.unlock();
 }
 
 bool norlab_icp_mapper::Mapper::getNewLocalMap(PM::DataPoints& mapOut)
@@ -162,7 +168,7 @@ bool norlab_icp_mapper::Mapper::getNewLocalMap(PM::DataPoints& mapOut)
 	return map.getNewLocalPointCloud(mapOut);
 }
 
-norlab_icp_mapper::PM::TransformationParameters norlab_icp_mapper::Mapper::getPose()
+norlab_icp_mapper::Mapper::PM::TransformationParameters norlab_icp_mapper::Mapper::getPose()
 {
 	std::lock_guard<std::mutex> lock(poseLock);
 	return pose;
@@ -171,4 +177,10 @@ norlab_icp_mapper::PM::TransformationParameters norlab_icp_mapper::Mapper::getPo
 void norlab_icp_mapper::Mapper::setIsMapping(const bool& newIsMapping)
 {
 	isMapping.store(newIsMapping);
+}
+
+Trajectory norlab_icp_mapper::Mapper::getTrajectory()
+{
+	std::lock_guard<std::mutex> lock(trajectoryLock);
+	return trajectory;
 }

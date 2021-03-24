@@ -7,12 +7,11 @@
 
 namespace norlab_icp_mapper
 {
-	typedef float T;
-	typedef PointMatcher<T> PM;
-
 	class Map
 	{
 	private:
+		typedef PointMatcher<float> PM;
+		
 		typedef struct Update
 		{
 			int startRow;

@@ -500,7 +500,7 @@ void norlab_icp_mapper::Map::scheduleUpdate(const Update& update)
 	}
 }
 
-norlab_icp_mapper::PM::DataPoints norlab_icp_mapper::Map::getLocalPointCloud()
+norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getLocalPointCloud()
 {
 	std::lock_guard<std::mutex> lock(localPointCloudLock);
 	return localPointCloud;
@@ -545,7 +545,7 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 void norlab_icp_mapper::Map::computeProbabilityOfPointsBeingDynamic(const PM::DataPoints& input, PM::DataPoints& currentLocalPointCloud,
 																	const PM::TransformationParameters& pose) const
 {
-	typedef Nabo::NearestNeighbourSearch<T> NNS;
+	typedef Nabo::NearestNeighbourSearch<float> NNS;
 	const float eps = 0.0001;
 
 	PM::DataPoints inputInSensorFrame = transformation->compute(input, pose.inverse());
@@ -650,11 +650,11 @@ void norlab_icp_mapper::Map::computeProbabilityOfPointsBeingDynamic(const PM::Da
 	}
 }
 
-norlab_icp_mapper::PM::DataPoints norlab_icp_mapper::Map::retrievePointsFurtherThanMinDistNewPoint(const PM::DataPoints& input,
-																								   const PM::DataPoints& currentLocalPointCloud,
-																								   const PM::TransformationParameters& pose) const
+norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::retrievePointsFurtherThanMinDistNewPoint(const PM::DataPoints& input,
+																										const PM::DataPoints& currentLocalPointCloud,
+																										const PM::TransformationParameters& pose) const
 {
-	typedef Nabo::NearestNeighbourSearch<T> NNS;
+	typedef Nabo::NearestNeighbourSearch<float> NNS;
 
 	PM::Matches matches(PM::Matches::Dists(1, input.getNbPoints()), PM::Matches::Ids(1, input.getNbPoints()));
 	std::shared_ptr<NNS> nns = std::shared_ptr<NNS>(NNS::create(currentLocalPointCloud.features, currentLocalPointCloud.features.rows() - 1,
@@ -710,7 +710,7 @@ bool norlab_icp_mapper::Map::getNewLocalPointCloud(PM::DataPoints& localPointClo
 	return localPointCloudReturned;
 }
 
-norlab_icp_mapper::PM::DataPoints norlab_icp_mapper::Map::getGlobalPointCloud()
+norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getGlobalPointCloud()
 {
 	localPointCloudLock.lock();
 	PM::DataPoints globalMap = localPointCloud;

@@ -17,7 +17,7 @@ void norlab_icp_mapper::HardDriveCellManager::saveCell(const std::string& cellId
 	cellIds.insert(cellId);
 }
 
-norlab_icp_mapper::PM::DataPoints norlab_icp_mapper::HardDriveCellManager::retrieveCell(const std::string& cellId) const
+norlab_icp_mapper::CellManager::PM::DataPoints norlab_icp_mapper::HardDriveCellManager::retrieveCell(const std::string& cellId) const
 {
 	PM::DataPoints cell;
 	if(cellIds.find(cellId) != cellIds.end())

@@ -5,11 +5,11 @@
 
 namespace norlab_icp_mapper
 {
-	typedef float T;
-	typedef PointMatcher<T> PM;
-
 	class CellManager
 	{
+	protected:
+		typedef PointMatcher<float> PM;
+
 	public:
 		virtual ~CellManager() = default;
 		virtual std::vector<std::string> getAllCellIds() const = 0;

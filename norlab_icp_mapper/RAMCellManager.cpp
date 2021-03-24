@@ -15,7 +15,7 @@ void norlab_icp_mapper::RAMCellManager::saveCell(const std::string& cellId, cons
 	cells[cellId] = cell;
 }
 
-norlab_icp_mapper::PM::DataPoints norlab_icp_mapper::RAMCellManager::retrieveCell(const std::string& cellId) const
+norlab_icp_mapper::CellManager::PM::DataPoints norlab_icp_mapper::RAMCellManager::retrieveCell(const std::string& cellId) const
 {
 	PM::DataPoints cell;
 	if(cells.find(cellId) != cells.end())
