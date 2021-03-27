@@ -1,3 +1,6 @@
+#ifndef MAPPER_H
+#define MAPPER_H
+
 #include <pointmatcher/PointMatcher.h>
 #include "Map.h"
 #include "Trajectory.h"
@@ -52,7 +55,10 @@ namespace norlab_icp_mapper
 		void setMap(const PM::DataPoints& newMap);
 		bool getNewLocalMap(PM::DataPoints& mapOut);
 		PM::TransformationParameters getPose();
+		bool getIsMapping() const;
 		void setIsMapping(const bool& newIsMapping);
 		Trajectory getTrajectory();
 	};
 }
+
+#endif

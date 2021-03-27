@@ -18,4 +18,5 @@ namespace norlab_icp_mapper
 		virtual void clearAllCells() = 0;
 	};
 }
+
 #endif

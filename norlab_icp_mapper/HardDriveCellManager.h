@@ -1,3 +1,6 @@
+#ifndef HARD_DRIVE_CELL_MANAGER_H
+#define HARD_DRIVE_CELL_MANAGER_H
+
 #include "CellManager.h"
 #include <unordered_set>
 
@@ -19,3 +22,5 @@ namespace norlab_icp_mapper
 		void clearAllCells() override;
 	};
 }
+
+#endif

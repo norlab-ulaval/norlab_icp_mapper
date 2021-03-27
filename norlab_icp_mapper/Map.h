@@ -1,3 +1,6 @@
+#ifndef MAP_H
+#define MAP_H
+
 #include <pointmatcher/PointMatcher.h>
 #include <thread>
 #include <mutex>
@@ -11,7 +14,7 @@ namespace norlab_icp_mapper
 	{
 	private:
 		typedef PointMatcher<float> PM;
-		
+
 		typedef struct Update
 		{
 			int startRow;
@@ -92,3 +95,5 @@ namespace norlab_icp_mapper
 		bool isLocalPointCloudEmpty() const;
 	};
 }
+
+#endif

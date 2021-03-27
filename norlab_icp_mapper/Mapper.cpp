@@ -174,6 +174,11 @@ norlab_icp_mapper::Mapper::PM::TransformationParameters norlab_icp_mapper::Mappe
 	return pose;
 }
 
+bool norlab_icp_mapper::Mapper::getIsMapping() const
+{
+	return isMapping.load();
+}
+
 void norlab_icp_mapper::Mapper::setIsMapping(const bool& newIsMapping)
 {
 	isMapping.store(newIsMapping);

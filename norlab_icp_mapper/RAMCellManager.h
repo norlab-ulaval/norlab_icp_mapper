@@ -1,3 +1,6 @@
+#ifndef RAM_CELL_MANAGER_H
+#define RAM_CELL_MANAGER_H
+
 #include "CellManager.h"
 #include <unordered_map>
 
@@ -15,3 +18,5 @@ namespace norlab_icp_mapper
 		void clearAllCells() override;
 	};
 }
+
+#endif
