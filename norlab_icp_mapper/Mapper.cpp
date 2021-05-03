@@ -130,7 +130,7 @@ bool norlab_icp_mapper::Mapper::shouldUpdateMap(const std::chrono::time_point<st
 		int euclideanDim = is3D ? 3 : 2;
 		PM::Vector lastLocation = lastPoseWhereMapWasUpdated.topRightCorner(euclideanDim, 1);
 		PM::Vector currentLocation = currentPose.topRightCorner(euclideanDim, 1);
-		return std::abs((currentLocation - lastLocation).norm()) > mapUpdateDistance;
+		return std::fabs((currentLocation - lastLocation).norm()) > mapUpdateDistance;
 	}
 }
 
