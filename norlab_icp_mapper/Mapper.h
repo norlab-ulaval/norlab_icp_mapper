@@ -6,6 +6,15 @@
 #include "Trajectory.h"
 #include <future>
 #include <mutex>
+#include "CSVLogger.h"
+
+typedef struct Quaternion
+{
+	float w;
+	float x;
+	float y;
+	float z;
+} Quaternion;
 
 namespace norlab_icp_mapper
 {
@@ -29,17 +38,26 @@ namespace norlab_icp_mapper
 		Trajectory trajectory;
 		std::shared_ptr<PM::Transformation> transformation;
 		std::shared_ptr<PM::DataPointsFilter> radiusFilter;
+		std::shared_ptr<PM::DataPointsFilter> vicinityFilter;
 		std::chrono::time_point<std::chrono::steady_clock> lastTimeMapWasUpdated;
 		PM::TransformationParameters lastPoseWhereMapWasUpdated;
 		std::mutex poseLock;
 		std::mutex trajectoryLock;
 		std::mutex icpMapLock;
 		std::future<void> mapUpdateFuture;
+		std::shared_ptr<PM::Matcher> matcher;
+		std::mutex matcherLock;
 
 		bool shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime, const PM::TransformationParameters& currentPose,
 							 const float& currentOverlap) const;
 		void updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,
-					   const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp);
+					   const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp, const CSVLine& csvLine);
+
+		Quaternion convertRotationMatrixToQuaternion(const PM::TransformationParameters& matrix) const;
+
+		float computeMeanResidual(const PM::DataPoints& correctedInput, const PM::DataPoints& localPointCloud, const PM::Matches& matches) const;
+
+		int computeNbPointsVicinity(const PM::DataPoints& filteredInputInSensorFrame) const;
 
 	public:
 		Mapper(const std::string& inputFiltersConfigFilePath, const std::string& icpConfigFilePath, const std::string& mapPostFiltersConfigFilePath,

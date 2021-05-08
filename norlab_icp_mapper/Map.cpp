@@ -7,7 +7,7 @@
 norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic,
 							const float& beamHalfAngle, const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D,
 							const bool& isOnline, const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp,
-							std::mutex& icpMapLock):
+							std::mutex& icpMapLock, const std::shared_ptr<PM::Matcher>& matcher, std::mutex& matcherLock):
 		minDistNewPoint(minDistNewPoint),
 		sensorMaxRange(sensorMaxRange),
 		priorDynamic(priorDynamic),
@@ -22,6 +22,8 @@ norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMax
 		computeProbDynamic(computeProbDynamic),
 		icp(icp),
 		icpMapLock(icpMapLock),
+		matcher(matcher),
+		matcherLock(matcherLock),
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
 		newLocalPointCloudAvailable(false),
 		localPointCloudEmpty(true),
@@ -122,6 +124,10 @@ void norlab_icp_mapper::Map::loadCells(int startRow, int endRow, int startColumn
 		icp.setMap(localPointCloud);
 		icpMapLock.unlock();
 
+		matcherLock.lock();
+		matcher->init(localPointCloud);
+		matcherLock.unlock();
+
 		localPointCloudEmpty.store(false);
 		newLocalPointCloudAvailable = true;
 	}
@@ -188,6 +194,13 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 	icpMapLock.lock();
 	icp.setMap(localPointCloud);
 	icpMapLock.unlock();
+
+	if(localPointCloud.getNbPoints() > 0)
+	{
+		matcherLock.lock();
+		matcher->init(localPointCloud);
+		matcherLock.unlock();
+	}
 
 	if(!loadedCellIds.empty())
 	{
@@ -506,7 +519,7 @@ norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getLocalPointClou
 	return localPointCloud;
 }
 
-void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters)
+void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters, CSVLine csvLine)
 {
 	if(computeProbDynamic)
 	{
@@ -527,6 +540,9 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 
 		PM::DataPoints inputPointsToKeep = retrievePointsFurtherThanMinDistNewPoint(input, localPointCloud, pose);
 		localPointCloud.concatenate(inputPointsToKeep);
+
+		csvLine.nbPointsAdded = inputPointsToKeep.getNbPoints();
+		logToCSV(csvLine);
 	}
 
 	PM::DataPoints localPointCloudInSensorFrame = transformation->compute(localPointCloud, pose.inverse());
@@ -536,6 +552,13 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 	icpMapLock.lock();
 	icp.setMap(localPointCloud);
 	icpMapLock.unlock();
+
+	if(localPointCloud.getNbPoints() > 0)
+	{
+		matcherLock.lock();
+		matcher->init(localPointCloud);
+		matcherLock.unlock();
+	}
 
 	localPointCloudEmpty.store(localPointCloud.getNbPoints() == 0);
 	newLocalPointCloudAvailable = true;
@@ -746,6 +769,13 @@ void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalP
 	icpMapLock.lock();
 	icp.setMap(localPointCloud);
 	icpMapLock.unlock();
+
+	if(localPointCloud.getNbPoints() > 0)
+	{
+		matcherLock.lock();
+		matcher->init(localPointCloud);
+		matcherLock.unlock();
+	}
 
 	localPointCloudEmpty.store(localPointCloud.getNbPoints() == 0);
 

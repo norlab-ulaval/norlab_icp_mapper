@@ -7,6 +7,7 @@
 #include <list>
 #include <unordered_set>
 #include "CellManager.h"
+#include "CSVLogger.h"
 
 namespace norlab_icp_mapper
 {
@@ -43,6 +44,8 @@ namespace norlab_icp_mapper
 		bool computeProbDynamic;
 		PM::ICPSequence& icp;
 		std::mutex& icpMapLock;
+		const std::shared_ptr<PM::Matcher>& matcher;
+		std::mutex& matcherLock;
 		PM::DataPoints localPointCloud;
 		std::mutex localPointCloudLock;
 		std::unique_ptr<CellManager> cellManager;
@@ -84,11 +87,12 @@ namespace norlab_icp_mapper
 	public:
 		Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle,
 			const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
-			const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp, std::mutex& icpMapLock);
+			const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp, std::mutex& icpMapLock,
+			const std::shared_ptr<PM::Matcher>& matcher, std::mutex& matcherLock);
 		~Map();
 		void updatePose(const PM::TransformationParameters& pose);
 		PM::DataPoints getLocalPointCloud();
-		void updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters);
+		void updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters, CSVLine csvLine);
 		bool getNewLocalPointCloud(PM::DataPoints& localPointCloudOut);
 		PM::DataPoints getGlobalPointCloud();
 		void setGlobalPointCloud(const PM::DataPoints& newLocalPointCloud);

@@ -16,7 +16,7 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 		isOnline(isOnline),
 		isMapping(isMapping),
 		map(minDistNewPoint, sensorMaxRange, priorDynamic, thresholdDynamic, beamHalfAngle, epsilonA, epsilonD, alpha, beta, is3D,
-			isOnline, computeProbDynamic, saveMapCellsOnHardDrive, icp, icpMapLock),
+			isOnline, computeProbDynamic, saveMapCellsOnHardDrive, icp, icpMapLock, matcher, matcherLock),
 		trajectory(is3D ? 3 : 2),
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation"))
 {
@@ -27,6 +27,20 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 	radiusFilterParams["dist"] = std::to_string(sensorMaxRange);
 	radiusFilterParams["removeInside"] = "0";
 	radiusFilter = PM::get().DataPointsFilterRegistrar.create("DistanceLimitDataPointsFilter", radiusFilterParams);
+
+	initializeCSVFile();
+
+	PM::Parameters matcherParams;
+	matcherParams["knn"] = "1";
+	matcherParams["maxDist"] = "1";
+	matcherParams["epsilon"] = "0";
+	matcher = PM::get().MatcherRegistrar.create("KDTreeMatcher", matcherParams);
+
+	PM::Parameters vicinityFilterParams;
+	vicinityFilterParams["dim"] = "-1";
+	vicinityFilterParams["dist"] = std::to_string(3.0);
+	vicinityFilterParams["removeInside"] = "0";
+	vicinityFilter = PM::get().DataPointsFilterRegistrar.create("DistanceLimitDataPointsFilter", vicinityFilterParams);
 }
 
 void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& inputFiltersConfigFilePath, const std::string& icpConfigFilePath,
@@ -72,7 +86,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
 		map.updatePose(correctedPose);
 
-		updateMap(input, correctedPose, timeStamp);
+		updateMap(input, correctedPose, timeStamp, CSVLine());
 	}
 	else
 	{
@@ -82,11 +96,27 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
 		correctedPose = correction * estimatedPose;
 
+		PM::DataPoints correctedInput = transformation->compute(input, correction);
+		PM::DataPoints localPointCloud = map.getLocalPointCloud();
+		matcherLock.lock();
+		PM::Matches matches(matcher->findClosests(correctedInput));
+		matcherLock.unlock();
+
+		Quaternion quaternion = convertRotationMatrixToQuaternion(correctedPose.topLeftCorner<3, 3>());
+		float meanResidual = computeMeanResidual(correctedInput, localPointCloud, matches);
+		int nbPointsVicinity = computeNbPointsVicinity(filteredInputInSensorFrame);
+
+		CSVLine csvLine = {timeStamp, correctedPose(0, 3), correctedPose(1, 3), correctedPose(2, 3), quaternion.w,
+						   quaternion.x, quaternion.y, quaternion.z, meanResidual, correction, -1, nbPointsVicinity};
 		map.updatePose(correctedPose);
 
-		if(shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
+		if(!shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
 		{
-			updateMap(transformation->compute(input, correction), correctedPose, timeStamp);
+			logToCSV(csvLine);
+		}
+		else
+		{
+			updateMap(correctedInput, correctedPose, timeStamp, csvLine);
 		}
 	}
 
@@ -98,6 +128,70 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 	trajectoryLock.lock();
 	trajectory.addPoint(correctedPose.topRightCorner(euclideanDim, 1));
 	trajectoryLock.unlock();
+}
+
+Quaternion norlab_icp_mapper::Mapper::convertRotationMatrixToQuaternion(const PM::TransformationParameters& matrix) const
+{
+	Quaternion q;
+
+	float trace = matrix(0, 0) + matrix(1, 1) + matrix(2, 2);
+	if(trace > 0)
+	{
+		float s = 0.5f / std::sqrt(trace + 1.0f);
+		q.w = 0.25f / s;
+		q.x = (matrix(2, 1) - matrix(1, 2)) * s;
+		q.y = (matrix(0, 2) - matrix(2, 0)) * s;
+		q.z = (matrix(1, 0) - matrix(0, 1)) * s;
+	}
+	else
+	{
+		if(matrix(0, 0) > matrix(1, 1) && matrix(0, 0) > matrix(2, 2))
+		{
+			float s = 2.0f * std::sqrt(1.0f + matrix(0, 0) - matrix(1, 1) - matrix(2, 2));
+			q.w = (matrix(2, 1) - matrix(1, 2)) / s;
+			q.x = 0.25f * s;
+			q.y = (matrix(0, 1) + matrix(1, 0)) / s;
+			q.z = (matrix(0, 2) + matrix(2, 0)) / s;
+		}
+		else if(matrix(1, 1) > matrix(2, 2))
+		{
+			float s = 2.0f * std::sqrt(1.0f + matrix(1, 1) - matrix(0, 0) - matrix(2, 2));
+			q.w = (matrix(0, 2) - matrix(2, 0)) / s;
+			q.x = (matrix(0, 1) + matrix(1, 0)) / s;
+			q.y = 0.25f * s;
+			q.z = (matrix(1, 2) + matrix(2, 1)) / s;
+		}
+		else
+		{
+			float s = 2.0f * std::sqrt(1.0f + matrix(2, 2) - matrix(0, 0) - matrix(1, 1));
+			q.w = (matrix(1, 0) - matrix(0, 1)) / s;
+			q.x = (matrix(0, 2) + matrix(2, 0)) / s;
+			q.y = (matrix(1, 2) + matrix(2, 1)) / s;
+			q.z = 0.25f * s;
+		}
+	}
+
+	return q;
+}
+
+float norlab_icp_mapper::Mapper::computeMeanResidual(const PM::DataPoints& correctedInput, const PM::DataPoints& localPointCloud, const PM::Matches& matches)
+const // TODO: Remove nans
+{
+	double error = 0;
+	for(int i = 0; i < matches.ids.cols(); i++)
+	{
+		Eigen::Vector3f inputPoint = correctedInput.features.col(i).head(3);
+		Eigen::Vector3f mapPoint = localPointCloud.features.col(matches.ids(0, i)).head(3);
+		Eigen::Vector3f normal = localPointCloud.getDescriptorViewByName("normals").col(matches.ids(0, i));
+		normal /= normal.norm();
+		error += std::fabs((mapPoint - inputPoint).dot(normal));
+	}
+	return (float)(error / (double)matches.ids.cols());
+}
+
+int norlab_icp_mapper::Mapper::computeNbPointsVicinity(const PM::DataPoints& filteredInputInSensorFrame) const
+{
+	return vicinityFilter->filter(filteredInputInSensorFrame).getNbPoints();
 }
 
 bool norlab_icp_mapper::Mapper::shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime,
@@ -135,18 +229,18 @@ bool norlab_icp_mapper::Mapper::shouldUpdateMap(const std::chrono::time_point<st
 }
 
 void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,
-										  const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp)
+										  const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp, const CSVLine& csvLine)
 {
 	lastTimeMapWasUpdated = currentTimeStamp;
 	lastPoseWhereMapWasUpdated = currentPose;
 
 	if(isOnline && !map.isLocalPointCloudEmpty())
 	{
-		mapUpdateFuture = std::async(std::launch::async, &Map::updateLocalPointCloud, &map, currentInput, currentPose, mapPostFilters);
+		mapUpdateFuture = std::async(std::launch::async, &Map::updateLocalPointCloud, &map, currentInput, currentPose, mapPostFilters, csvLine);
 	}
 	else
 	{
-		map.updateLocalPointCloud(currentInput, currentPose, mapPostFilters);
+		map.updateLocalPointCloud(currentInput, currentPose, mapPostFilters, csvLine);
 	}
 }
 
