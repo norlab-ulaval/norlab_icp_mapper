@@ -175,18 +175,24 @@ Quaternion norlab_icp_mapper::Mapper::convertRotationMatrixToQuaternion(const PM
 }
 
 float norlab_icp_mapper::Mapper::computeMeanResidual(const PM::DataPoints& correctedInput, const PM::DataPoints& localPointCloud, const PM::Matches& matches)
-const // TODO: Remove nans
+const
 {
 	double error = 0;
+	int nbValidPoints = 0;
 	for(int i = 0; i < matches.ids.cols(); i++)
 	{
 		Eigen::Vector3f inputPoint = correctedInput.features.col(i).head(3);
 		Eigen::Vector3f mapPoint = localPointCloud.features.col(matches.ids(0, i)).head(3);
 		Eigen::Vector3f normal = localPointCloud.getDescriptorViewByName("normals").col(matches.ids(0, i));
-		normal /= normal.norm();
-		error += std::fabs((mapPoint - inputPoint).dot(normal));
+		float normalNorm = normal.norm();
+		if(normalNorm > 0)
+		{
+			normal /= normalNorm;
+			error += std::fabs((mapPoint - inputPoint).dot(normal));
+			nbValidPoints++;
+		}
 	}
-	return (float)(error / (double)matches.ids.cols());
+	return (float)(error / (double)nbValidPoints);
 }
 
 int norlab_icp_mapper::Mapper::computeNbPointsVicinity(const PM::DataPoints& filteredInputInSensorFrame) const
