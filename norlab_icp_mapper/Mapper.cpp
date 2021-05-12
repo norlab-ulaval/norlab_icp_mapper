@@ -7,7 +7,7 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 								  const float& mapUpdateDelay, const float& mapUpdateDistance, const float& minDistNewPoint, const float& sensorMaxRange,
 								  const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle, const float& epsilonA,
 								  const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
-								  const bool& computeProbDynamic, const bool& isMapping, const bool& saveMapCellsOnHardDrive):
+								  const bool& computeProbDynamic, const bool& isMapping, const bool& saveMapCellsOnHardDrive, const std::string& csvFileName):
 		mapUpdateCondition(mapUpdateCondition),
 		mapUpdateOverlap(mapUpdateOverlap),
 		mapUpdateDelay(mapUpdateDelay),
@@ -15,8 +15,9 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 		is3D(is3D),
 		isOnline(isOnline),
 		isMapping(isMapping),
+		csvFileName(csvFileName),
 		map(minDistNewPoint, sensorMaxRange, priorDynamic, thresholdDynamic, beamHalfAngle, epsilonA, epsilonD, alpha, beta, is3D,
-			isOnline, computeProbDynamic, saveMapCellsOnHardDrive, icp, icpMapLock, matcher, matcherLock),
+			isOnline, computeProbDynamic, saveMapCellsOnHardDrive, icp, icpMapLock, matcher, matcherLock, csvFileName),
 		trajectory(is3D ? 3 : 2),
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation"))
 {
@@ -28,7 +29,7 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 	radiusFilterParams["removeInside"] = "0";
 	radiusFilter = PM::get().DataPointsFilterRegistrar.create("DistanceLimitDataPointsFilter", radiusFilterParams);
 
-	initializeCSVFile();
+	initializeCSVFile(csvFileName);
 
 	PM::Parameters matcherParams;
 	matcherParams["knn"] = "1";
@@ -112,7 +113,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
 		if(!shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
 		{
-			logToCSV(csvLine);
+			logToCSV(csvLine, csvFileName);
 		}
 		else
 		{

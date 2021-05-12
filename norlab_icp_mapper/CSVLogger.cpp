@@ -1,16 +1,16 @@
 #include <fstream>
 #include "CSVLogger.h"
 
-void initializeCSVFile()
+void initializeCSVFile(const std::string& csvFileName)
 {
-	std::ofstream file("/home/norlab/Desktop/mapping.csv");
+	std::ofstream file(csvFileName);
 	file << "t,x,y,z,qw,qx,qy,qz,mean_residual,T_icp,nb_points_added,nb_points_vicinity" << std::endl;
 	file.close();
 }
 
-void logToCSV(const CSVLine& line)
+void logToCSV(const CSVLine& line, const std::string& csvFileName)
 {
-	std::ofstream file("/home/norlab/Desktop/mapping.csv", std::ios::app);
+	std::ofstream file(csvFileName, std::ios::app);
 	file << line.t.time_since_epoch().count() << ","
 		 << line.x << ","
 		 << line.y << ","

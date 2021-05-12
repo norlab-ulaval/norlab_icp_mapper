@@ -22,10 +22,10 @@ typedef struct CSVLine
 	int nbPointsVicinity;
 } CSVLine;
 
-void initializeCSVFile();
+void initializeCSVFile(const std::string& csvFileName);
 
 std::string matrixToString(const PM::TransformationParameters& matrix);
 
-void logToCSV(const CSVLine& line);
+void logToCSV(const CSVLine& line, const std::string& csvFileName);
 
 #endif

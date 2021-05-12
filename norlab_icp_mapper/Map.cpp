@@ -7,7 +7,7 @@
 norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic,
 							const float& beamHalfAngle, const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D,
 							const bool& isOnline, const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp,
-							std::mutex& icpMapLock, const std::shared_ptr<PM::Matcher>& matcher, std::mutex& matcherLock):
+							std::mutex& icpMapLock, const std::shared_ptr<PM::Matcher>& matcher, std::mutex& matcherLock, const std::string& csvFileName):
 		minDistNewPoint(minDistNewPoint),
 		sensorMaxRange(sensorMaxRange),
 		priorDynamic(priorDynamic),
@@ -20,6 +20,7 @@ norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMax
 		is3D(is3D),
 		isOnline(isOnline),
 		computeProbDynamic(computeProbDynamic),
+		csvFileName(csvFileName),
 		icp(icp),
 		icpMapLock(icpMapLock),
 		matcher(matcher),
@@ -542,7 +543,7 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 		localPointCloud.concatenate(inputPointsToKeep);
 
 		csvLine.nbPointsAdded = inputPointsToKeep.getNbPoints();
-		logToCSV(csvLine);
+		logToCSV(csvLine, csvFileName);
 	}
 
 	PM::DataPoints localPointCloudInSensorFrame = transformation->compute(localPointCloud, pose.inverse());
