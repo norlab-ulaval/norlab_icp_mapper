@@ -182,17 +182,20 @@ const
 	int nbValidPoints = 0;
 	for(int i = 0; i < matches.ids.cols(); i++)
 	{
-		Eigen::Vector3f inputPoint = correctedInput.features.col(i).head(3);
-		Eigen::Vector3f mapPoint = localPointCloud.features.col(matches.ids(0, i)).head(3);
-		Eigen::Vector3f normal = localPointCloud.getDescriptorViewByName("normals").col(matches.ids(0, i));
-		float normalNorm = normal.norm();
-		if(normalNorm > 0)
+		if(matches.ids(0, i) != PM::Matches::InvalidId)
 		{
-			normal /= normalNorm;
-			error += std::fabs((mapPoint - inputPoint).dot(normal));
-			nbValidPoints++;
+			Eigen::Vector3f inputPoint = correctedInput.features.col(i).head(3);
+			Eigen::Vector3f mapPoint = localPointCloud.features.col(matches.ids(0, i)).head(3);
+			Eigen::Vector3f normal = localPointCloud.getDescriptorViewByName("normals").col(matches.ids(0, i));
+			float normalNorm = normal.norm();
+			if(normalNorm > 0)
+			{
+				error += std::fabs((mapPoint - inputPoint).dot(normal.normalized()));
+				nbValidPoints++;
+			}
 		}
 	}
+
 	return (float)(error / (double)nbValidPoints);
 }
 
