@@ -12,7 +12,7 @@ set(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${libpointmatcher_LIBRARIES})
 
 # norlab_icp_mapper target
 include_directories(norlab_icp_mapper ${libpointmatcher_INCLUDE_DIRS})
-add_library(norlab_icp_mapper SHARED norlab_icp_mapper/Mapper.cpp norlab_icp_mapper/Map.cpp norlab_icp_mapper/Trajectory.cpp norlab_icp_mapper/RAMCellManager.cpp norlab_icp_mapper/HardDriveCellManager.cpp norlab_icp_mapper/CSVLogger.cpp)
+add_library(norlab_icp_mapper norlab_icp_mapper/Mapper.cpp norlab_icp_mapper/Map.cpp norlab_icp_mapper/Trajectory.cpp norlab_icp_mapper/RAMCellManager.cpp norlab_icp_mapper/HardDriveCellManager.cpp norlab_icp_mapper/CSVLogger.cpp)
 target_link_libraries(norlab_icp_mapper ${libpointmatcher_LIBRARIES})
 
 # install target
