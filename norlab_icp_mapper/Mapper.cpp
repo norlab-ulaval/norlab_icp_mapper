@@ -2,6 +2,13 @@
 #include <fstream>
 #include <chrono>
 
+void log(const std::string& message)
+{
+    std::ofstream file("/home/dominic/Desktop/log.txt");
+    file << message << std::endl;
+    file.close();
+}
+
 norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath, const std::string& icpConfigFilePath,
 								  const std::string& mapPostFiltersConfigFilePath, const std::string& mapUpdateCondition, const float& mapUpdateOverlap,
 								  const float& mapUpdateDelay, const float& mapUpdateDistance, const float& minDistNewPoint, const float& sensorMaxRange,
@@ -83,10 +90,15 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 		correctedPose = correction * estimatedPose;
 
 		map.updatePose(correctedPose);
-
+        PM::DataPoints correctedInput = transformation->compute(input, correction);
+        std::string timeStr = std::to_string(timeStamp.time_since_epoch().count());
+        std::string path = *getenv("HOME") + "/Desktop/results_fr2021/" + timeStr + ".vtk";
+        std::cerr << path << std::endl;
+        log(path);
+        correctedInput.save(path);
 		if(shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
 		{
-			updateMap(transformation->compute(input, correction), correctedPose, timeStamp);
+			updateMap(correctedInput, correctedPose, timeStamp);
 		}
 	}
 
@@ -147,6 +159,8 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 	else
 	{
 		map.updateLocalPointCloud(currentInput, currentPose, mapPostFilters);
+
+
 	}
 }
 
