@@ -94,8 +94,6 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
         std::string timeStr = std::to_string(timeStamp.time_since_epoch().count());
         const char* home = getenv("HOME");
         std::string path = home + std::string("/Desktop/results_fr2021/") + timeStr + ".vtk";
-        std::cerr << path << std::endl;
-        log(path);
         correctedInput.save(path);
 		if(shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
 		{
