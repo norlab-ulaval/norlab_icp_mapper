@@ -9,6 +9,17 @@
 
 namespace norlab_icp_mapper
 {
+	typedef struct
+	{
+		unsigned nbPointsInputBeforeFiltering;
+		unsigned nbPointsInputAfterFiltering;
+		float inputFilteringTime;
+		unsigned nbPointsReference;
+		float estimatedOverlap;
+		float processingTime;
+		float processingTimePercentage;
+	} DiagnosticInformation;
+
 	class Mapper
 	{
 	private:
@@ -35,6 +46,7 @@ namespace norlab_icp_mapper
 		std::mutex trajectoryLock;
 		std::mutex icpMapLock;
 		std::future<void> mapUpdateFuture;
+		std::chrono::time_point<std::chrono::steady_clock> lastTimeStamp;
 
 		bool shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime, const PM::TransformationParameters& currentPose,
 							 const float& currentOverlap) const;
@@ -49,7 +61,7 @@ namespace norlab_icp_mapper
 			   const bool& computeProbDynamic, const bool& isMapping, const bool& saveMapCellsOnHardDrive);
 		void loadYamlConfig(const std::string& inputFiltersConfigFilePath, const std::string& icpConfigFilePath,
 							const std::string& mapPostFiltersConfigFilePath);
-		void processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,
+		DiagnosticInformation processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,
 						  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp);
 		PM::DataPoints getMap();
 		void setMap(const PM::DataPoints& newMap);

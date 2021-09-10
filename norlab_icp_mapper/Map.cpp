@@ -757,3 +757,9 @@ bool norlab_icp_mapper::Map::isLocalPointCloudEmpty() const
 {
 	return localPointCloudEmpty.load();
 }
+
+unsigned norlab_icp_mapper::Map::getNbPointsLocalPointCloud()
+{
+	std::lock_guard<std::mutex> lock(icpMapLock);
+	return icp.getPrefilteredInternalMap().getNbPoints();
+}
