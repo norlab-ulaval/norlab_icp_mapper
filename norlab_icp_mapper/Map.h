@@ -92,6 +92,7 @@ namespace norlab_icp_mapper
 		bool getNewLocalPointCloud(PM::DataPoints& localPointCloudOut);
 		PM::DataPoints getGlobalPointCloud();
 		void setGlobalPointCloud(const PM::DataPoints& newLocalPointCloud);
+		void clearGlobalPointCloud();
 		bool isLocalPointCloudEmpty() const;
 		unsigned getNbPointsLocalPointCloud();
 	};

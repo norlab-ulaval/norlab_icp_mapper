@@ -189,7 +189,7 @@ void norlab_icp_mapper::Mapper::setMap(const PM::DataPoints& newMap)
 
 void norlab_icp_mapper::Mapper::clearMap()
 {
-	map.setGlobalPointCloud(PM::DataPoints());
+	map.clearGlobalPointCloud();
 }
 
 bool norlab_icp_mapper::Mapper::getNewLocalMap(PM::DataPoints& mapOut)

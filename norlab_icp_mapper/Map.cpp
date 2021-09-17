@@ -30,11 +30,11 @@ norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMax
 {
 	if(saveCellsOnHardDrive)
 	{
-		cellManager = std::unique_ptr<CellManager>(new HardDriveCellManager());
+		cellManager = std::unique_ptr<CellManager>(new HardDriveCellManager);
 	}
 	else
 	{
-		cellManager = std::unique_ptr<CellManager>(new RAMCellManager());
+		cellManager = std::unique_ptr<CellManager>(new RAMCellManager);
 	}
 
 	if(isOnline)
@@ -748,6 +748,21 @@ void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalP
 	icpMapLock.unlock();
 
 	localPointCloudEmpty.store(localPointCloud.getNbPoints() == 0);
+
+	firstPoseUpdate.store(true);
+	localPointCloudLock.unlock();
+}
+
+void norlab_icp_mapper::Map::clearGlobalPointCloud()
+{
+	localPointCloudLock.lock();
+	localPointCloud = PM::DataPoints();
+
+	icpMapLock.lock();
+	icp.setMap(localPointCloud);
+	icpMapLock.unlock();
+
+	localPointCloudEmpty.store(true);
 
 	firstPoseUpdate.store(true);
 	localPointCloudLock.unlock();
