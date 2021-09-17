@@ -65,6 +65,7 @@ namespace norlab_icp_mapper
 						  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp);
 		PM::DataPoints getMap();
 		void setMap(const PM::DataPoints& newMap);
+		void clearMap();
 		bool getNewLocalMap(PM::DataPoints& mapOut);
 		PM::TransformationParameters getPose();
 		bool getIsMapping() const;

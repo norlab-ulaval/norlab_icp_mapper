@@ -187,6 +187,11 @@ void norlab_icp_mapper::Mapper::setMap(const PM::DataPoints& newMap)
 	trajectoryLock.unlock();
 }
 
+void norlab_icp_mapper::Mapper::clearMap()
+{
+	map.setGlobalPointCloud(PM::DataPoints());
+}
+
 bool norlab_icp_mapper::Mapper::getNewLocalMap(PM::DataPoints& mapOut)
 {
 	return map.getNewLocalPointCloud(mapOut);
