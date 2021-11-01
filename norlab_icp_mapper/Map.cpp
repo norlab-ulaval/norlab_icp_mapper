@@ -323,7 +323,7 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& newP
 			if(toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) < inferiorRowLastUpdateIndex)
 			{
 				int nbRows = inferiorRowLastUpdateIndex - toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange);
-				int startRow = toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) - 2;
+				int startRow = toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) - BUFFER_SIZE;
 				int endRow = toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) - BUFFER_SIZE + nbRows - 1;
 				int startColumn = inferiorColumnLastUpdateIndex - BUFFER_SIZE;
 				int endColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE;
