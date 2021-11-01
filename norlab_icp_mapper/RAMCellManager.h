@@ -2,19 +2,17 @@
 #define RAM_CELL_MANAGER_H
 
 #include "CellManager.h"
-#include <unordered_map>
 
 namespace norlab_icp_mapper
 {
 	class RAMCellManager : public CellManager
 	{
 	private:
-		std::unordered_map<std::string, PM::DataPoints> cells;
+		std::unordered_map<CellInfo, PM::DataPoints> cells;
 
 	public:
-		std::vector<std::string> getAllCellIds() const override;
-		void saveCell(const std::string& cellId, const PM::DataPoints& cell) override;
-		PM::DataPoints retrieveCell(const std::string& cellId) const override;
+		void saveCell(const CellInfo& cellInfo, const PM::DataPoints& cell) override;
+		std::pair<CellInfo, PM::DataPoints> retrieveCell(const int& row, const int& column, const int& aisle, const int& depth) const override;
 		void clearAllCells() override;
 	};
 }

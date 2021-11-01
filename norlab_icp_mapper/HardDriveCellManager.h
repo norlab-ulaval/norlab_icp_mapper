@@ -2,7 +2,6 @@
 #define HARD_DRIVE_CELL_MANAGER_H
 
 #include "CellManager.h"
-#include <unordered_set>
 
 namespace norlab_icp_mapper
 {
@@ -12,13 +11,11 @@ namespace norlab_icp_mapper
 		const std::string CELL_FOLDER = "/tmp/";
 		const std::string CELL_FILE_NAME_PREFIX = "cell_";
 		const std::string CELL_FILE_NAME_SUFFIX = ".vtk";
-		std::unordered_set<std::string> cellIds;
 
 	public:
 		~HardDriveCellManager() override;
-		std::vector<std::string> getAllCellIds() const override;
-		void saveCell(const std::string& cellId, const PM::DataPoints& cell) override;
-		PM::DataPoints retrieveCell(const std::string& cellId) const override;
+		void saveCell(const CellInfo& cellInfo, const PM::DataPoints& cell) override;
+		std::pair<CellInfo, PM::DataPoints> retrieveCell(const int& row, const int& column, const int& aisle, const int& depth) const override;
 		void clearAllCells() override;
 	};
 }

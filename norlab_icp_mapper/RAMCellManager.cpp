@@ -1,31 +1,25 @@
 #include "RAMCellManager.h"
 
-std::vector<std::string> norlab_icp_mapper::RAMCellManager::getAllCellIds() const
+void norlab_icp_mapper::RAMCellManager::saveCell(const CellInfo& cellInfo, const PM::DataPoints& cell)
 {
-	std::vector<std::string> cellIds;
-	for(const auto& cell : cells)
-	{
-		cellIds.push_back(cell.first);
-	}
-	return cellIds;
+	cellInfos.insert(cellInfo);
+	cells[cellInfo] = cell;
 }
 
-void norlab_icp_mapper::RAMCellManager::saveCell(const std::string& cellId, const PM::DataPoints& cell)
+std::pair<norlab_icp_mapper::CellInfo, norlab_icp_mapper::CellManager::PM::DataPoints> norlab_icp_mapper::RAMCellManager::retrieveCell(const int& row, const int& column,
+																																	   const int& aisle, const int& depth) const
 {
-	cells[cellId] = cell;
-}
-
-norlab_icp_mapper::CellManager::PM::DataPoints norlab_icp_mapper::RAMCellManager::retrieveCell(const std::string& cellId) const
-{
+	CellInfo cellInfo = computeInfoOfCellToRetrieve(row, column, aisle, depth);
 	PM::DataPoints cell;
-	if(cells.find(cellId) != cells.end())
+	if(cellInfo.depth != INVALID_CELL_DEPTH)
 	{
-		cell = cells.at(cellId);
+		cell = cells.at(cellInfo);
 	}
-	return cell;
+	return std::make_pair(cellInfo, cell);
 }
 
 void norlab_icp_mapper::RAMCellManager::clearAllCells()
 {
+	cellInfos.clear();
 	cells.clear();
 }

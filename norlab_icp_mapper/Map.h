@@ -47,7 +47,7 @@ namespace norlab_icp_mapper
 		std::mutex localPointCloudLock;
 		std::unique_ptr<CellManager> cellManager;
 		std::mutex cellManagerLock;
-		std::unordered_set<std::string> loadedCellIds;
+		std::unordered_set<CellInfo> loadedCellInfos;
 		std::shared_ptr<PM::Transformation> transformation;
 		int inferiorRowLastUpdateIndex;
 		int superiorRowLastUpdateIndex;
@@ -66,9 +66,10 @@ namespace norlab_icp_mapper
 		void updateThreadFunction();
 		void applyUpdate(const Update& update);
 		void loadCells(int startRow, int endRow, int startColumn, int endColumn, int startAisle, int endAisle);
+		int computeCurrentDepth(const std::unordered_set<CellInfo>& currentlyLoadedCellInfos) const;
+		void unloadCells(int startRow, int endRow, int startColumn, int endColumn, int startAisle, int endAisle);
 		float toInferiorWorldCoordinate(const int& gridCoordinate) const;
 		float toSuperiorWorldCoordinate(const int& gridCoordinate) const;
-		void unloadCells(int startRow, int endRow, int startColumn, int endColumn, int startAisle, int endAisle);
 		int toGridCoordinate(const float& worldCoordinate) const;
 		int getMinGridCoordinate() const;
 		int getMaxGridCoordinate() const;
@@ -86,7 +87,7 @@ namespace norlab_icp_mapper
 			const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
 			const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp, std::mutex& icpMapLock);
 		~Map();
-		void updatePose(const PM::TransformationParameters& pose);
+		void updatePose(const PM::TransformationParameters& newPose);
 		PM::DataPoints getLocalPointCloud();
 		void updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters);
 		bool getNewLocalPointCloud(PM::DataPoints& localPointCloudOut);

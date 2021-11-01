@@ -3,11 +3,20 @@
 #include "HardDriveCellManager.h"
 #include <nabo/nabo.h>
 #include <unordered_map>
+#include "CellInfo.h"
+
+struct CoordinateHashFunction : public std::unary_function<std::tuple<int, int, int>, std::size_t>
+{
+	std::size_t operator()(const std::tuple<int, int, int>& tuple) const
+	{
+		return std::hash<std::string>()(std::to_string(std::get<0>(tuple)) + std::to_string(std::get<1>(tuple)) + std::to_string(std::get<2>(tuple)));
+	}
+};
 
 norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic,
 							const float& beamHalfAngle, const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D,
 							const bool& isOnline, const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp,
-							std::mutex& icpMapLock):
+							std::mutex& icpMapLock) :
 		minDistNewPoint(minDistNewPoint),
 		sensorMaxRange(sensorMaxRange),
 		priorDynamic(priorDynamic),
@@ -87,7 +96,13 @@ void norlab_icp_mapper::Map::loadCells(int startRow, int endRow, int startColumn
 		endAisle = 0;
 	}
 
-	PM::DataPoints newChunk;
+	localPointCloudLock.lock();
+	std::unordered_set<CellInfo> currentlyLoadedCellInfos = loadedCellInfos;
+	localPointCloudLock.unlock();
+	int depthToRetrieve = computeCurrentDepth(currentlyLoadedCellInfos) + 1;
+
+	std::unordered_set<CellInfo> newCellInfos;
+	PM::DataPoints newCells;
 	for(int i = startRow; i <= endRow; i++)
 	{
 		for(int j = startColumn; j <= endColumn; j++)
@@ -95,28 +110,33 @@ void norlab_icp_mapper::Map::loadCells(int startRow, int endRow, int startColumn
 			for(int k = startAisle; k <= endAisle; k++)
 			{
 				cellManagerLock.lock();
-				PM::DataPoints cell = cellManager->retrieveCell(std::to_string(i) + "_" + std::to_string(j) + "_" + std::to_string(k));
+				std::pair<CellInfo, PM::DataPoints> cell = cellManager->retrieveCell(i, j, k, depthToRetrieve);
 				cellManagerLock.unlock();
 
-				if(cell.getNbPoints() > 0)
+				if(cell.second.getNbPoints() > 0)
 				{
-					if(newChunk.getNbPoints() == 0)
+					if(newCells.getNbPoints() == 0)
 					{
-						newChunk = cell;
+						newCells = cell.second;
 					}
 					else
 					{
-						newChunk.concatenate(cell);
+						newCells.concatenate(cell.second);
 					}
+					newCellInfos.insert(cell.first);
+				}
+				else
+				{
+					newCellInfos.insert(CellInfo(i, j, k, depthToRetrieve));
 				}
 			}
 		}
 	}
 
 	localPointCloudLock.lock();
-	if(newChunk.getNbPoints() > 0)
+	if(newCells.getNbPoints() > 0)
 	{
-		localPointCloud.concatenate(newChunk);
+		localPointCloud.concatenate(newCells);
 
 		icpMapLock.lock();
 		icp.setMap(localPointCloud);
@@ -125,27 +145,26 @@ void norlab_icp_mapper::Map::loadCells(int startRow, int endRow, int startColumn
 		localPointCloudEmpty.store(false);
 		newLocalPointCloudAvailable = true;
 	}
-	for(int i = startRow; i <= endRow; i++)
-	{
-		for(int j = startColumn; j <= endColumn; j++)
-		{
-			for(int k = startAisle; k <= endAisle; k++)
-			{
-				loadedCellIds.insert(std::to_string(i) + "_" + std::to_string(j) + "_" + std::to_string(k));
-			}
-		}
-	}
+	loadedCellInfos.insert(newCellInfos.begin(), newCellInfos.end());
 	localPointCloudLock.unlock();
 }
 
-float norlab_icp_mapper::Map::toInferiorWorldCoordinate(const int& gridCoordinate) const
+int norlab_icp_mapper::Map::computeCurrentDepth(const std::unordered_set<CellInfo>& currentlyLoadedCellInfos) const
 {
-	return gridCoordinate * CELL_SIZE;
-}
+	if(currentlyLoadedCellInfos.empty())
+	{
+		return 0;
+	}
 
-float norlab_icp_mapper::Map::toSuperiorWorldCoordinate(const int& gridCoordinate) const
-{
-	return (gridCoordinate + 1) * CELL_SIZE;
+	int minimumDepth = std::numeric_limits<int>::max();
+	for(const CellInfo& cellInfo: currentlyLoadedCellInfos)
+	{
+		if(cellInfo.depth < minimumDepth)
+		{
+			minimumDepth = cellInfo.depth;
+		}
+	}
+	return minimumDepth;
 }
 
 void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColumn, int endColumn, int startAisle, int endAisle)
@@ -164,18 +183,21 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 	float endZ = toSuperiorWorldCoordinate(endAisle);
 
 	int localPointCloudNbPoints = 0;
-	int oldChunkNbPoints = 0;
+	int oldCellsNbPoints = 0;
 
 	localPointCloudLock.lock();
 
-	PM::DataPoints oldChunk = localPointCloud.createSimilarEmpty();
+	// check for cellDepth descriptor
+	// delete it if present
+
+	PM::DataPoints oldCells = localPointCloud.createSimilarEmpty();
 	for(int i = 0; i < localPointCloud.features.cols(); i++)
 	{
 		if(localPointCloud.features(0, i) >= startX && localPointCloud.features(0, i) < endX && localPointCloud.features(1, i) >= startY &&
 		   localPointCloud.features(1, i) < endY && localPointCloud.features(2, i) >= startZ && localPointCloud.features(2, i) < endZ)
 		{
-			oldChunk.setColFrom(oldChunkNbPoints, localPointCloud, i);
-			oldChunkNbPoints++;
+			oldCells.setColFrom(oldCellsNbPoints, localPointCloud, i);
+			oldCellsNbPoints++;
 		}
 		else
 		{
@@ -189,17 +211,19 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 	icp.setMap(localPointCloud);
 	icpMapLock.unlock();
 
-	if(!loadedCellIds.empty())
+	std::unordered_map<std::tuple<int, int, int>, int, CoordinateHashFunction> oldCellDepths;
+	std::unordered_set<CellInfo>::const_iterator cellInfoIterator = loadedCellInfos.begin();
+	while(cellInfoIterator != loadedCellInfos.end())
 	{
-		for(int i = startRow; i <= endRow; i++)
+		if(cellInfoIterator->row >= startRow && cellInfoIterator->row <= endRow && cellInfoIterator->column >= startColumn &&
+		   cellInfoIterator->column <= endColumn && cellInfoIterator->aisle >= startAisle && cellInfoIterator->aisle <= endAisle)
 		{
-			for(int j = startColumn; j <= endColumn; j++)
-			{
-				for(int k = startAisle; k <= endAisle; k++)
-				{
-					loadedCellIds.erase(std::to_string(i) + "_" + std::to_string(j) + "_" + std::to_string(k));
-				}
-			}
+			oldCellDepths[std::make_tuple(cellInfoIterator->row, cellInfoIterator->column, cellInfoIterator->aisle)] = cellInfoIterator->depth;
+			cellInfoIterator = loadedCellInfos.erase(cellInfoIterator);
+		}
+		else
+		{
+			++cellInfoIterator;
 		}
 	}
 
@@ -208,24 +232,25 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 
 	localPointCloudLock.unlock();
 
-	oldChunk.conservativeResize(oldChunkNbPoints);
+	oldCells.conservativeResize(oldCellsNbPoints);
 
-	std::unordered_map<std::string, PM::DataPoints> cells;
-	std::unordered_map<std::string, int> cellPointCounts;
-	for(int i = 0; i < oldChunk.getNbPoints(); i++)
+	std::unordered_map<CellInfo, PM::DataPoints> cells;
+	std::unordered_map<CellInfo, int> cellPointCounts;
+	for(int i = 0; i < oldCells.getNbPoints(); i++)
 	{
-		int row = toGridCoordinate(oldChunk.features(0, i));
-		int column = toGridCoordinate(oldChunk.features(1, i));
-		int aisle = toGridCoordinate(oldChunk.features(2, i));
-		std::string cellId = std::to_string(row) + "_" + std::to_string(column) + "_" + std::to_string(aisle);
+		int row = toGridCoordinate(oldCells.features(0, i));
+		int column = toGridCoordinate(oldCells.features(1, i));
+		int aisle = toGridCoordinate(oldCells.features(2, i));
+		int depth = oldCellDepths.at(std::make_tuple(row, column, aisle));
+		CellInfo cellInfo(row, column, aisle, depth);
 
-		if(cells[cellId].getNbPoints() == 0)
+		if(cells[cellInfo].getNbPoints() == 0)
 		{
-			cells[cellId] = oldChunk.createSimilarEmpty();
+			cells[cellInfo] = oldCells.createSimilarEmpty();
 		}
 
-		cells[cellId].setColFrom(cellPointCounts[cellId], oldChunk, i);
-		cellPointCounts[cellId]++;
+		cells[cellInfo].setColFrom(cellPointCounts[cellInfo], oldCells, i);
+		cellPointCounts[cellInfo]++;
 	}
 	for(auto& cell: cells)
 	{
@@ -234,6 +259,16 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 		cellManager->saveCell(cell.first, cell.second);
 		cellManagerLock.unlock();
 	}
+}
+
+float norlab_icp_mapper::Map::toInferiorWorldCoordinate(const int& gridCoordinate) const
+{
+	return gridCoordinate * CELL_SIZE;
+}
+
+float norlab_icp_mapper::Map::toSuperiorWorldCoordinate(const int& gridCoordinate) const
+{
+	return (gridCoordinate + 1) * CELL_SIZE;
 }
 
 int norlab_icp_mapper::Map::toGridCoordinate(const float& worldCoordinate) const
@@ -250,26 +285,26 @@ norlab_icp_mapper::Map::~Map()
 	}
 }
 
-void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose)
+void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& newPose)
 {
 	int positionColumn = is3D ? 3 : 2;
 	if(firstPoseUpdate.load())
 	{
-		inferiorRowLastUpdateIndex = toInferiorGridCoordinate(pose(0, positionColumn), sensorMaxRange);
-		superiorRowLastUpdateIndex = toSuperiorGridCoordinate(pose(0, positionColumn), sensorMaxRange);
-		inferiorColumnLastUpdateIndex = toInferiorGridCoordinate(pose(1, positionColumn), sensorMaxRange);
-		superiorColumnLastUpdateIndex = toSuperiorGridCoordinate(pose(1, positionColumn), sensorMaxRange);
+		inferiorRowLastUpdateIndex = toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange);
+		superiorRowLastUpdateIndex = toSuperiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange);
+		inferiorColumnLastUpdateIndex = toInferiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange);
+		superiorColumnLastUpdateIndex = toSuperiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange);
 		if(is3D)
 		{
-			inferiorAisleLastUpdateIndex = toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange);
-			superiorAisleLastUpdateIndex = toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange);
+			inferiorAisleLastUpdateIndex = toInferiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange);
+			superiorAisleLastUpdateIndex = toSuperiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange);
 		}
 
 		cellManagerLock.lock();
 		cellManager->clearAllCells();
 		cellManagerLock.unlock();
 		localPointCloudLock.lock();
-		loadedCellIds.clear();
+		loadedCellInfos.clear();
 		localPointCloudLock.unlock();
 
 		unloadCells(getMinGridCoordinate(), getMaxGridCoordinate(), getMinGridCoordinate(),
@@ -282,14 +317,14 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
 	else
 	{
 		// manage cells in the back
-		if(std::abs(toInferiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) - inferiorRowLastUpdateIndex) >= 2)
+		if(std::abs(toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) - inferiorRowLastUpdateIndex) >= 2)
 		{
 			// move back
-			if(toInferiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) < inferiorRowLastUpdateIndex)
+			if(toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) < inferiorRowLastUpdateIndex)
 			{
-				int nbRows = inferiorRowLastUpdateIndex - toInferiorGridCoordinate(pose(0, positionColumn), sensorMaxRange);
-				int startRow = toInferiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) - 2;
-				int endRow = toInferiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) - BUFFER_SIZE + nbRows - 1;
+				int nbRows = inferiorRowLastUpdateIndex - toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange);
+				int startRow = toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) - 2;
+				int endRow = toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) - BUFFER_SIZE + nbRows - 1;
 				int startColumn = inferiorColumnLastUpdateIndex - BUFFER_SIZE;
 				int endColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE;
 				int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
@@ -297,9 +332,9 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
 				scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
 			}
 			// move front
-			if(toInferiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) > inferiorRowLastUpdateIndex)
+			if(toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) > inferiorRowLastUpdateIndex)
 			{
-				int nbRows = toInferiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) - inferiorRowLastUpdateIndex;
+				int nbRows = toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) - inferiorRowLastUpdateIndex;
 				int startRow = inferiorRowLastUpdateIndex - BUFFER_SIZE;
 				int endRow = inferiorRowLastUpdateIndex - BUFFER_SIZE + nbRows - 1;
 				int startColumn = inferiorColumnLastUpdateIndex - BUFFER_SIZE;
@@ -308,16 +343,16 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
 				int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
 				scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
 			}
-			inferiorRowLastUpdateIndex = toInferiorGridCoordinate(pose(0, positionColumn), sensorMaxRange);
+			inferiorRowLastUpdateIndex = toInferiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange);
 		}
 
 		// manage cells in front
-		if(std::abs(toSuperiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) - superiorRowLastUpdateIndex) >= 2)
+		if(std::abs(toSuperiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) - superiorRowLastUpdateIndex) >= 2)
 		{
 			// move back
-			if(toSuperiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) < superiorRowLastUpdateIndex)
+			if(toSuperiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) < superiorRowLastUpdateIndex)
 			{
-				int nbRows = superiorRowLastUpdateIndex - toSuperiorGridCoordinate(pose(0, positionColumn), sensorMaxRange);
+				int nbRows = superiorRowLastUpdateIndex - toSuperiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange);
 				int startRow = superiorRowLastUpdateIndex + BUFFER_SIZE - nbRows + 1;
 				int endRow = superiorRowLastUpdateIndex + BUFFER_SIZE;
 				int startColumn = inferiorColumnLastUpdateIndex - BUFFER_SIZE;
@@ -327,59 +362,59 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
 				scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
 			}
 			// move front
-			if(toSuperiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) > superiorRowLastUpdateIndex)
+			if(toSuperiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) > superiorRowLastUpdateIndex)
 			{
-				int nbRows = toSuperiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) - superiorRowLastUpdateIndex;
-				int startRow = toSuperiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) + BUFFER_SIZE - nbRows + 1;
-				int endRow = toSuperiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) + BUFFER_SIZE;
+				int nbRows = toSuperiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) - superiorRowLastUpdateIndex;
+				int startRow = toSuperiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) + BUFFER_SIZE - nbRows + 1;
+				int endRow = toSuperiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange) + BUFFER_SIZE;
 				int startColumn = inferiorColumnLastUpdateIndex - BUFFER_SIZE;
 				int endColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE;
 				int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
 				int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
 				scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
 			}
-			superiorRowLastUpdateIndex = toSuperiorGridCoordinate(pose(0, positionColumn), sensorMaxRange);
+			superiorRowLastUpdateIndex = toSuperiorGridCoordinate(newPose(0, positionColumn), sensorMaxRange);
 		}
 
 		// update cells to the right
-		if(std::abs(toInferiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) - inferiorColumnLastUpdateIndex) >= 2)
+		if(std::abs(toInferiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange) - inferiorColumnLastUpdateIndex) >= 2)
 		{
 			// move right
-			if(toInferiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) < inferiorColumnLastUpdateIndex)
+			if(toInferiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange) < inferiorColumnLastUpdateIndex)
 			{
 				int startRow = inferiorRowLastUpdateIndex - BUFFER_SIZE;
 				int endRow = superiorRowLastUpdateIndex + BUFFER_SIZE;
-				int nbColumns = inferiorColumnLastUpdateIndex - toInferiorGridCoordinate(pose(1, positionColumn), sensorMaxRange);
-				int startColumn = toInferiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) - BUFFER_SIZE;
-				int endColumn = toInferiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) - BUFFER_SIZE + nbColumns - 1;
+				int nbColumns = inferiorColumnLastUpdateIndex - toInferiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange);
+				int startColumn = toInferiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange) - BUFFER_SIZE;
+				int endColumn = toInferiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange) - BUFFER_SIZE + nbColumns - 1;
 				int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
 				int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
 				scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
 			}
 			// move left
-			if(toInferiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) > inferiorColumnLastUpdateIndex)
+			if(toInferiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange) > inferiorColumnLastUpdateIndex)
 			{
 				int startRow = inferiorRowLastUpdateIndex - BUFFER_SIZE;
 				int endRow = superiorRowLastUpdateIndex + BUFFER_SIZE;
-				int nbColumns = toInferiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) - inferiorColumnLastUpdateIndex;
+				int nbColumns = toInferiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange) - inferiorColumnLastUpdateIndex;
 				int startColumn = inferiorColumnLastUpdateIndex - BUFFER_SIZE;
 				int endColumn = inferiorColumnLastUpdateIndex - BUFFER_SIZE + nbColumns - 1;
 				int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
 				int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
 				scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
 			}
-			inferiorColumnLastUpdateIndex = toInferiorGridCoordinate(pose(1, positionColumn), sensorMaxRange);
+			inferiorColumnLastUpdateIndex = toInferiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange);
 		}
 
 		// update cells to the left
-		if(std::abs(toSuperiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) - superiorColumnLastUpdateIndex) >= 2)
+		if(std::abs(toSuperiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange) - superiorColumnLastUpdateIndex) >= 2)
 		{
 			// move right
-			if(toSuperiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) < superiorColumnLastUpdateIndex)
+			if(toSuperiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange) < superiorColumnLastUpdateIndex)
 			{
 				int startRow = inferiorRowLastUpdateIndex - BUFFER_SIZE;
 				int endRow = superiorRowLastUpdateIndex + BUFFER_SIZE;
-				int nbColumns = superiorColumnLastUpdateIndex - toSuperiorGridCoordinate(pose(1, positionColumn), sensorMaxRange);
+				int nbColumns = superiorColumnLastUpdateIndex - toSuperiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange);
 				int startColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE - nbColumns + 1;
 				int endColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE;
 				int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
@@ -387,80 +422,80 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
 				scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
 			}
 			// move left
-			if(toSuperiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) > superiorColumnLastUpdateIndex)
+			if(toSuperiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange) > superiorColumnLastUpdateIndex)
 			{
 				int startRow = inferiorRowLastUpdateIndex - BUFFER_SIZE;
 				int endRow = superiorRowLastUpdateIndex + BUFFER_SIZE;
-				int nbColumns = toSuperiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) - superiorColumnLastUpdateIndex;
-				int startColumn = toSuperiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) + BUFFER_SIZE - nbColumns + 1;
-				int endColumn = toSuperiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) + BUFFER_SIZE;
+				int nbColumns = toSuperiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange) - superiorColumnLastUpdateIndex;
+				int startColumn = toSuperiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange) + BUFFER_SIZE - nbColumns + 1;
+				int endColumn = toSuperiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange) + BUFFER_SIZE;
 				int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
 				int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
 				scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
 			}
-			superiorColumnLastUpdateIndex = toSuperiorGridCoordinate(pose(1, positionColumn), sensorMaxRange);
+			superiorColumnLastUpdateIndex = toSuperiorGridCoordinate(newPose(1, positionColumn), sensorMaxRange);
 		}
 
 		if(is3D)
 		{
 			// update cells below
-			if(std::abs(toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) - inferiorAisleLastUpdateIndex) >= 2)
+			if(std::abs(toInferiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange) - inferiorAisleLastUpdateIndex) >= 2)
 			{
 				// move down
-				if(toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) < inferiorAisleLastUpdateIndex)
+				if(toInferiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange) < inferiorAisleLastUpdateIndex)
 				{
 					int startRow = inferiorRowLastUpdateIndex - BUFFER_SIZE;
 					int endRow = superiorRowLastUpdateIndex + BUFFER_SIZE;
 					int startColumn = inferiorColumnLastUpdateIndex - BUFFER_SIZE;
 					int endColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE;
-					int nbAisles = inferiorAisleLastUpdateIndex - toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange);
-					int startAisle = toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) - BUFFER_SIZE;
-					int endAisle = toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) - BUFFER_SIZE + nbAisles - 1;
+					int nbAisles = inferiorAisleLastUpdateIndex - toInferiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange);
+					int startAisle = toInferiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange) - BUFFER_SIZE;
+					int endAisle = toInferiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange) - BUFFER_SIZE + nbAisles - 1;
 					scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
 				}
 				// move up
-				if(toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) > inferiorAisleLastUpdateIndex)
+				if(toInferiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange) > inferiorAisleLastUpdateIndex)
 				{
 					int startRow = inferiorRowLastUpdateIndex - BUFFER_SIZE;
 					int endRow = superiorRowLastUpdateIndex + BUFFER_SIZE;
 					int startColumn = inferiorColumnLastUpdateIndex - BUFFER_SIZE;
 					int endColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE;
-					int nbAisles = toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) - inferiorAisleLastUpdateIndex;
+					int nbAisles = toInferiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange) - inferiorAisleLastUpdateIndex;
 					int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
 					int endAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE + nbAisles - 1;
 					scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
 				}
-				inferiorAisleLastUpdateIndex = toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange);
+				inferiorAisleLastUpdateIndex = toInferiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange);
 			}
 
 			// update cells above
-			if(std::abs(toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) - superiorAisleLastUpdateIndex) >= 2)
+			if(std::abs(toSuperiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange) - superiorAisleLastUpdateIndex) >= 2)
 			{
 				// move down
-				if(toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) < superiorAisleLastUpdateIndex)
+				if(toSuperiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange) < superiorAisleLastUpdateIndex)
 				{
 					int startRow = inferiorRowLastUpdateIndex - BUFFER_SIZE;
 					int endRow = superiorRowLastUpdateIndex + BUFFER_SIZE;
 					int startColumn = inferiorColumnLastUpdateIndex - BUFFER_SIZE;
 					int endColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE;
-					int nbAisles = superiorAisleLastUpdateIndex - toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange);
+					int nbAisles = superiorAisleLastUpdateIndex - toSuperiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange);
 					int startAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE - nbAisles + 1;
 					int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
 					scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
 				}
 				// move up
-				if(toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) > superiorAisleLastUpdateIndex)
+				if(toSuperiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange) > superiorAisleLastUpdateIndex)
 				{
 					int startRow = inferiorRowLastUpdateIndex - BUFFER_SIZE;
 					int endRow = superiorRowLastUpdateIndex + BUFFER_SIZE;
 					int startColumn = inferiorColumnLastUpdateIndex - BUFFER_SIZE;
 					int endColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE;
-					int nbAisles = toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) - superiorAisleLastUpdateIndex;
-					int startAisle = toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) + BUFFER_SIZE - nbAisles + 1;
-					int endAisle = toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) + BUFFER_SIZE;
+					int nbAisles = toSuperiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange) - superiorAisleLastUpdateIndex;
+					int startAisle = toSuperiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange) + BUFFER_SIZE - nbAisles + 1;
+					int endAisle = toSuperiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange) + BUFFER_SIZE;
 					scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
 				}
-				superiorAisleLastUpdateIndex = toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange);
+				superiorAisleLastUpdateIndex = toSuperiorGridCoordinate(newPose(2, positionColumn), sensorMaxRange);
 			}
 		}
 	}
@@ -713,24 +748,26 @@ bool norlab_icp_mapper::Map::getNewLocalPointCloud(PM::DataPoints& localPointClo
 norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getGlobalPointCloud()
 {
 	localPointCloudLock.lock();
-	PM::DataPoints globalMap = localPointCloud;
-	std::unordered_set<std::string> currentLoadedCellIds = loadedCellIds;
+	PM::DataPoints globalPointCloud = localPointCloud;
+	std::unordered_set<CellInfo> currentLoadedCellInfos = loadedCellInfos;
 	localPointCloudLock.unlock();
-	cellManagerLock.lock();
-	std::vector<std::string> savedCellIds = cellManager->getAllCellIds();
-	cellManagerLock.unlock();
+	// add descriptor to globalPointCloud
 
-	for(const auto& savedCellId: savedCellIds)
+	cellManagerLock.lock();
+	std::unordered_set<CellInfo> savedCellInfos = cellManager->getAllCellInfos();
+	cellManagerLock.unlock();
+	for(const auto& savedCellInfo: savedCellInfos)
 	{
-		if(currentLoadedCellIds.find(savedCellId) == currentLoadedCellIds.end())
+		if(currentLoadedCellInfos.find(savedCellInfo) == currentLoadedCellInfos.end())
 		{
 			cellManagerLock.lock();
-			PM::DataPoints cell = cellManager->retrieveCell(savedCellId);
+			std::pair<CellInfo, PM::DataPoints> cell = cellManager->retrieveCell(savedCellInfo.row, savedCellInfo.column, savedCellInfo.aisle, savedCellInfo.depth);
 			cellManagerLock.unlock();
-			globalMap.concatenate(cell);
+			// add descriptor to cell.second
+			globalPointCloud.concatenate(cell.second);
 		}
 	}
-	return globalMap;
+	return globalPointCloud;
 }
 
 void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalPointCloud)
