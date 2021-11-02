@@ -35,7 +35,8 @@ norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMax
 		newLocalPointCloudAvailable(false),
 		localPointCloudEmpty(true),
 		firstPoseUpdate(true),
-		updateThreadLooping(true)
+		updateThreadLooping(true),
+		pose(PM::TransformationParameters::Identity(is3D ? 4 : 3, is3D ? 4 : 3))
 {
 	if(saveCellsOnHardDrive)
 	{
@@ -90,30 +91,39 @@ void norlab_icp_mapper::Map::applyUpdate(const Update& update)
 
 void norlab_icp_mapper::Map::loadCells(int startRow, int endRow, int startColumn, int endColumn, int startAisle, int endAisle)
 {
-	if(!is3D)
-	{
-		startAisle = 0;
-		endAisle = 0;
-	}
-
 	localPointCloudLock.lock();
 	std::unordered_set<CellInfo> currentlyLoadedCellInfos = loadedCellInfos;
 	localPointCloudLock.unlock();
-	int depthToRetrieve = computeCurrentDepth(currentlyLoadedCellInfos) + 1;
+	poseLock.lock();
+	PM::TransformationParameters currentPose = pose;
+	poseLock.unlock();
+	int positionColumn = is3D ? 3 : 2;
 
 	std::unordered_set<CellInfo> newCellInfos;
 	PM::DataPoints newCells;
-	for(int i = startRow; i <= endRow; i++)
+	std::vector<int> rowIndexes = getOrderedIndexes(startRow, endRow, toGridCoordinate(currentPose(0, positionColumn)));
+	for(const int& i: rowIndexes)
 	{
-		for(int j = startColumn; j <= endColumn; j++)
+		std::vector<int> columnIndexes = getOrderedIndexes(startColumn, endColumn, toGridCoordinate(currentPose(1, positionColumn)));
+		for(const int& j: columnIndexes)
 		{
-			for(int k = startAisle; k <= endAisle; k++)
+			std::vector<int> aisleIndexes = {0};
+			if(is3D)
 			{
+				aisleIndexes = getOrderedIndexes(startAisle, endAisle, toGridCoordinate(currentPose(2, positionColumn)));
+			}
+			for(const int& k: aisleIndexes)
+			{
+				int depth = computeDepthOfCell(currentlyLoadedCellInfos, i, j, k);
 				cellManagerLock.lock();
-				std::pair<CellInfo, PM::DataPoints> cell = cellManager->retrieveCell(i, j, k, depthToRetrieve);
+				std::pair<CellInfo, PM::DataPoints> cell = cellManager->retrieveCell(i, j, k, depth);
 				cellManagerLock.unlock();
 
-				if(cell.second.getNbPoints() > 0)
+				if(cell.first.depth == CellManager::INVALID_CELL_DEPTH)
+				{
+					cell.first.depth = depth;
+				}
+				else
 				{
 					if(newCells.getNbPoints() == 0)
 					{
@@ -123,12 +133,9 @@ void norlab_icp_mapper::Map::loadCells(int startRow, int endRow, int startColumn
 					{
 						newCells.concatenate(cell.second);
 					}
-					newCellInfos.insert(cell.first);
 				}
-				else
-				{
-					newCellInfos.insert(CellInfo(i, j, k, depthToRetrieve));
-				}
+				currentlyLoadedCellInfos.insert(cell.first);
+				newCellInfos.insert(cell.first);
 			}
 		}
 	}
@@ -149,22 +156,57 @@ void norlab_icp_mapper::Map::loadCells(int startRow, int endRow, int startColumn
 	localPointCloudLock.unlock();
 }
 
-int norlab_icp_mapper::Map::computeCurrentDepth(const std::unordered_set<CellInfo>& currentlyLoadedCellInfos) const
+std::vector<int> norlab_icp_mapper::Map::getOrderedIndexes(int lowIndex, int highIndex, int currentIndex) const
+{
+	std::vector<int> orderedIndexes;
+	if(highIndex <= currentIndex)
+	{
+		for(int i = highIndex; i >= lowIndex; --i)
+		{
+			orderedIndexes.push_back(i);
+		}
+	}
+	else if(lowIndex >= currentIndex)
+	{
+		for(int i = lowIndex; i <= highIndex; ++i)
+		{
+			orderedIndexes.push_back(i);
+		}
+	}
+	else
+	{
+		for(int i = currentIndex; i >= lowIndex; --i)
+		{
+			orderedIndexes.push_back(i);
+		}
+		for(int i = currentIndex + 1; i <= highIndex; ++i)
+		{
+			orderedIndexes.push_back(i);
+		}
+	}
+	return orderedIndexes;
+}
+
+int norlab_icp_mapper::Map::computeDepthOfCell(const std::unordered_set<CellInfo>& currentlyLoadedCellInfos, int row, int column, int aisle) const
 {
 	if(currentlyLoadedCellInfos.empty())
 	{
 		return 0;
 	}
 
-	int minimumDepth = std::numeric_limits<int>::max();
+	int minCellDepth = std::numeric_limits<int>::max();
 	for(const CellInfo& cellInfo: currentlyLoadedCellInfos)
 	{
-		if(cellInfo.depth < minimumDepth)
+		int dx = std::abs(row - cellInfo.row);
+		int dy = std::abs(column - cellInfo.column);
+		int dz = std::abs(aisle - cellInfo.aisle);
+		int gridDistance = std::max(std::max(dx, dy), dz);
+		if(cellInfo.depth + gridDistance < minCellDepth)
 		{
-			minimumDepth = cellInfo.depth;
+			minCellDepth = cellInfo.depth + gridDistance;
 		}
 	}
-	return minimumDepth;
+	return minCellDepth;
 }
 
 void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColumn, int endColumn, int startAisle, int endAisle)
@@ -186,10 +228,6 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 	int oldCellsNbPoints = 0;
 
 	localPointCloudLock.lock();
-
-	// check for cellDepth descriptor
-	// delete it if present
-
 	PM::DataPoints oldCells = localPointCloud.createSimilarEmpty();
 	for(int i = 0; i < localPointCloud.features.cols(); i++)
 	{
@@ -212,18 +250,38 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 	icpMapLock.unlock();
 
 	std::unordered_map<std::tuple<int, int, int>, int, CoordinateHashFunction> oldCellDepths;
-	std::unordered_set<CellInfo>::const_iterator cellInfoIterator = loadedCellInfos.begin();
-	while(cellInfoIterator != loadedCellInfos.end())
+	if(loadedCellInfos.empty() && oldCells.descriptorExists("depths"))
 	{
-		if(cellInfoIterator->row >= startRow && cellInfoIterator->row <= endRow && cellInfoIterator->column >= startColumn &&
-		   cellInfoIterator->column <= endColumn && cellInfoIterator->aisle >= startAisle && cellInfoIterator->aisle <= endAisle)
+		const auto& cellDepthView = oldCells.getDescriptorViewByName("depths");
+		for(int i = 0; i < oldCells.features.cols(); i++)
 		{
-			oldCellDepths[std::make_tuple(cellInfoIterator->row, cellInfoIterator->column, cellInfoIterator->aisle)] = cellInfoIterator->depth;
-			cellInfoIterator = loadedCellInfos.erase(cellInfoIterator);
+			int row = toGridCoordinate(oldCells.features(0, i));
+			int column = toGridCoordinate(oldCells.features(1, i));
+			int aisle = 0;
+			if(is3D)
+			{
+				aisle = toGridCoordinate(oldCells.features(2, i));
+			}
+			oldCellDepths[std::make_tuple(row, column, aisle)] = cellDepthView(0, i);
 		}
-		else
+		localPointCloud.removeDescriptor("depths");
+		oldCells.removeDescriptor("depths");
+	}
+	else
+	{
+		std::unordered_set<CellInfo>::const_iterator cellInfoIterator = loadedCellInfos.begin();
+		while(cellInfoIterator != loadedCellInfos.end())
 		{
-			++cellInfoIterator;
+			if(cellInfoIterator->row >= startRow && cellInfoIterator->row <= endRow && cellInfoIterator->column >= startColumn &&
+			   cellInfoIterator->column <= endColumn && cellInfoIterator->aisle >= startAisle && cellInfoIterator->aisle <= endAisle)
+			{
+				oldCellDepths[std::make_tuple(cellInfoIterator->row, cellInfoIterator->column, cellInfoIterator->aisle)] = cellInfoIterator->depth;
+				cellInfoIterator = loadedCellInfos.erase(cellInfoIterator);
+			}
+			else
+			{
+				++cellInfoIterator;
+			}
 		}
 	}
 
@@ -241,7 +299,7 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 		int row = toGridCoordinate(oldCells.features(0, i));
 		int column = toGridCoordinate(oldCells.features(1, i));
 		int aisle = toGridCoordinate(oldCells.features(2, i));
-		int depth = oldCellDepths.at(std::make_tuple(row, column, aisle));
+		int depth = oldCellDepths[std::make_tuple(row, column, aisle)];
 		CellInfo cellInfo(row, column, aisle, depth);
 
 		if(cells[cellInfo].getNbPoints() == 0)
@@ -287,6 +345,10 @@ norlab_icp_mapper::Map::~Map()
 
 void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& newPose)
 {
+	poseLock.lock();
+	pose = newPose;
+	poseLock.unlock();
+
 	int positionColumn = is3D ? 3 : 2;
 	if(firstPoseUpdate.load())
 	{
@@ -751,7 +813,27 @@ norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getGlobalPointClo
 	PM::DataPoints globalPointCloud = localPointCloud;
 	std::unordered_set<CellInfo> currentLoadedCellInfos = loadedCellInfos;
 	localPointCloudLock.unlock();
-	// add descriptor to globalPointCloud
+
+	std::unordered_map<std::tuple<int, int, int>, int, CoordinateHashFunction> cellDepths;
+	std::unordered_set<CellInfo>::const_iterator cellInfoIterator = currentLoadedCellInfos.begin();
+	while(cellInfoIterator != currentLoadedCellInfos.end())
+	{
+		cellDepths[std::make_tuple(cellInfoIterator->row, cellInfoIterator->column, cellInfoIterator->aisle)] = cellInfoIterator->depth;
+		++cellInfoIterator;
+	}
+	PM::Matrix depths = PM::Matrix::Zero(1, globalPointCloud.getNbPoints());
+	for(int i = 0; i < globalPointCloud.getNbPoints(); ++i)
+	{
+		int row = toGridCoordinate(globalPointCloud.features(0, i));
+		int column = toGridCoordinate(globalPointCloud.features(1, i));
+		int aisle = 0;
+		if(is3D)
+		{
+			aisle = toGridCoordinate(globalPointCloud.features(2, i));
+		}
+		depths(0, i) = cellDepths[std::make_tuple(row, column, aisle)];
+	}
+	globalPointCloud.addDescriptor("depths", depths);
 
 	cellManagerLock.lock();
 	std::unordered_set<CellInfo> savedCellInfos = cellManager->getAllCellInfos();
@@ -763,7 +845,7 @@ norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getGlobalPointClo
 			cellManagerLock.lock();
 			std::pair<CellInfo, PM::DataPoints> cell = cellManager->retrieveCell(savedCellInfo.row, savedCellInfo.column, savedCellInfo.aisle, savedCellInfo.depth);
 			cellManagerLock.unlock();
-			// add descriptor to cell.second
+			cell.second.addDescriptor("depths", PM::Matrix::Constant(1, cell.second.getNbPoints(), cell.first.depth));
 			globalPointCloud.concatenate(cell.second);
 		}
 	}

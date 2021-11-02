@@ -47,6 +47,8 @@ namespace norlab_icp_mapper
 		std::mutex localPointCloudLock;
 		std::unique_ptr<CellManager> cellManager;
 		std::mutex cellManagerLock;
+		PM::TransformationParameters pose;
+		std::mutex poseLock;
 		std::unordered_set<CellInfo> loadedCellInfos;
 		std::shared_ptr<PM::Transformation> transformation;
 		int inferiorRowLastUpdateIndex;
@@ -66,7 +68,8 @@ namespace norlab_icp_mapper
 		void updateThreadFunction();
 		void applyUpdate(const Update& update);
 		void loadCells(int startRow, int endRow, int startColumn, int endColumn, int startAisle, int endAisle);
-		int computeCurrentDepth(const std::unordered_set<CellInfo>& currentlyLoadedCellInfos) const;
+		std::vector<int> getOrderedIndexes(int lowIndex, int highIndex, int currentIndex) const;
+		int computeDepthOfCell(const std::unordered_set<CellInfo>& currentlyLoadedCellInfos, int row, int column, int aisle) const;
 		void unloadCells(int startRow, int endRow, int startColumn, int endColumn, int startAisle, int endAisle);
 		float toInferiorWorldCoordinate(const int& gridCoordinate) const;
 		float toSuperiorWorldCoordinate(const int& gridCoordinate) const;
