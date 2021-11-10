@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package>
+	<name>norlab_icp_mapper</name>
+	<version>1.0.0</version>
+	<description>
+		A 2-D/3-D mapping library relying on the "Iterative Closest Point" algorithm.
+	</description>
+
+        <maintainer email="simon-pierre.deschenes.1@ulaval.ca">Simon-Pierre Deschenes</maintainer>	
+        <license>BSD</license>
+	
+	<!-- The *_depend tags are used to specify dependencies -->
+	<buildtool_depend>cmake</buildtool_depend>
+	<build_depend>libpointmatcher_ros</build_depend>
+	<run_depend>libpointmatcher_ros</run_depend>
+
+	<export>
+		<!-- Specify that this is not really a ROS package -->
+		<build_type>cmake</build_type>
+	</export>
+</package>

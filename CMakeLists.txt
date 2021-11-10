@@ -10,6 +10,9 @@ find_package(libpointmatcher CONFIG)
 set(EXTERNAL_INCLUDE_DIRS ${EXTERNAL_INCLUDE_DIRS} ${libpointmatcher_INCLUDE_DIRS})
 set(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${libpointmatcher_LIBRARIES})
 
+# Install package.xml for catkin
+install(FILES package.xml DESTINATION "share/${PROJECT_NAME}")
+
 # norlab_icp_mapper target
 include_directories(norlab_icp_mapper ${libpointmatcher_INCLUDE_DIRS})
 add_library(norlab_icp_mapper norlab_icp_mapper/Mapper.cpp norlab_icp_mapper/Map.cpp norlab_icp_mapper/Trajectory.cpp norlab_icp_mapper/RAMCellManager.cpp norlab_icp_mapper/HardDriveCellManager.cpp)
