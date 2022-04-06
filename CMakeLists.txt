@@ -12,7 +12,7 @@ set(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${libpointmatcher_LIBRARIES})
 
 # norlab_icp_mapper target
 include_directories(norlab_icp_mapper ${libpointmatcher_INCLUDE_DIRS})
-add_library(norlab_icp_mapper SHARED norlab_icp_mapper/Mapper.cpp)
+add_library(norlab_icp_mapper norlab_icp_mapper/Mapper.cpp)
 target_link_libraries(norlab_icp_mapper ${libpointmatcher_LIBRARIES})
 
 # install target
