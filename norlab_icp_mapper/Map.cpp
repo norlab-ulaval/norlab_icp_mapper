@@ -506,7 +506,8 @@ norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getLocalPointClou
 	return localPointCloud;
 }
 
-void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters)
+void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters,
+                                                   const std::chrono::time_point<std::chrono::steady_clock>& timeStamp)
 {
 	if(computeProbDynamic)
 	{
@@ -522,7 +523,7 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 	{
 		if(computeProbDynamic)
 		{
-			computeProbabilityOfPointsBeingDynamic(input, localPointCloud, pose);
+			computeProbabilityOfPointsBeingDynamic(input, localPointCloud, pose, timeStamp);
 		}
 
 		PM::DataPoints inputPointsToKeep = retrievePointsFurtherThanMinDistNewPoint(input, localPointCloud, pose);
@@ -543,7 +544,8 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 }
 
 void norlab_icp_mapper::Map::computeProbabilityOfPointsBeingDynamic(const PM::DataPoints& input, PM::DataPoints& currentLocalPointCloud,
-																	const PM::TransformationParameters& pose) const
+																	const PM::TransformationParameters& pose,
+                                                                    const std::chrono::time_point<std::chrono::steady_clock>& timeStamp) const
 {
 	typedef Nabo::NearestNeighbourSearch<float> NNS;
 	const float eps = 0.0001;
@@ -555,6 +557,10 @@ void norlab_icp_mapper::Map::computeProbabilityOfPointsBeingDynamic(const PM::Da
 	convertToSphericalCoordinates(inputInSensorFrame, inputInSensorFrameRadii, inputInSensorFrameAngles);
 
 	PM::DataPoints currentLocalPointCloudInSensorFrame = transformation->compute(currentLocalPointCloud, pose.inverse());
+    std::string timeStr = std::to_string(timeStamp.time_since_epoch().count());
+    const char* home = getenv("HOME");
+    std::string path = home + std::string("/Desktop/results_fr2021/") + timeStr + ".vtk";
+    currentLocalPointCloudInSensorFrame.save("test.vtk");
 	PM::Matrix globalId(1, currentLocalPointCloud.getNbPoints());
 	int nbPointsWithinSensorMaxRange = 0;
 	for(int i = 0; i < currentLocalPointCloud.getNbPoints(); i++)

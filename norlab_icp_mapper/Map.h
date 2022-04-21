@@ -78,7 +78,8 @@ namespace norlab_icp_mapper
 		PM::DataPoints retrievePointsFurtherThanMinDistNewPoint(const PM::DataPoints& input, const PM::DataPoints& currentLocalPointCloud,
 																const PM::TransformationParameters& pose) const;
 		void computeProbabilityOfPointsBeingDynamic(const PM::DataPoints& input, PM::DataPoints& currentLocalPointCloud,
-													const PM::TransformationParameters& pose) const;
+													const PM::TransformationParameters& pose,
+                                                    const std::chrono::time_point<std::chrono::steady_clock>& timeStamp) const;
 		void convertToSphericalCoordinates(const PM::DataPoints& points, PM::Matrix& radii, PM::Matrix& angles) const;
 
 	public:
@@ -88,7 +89,8 @@ namespace norlab_icp_mapper
 		~Map();
 		void updatePose(const PM::TransformationParameters& pose);
 		PM::DataPoints getLocalPointCloud();
-		void updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters);
+		void updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters,
+                                   const std::chrono::time_point<std::chrono::steady_clock>& timeStamp);
 		bool getNewLocalPointCloud(PM::DataPoints& localPointCloudOut);
 		PM::DataPoints getGlobalPointCloud();
 		void setGlobalPointCloud(const PM::DataPoints& newLocalPointCloud);
