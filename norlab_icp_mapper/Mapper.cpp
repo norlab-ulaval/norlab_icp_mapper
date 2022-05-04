@@ -7,9 +7,9 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 								  std::string mapUpdateCondition,
 								  float mapUpdateOverlap, float mapUpdateDelay, float mapUpdateDistance, float minDistNewPoint, float sensorMaxRange,
 								  float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
-								  bool is3D, bool isOnline, bool computeProbDynamic, bool useSkewWeights, bool isMapping, int skewModel,
+								  bool is3D, bool isOnline, bool computeProbDynamic, bool useCRVModel, bool useICRAModel, bool isMapping, int skewModel,
 								  float cornerPointUncertainty, float uncertaintyThreshold, float uncertaintyQuantile, bool softUncertaintyThreshold,
-								  float binaryUncertaintyThreshold, bool afterDeskewing):
+								  float binaryUncertaintyThreshold, bool afterDeskewing) :
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
 		icpConfigFilePath(icpConfigFilePath),
 		inputFiltersConfigFilePath(inputFiltersConfigFilePath),
@@ -30,7 +30,8 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 		is3D(is3D),
 		isOnline(isOnline),
 		computeProbDynamic(computeProbDynamic),
-		useSkewWeights(useSkewWeights),
+		useCRVModel(useCRVModel),
+		useICRAModel(useICRAModel),
 		afterDeskewing(afterDeskewing),
 		isMapping(isMapping),
 		newMapAvailable(false),
@@ -41,14 +42,14 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 		uncertaintyQuantile(uncertaintyQuantile)
 {
 	loadYamlConfig();
-	
+
 	PM::Parameters radiusFilterParams;
 	radiusFilterParams["dim"] = "-1";
 	radiusFilterParams["dist"] = std::to_string(sensorMaxRange);
 	radiusFilterParams["removeInside"] = "0";
 	radiusFilter = PM::get().DataPointsFilterRegistrar.create("DistanceLimitDataPointsFilter", radiusFilterParams);
 
-	if(useSkewWeights)
+	if(useCRVModel)
 	{
 		PM::Parameters outlierFilterParams;
 		outlierFilterParams["useSoftThreshold"] = softUncertaintyThreshold ? "1" : "0";
@@ -56,7 +57,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 		std::shared_ptr<PM::OutlierFilter> outlierFilter = PM::get().OutlierFilterRegistrar.create("UncertaintyOutlierFilter", outlierFilterParams);
 		icp.outlierFilters.push_back(outlierFilter);
 	}
-	
+
 	int homogeneousDim = is3D ? 4 : 3;
 	sensorPose = PM::Matrix::Identity(homogeneousDim, homogeneousDim);
 }
@@ -73,14 +74,14 @@ void norlab_icp_mapper::Mapper::loadYamlConfig()
 	{
 		icp.setDefault();
 	}
-	
+
 	if(!inputFiltersConfigFilePath.empty())
 	{
 		std::ifstream ifs(inputFiltersConfigFilePath.c_str());
 		inputFilters = PM::DataPointsFilters(ifs);
 		ifs.close();
 	}
-	
+
 	if(!mapPostFiltersConfigFilePath.empty())
 	{
 		std::ifstream ifs(mapPostFiltersConfigFilePath.c_str());
@@ -101,8 +102,8 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 {
 	radiusFilter->inPlaceFilter(inputInSensorFrame);
 	inputFilters.apply(inputInSensorFrame);
-	
-	if(useSkewWeights)
+
+	if(useCRVModel)
 	{
 		inputInSensorFrame.addTime("stamps", inputInSensorFrame.getDescriptorViewByName("t").cast<std::int64_t>());
 		PM::Parameters skewFilterParams;
@@ -127,13 +128,27 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 		std::shared_ptr<PM::DataPointsFilter> skewFilter = PM::get().DataPointsFilterRegistrar.create("NoiseSkewDataPointsFilter", skewFilterParams);
 		skewFilter->inPlaceFilter(inputInSensorFrame);
 	}
-	
+	if(useICRAModel)
+	{
+		inputInSensorFrame.addTime("stamps", inputInSensorFrame.getDescriptorViewByName("t").cast<std::int64_t>());
+		PM::Parameters deskewingFilterParams;
+		deskewingFilterParams["linearSpeedsX"] = linearSpeedsX;
+		deskewingFilterParams["linearSpeedsY"] = linearSpeedsY;
+		deskewingFilterParams["linearSpeedsZ"] = linearSpeedsZ;
+		deskewingFilterParams["angularSpeedsX"] = angularSpeedsX;
+		deskewingFilterParams["angularSpeedsY"] = angularSpeedsY;
+		deskewingFilterParams["angularSpeedsZ"] = angularSpeedsZ;
+		deskewingFilterParams["measureTimes"] = measureTimes;
+		std::shared_ptr<PM::DataPointsFilter> deskewingFilter = PM::get().DataPointsFilterRegistrar.create("DeskewingUncertaintyDataPointsFilter", deskewingFilterParams);
+		deskewingFilter->inPlaceFilter(inputInSensorFrame);
+	}
+
 	PM::DataPoints inputInMapFrame = transformation->compute(inputInSensorFrame, estimatedSensorPose);
-	
+
 	if(isMapEmpty)
 	{
 		sensorPose = estimatedSensorPose;
-		
+
 		updateMap(inputInMapFrame, timeStamp);
 	}
 	else
@@ -141,9 +156,9 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 		icpMapLock.lock();
 		PM::TransformationParameters correction = icp(inputInMapFrame);
 		icpMapLock.unlock();
-		
+
 		sensorPose = correction * estimatedSensorPose;
-		
+
 		if(shouldUpdateMap(timeStamp, sensorPose, icp.errorMinimizer->getOverlap()))
 		{
 			updateMap(transformation->compute(inputInMapFrame, correction), timeStamp);
@@ -159,7 +174,7 @@ bool norlab_icp_mapper::Mapper::shouldUpdateMap(const std::chrono::time_point<st
 	{
 		return false;
 	}
-	
+
 	if(isOnline)
 	{
 		// if previous map is not done building
@@ -168,7 +183,7 @@ bool norlab_icp_mapper::Mapper::shouldUpdateMap(const std::chrono::time_point<st
 			return false;
 		}
 	}
-	
+
 	if(mapUpdateCondition == "overlap")
 	{
 		return currentOverlap < mapUpdateOverlap;
@@ -190,7 +205,7 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 {
 	lastTimeMapWasUpdated = timeStamp;
 	lastSensorPoseWhereMapWasUpdated = sensorPose;
-	
+
 	if(isOnline && !isMapEmpty)
 	{
 		mapBuilderFuture = std::async(&Mapper::buildMap, this, currentInput, getMap(), sensorPose);
@@ -207,7 +222,7 @@ void norlab_icp_mapper::Mapper::buildMap(PM::DataPoints currentInput, PM::DataPo
 	{
 		currentInput.addDescriptor("probabilityDynamic", PM::Matrix::Constant(1, currentInput.features.cols(), priorDynamic));
 	}
-	
+
 	if(isMapEmpty)
 	{
 		currentMap = currentInput;
@@ -218,15 +233,15 @@ void norlab_icp_mapper::Mapper::buildMap(PM::DataPoints currentInput, PM::DataPo
 		{
 			computeProbabilityOfPointsBeingDynamic(currentInput, currentMap, currentSensorPose);
 		}
-		
+
 		PM::DataPoints inputPointsToKeep = retrievePointsFurtherThanMinDistNewPoint(currentInput, currentMap, currentSensorPose);
 		currentMap.concatenate(inputPointsToKeep);
 	}
-	
+
 	PM::DataPoints mapInSensorFrame = transformation->compute(currentMap, currentSensorPose.inverse());
 	mapPostFilters.apply(mapInSensorFrame);
 	currentMap = transformation->compute(mapInSensorFrame, currentSensorPose);
-	
+
 	setMap(currentMap, currentSensorPose);
 }
 
@@ -235,13 +250,13 @@ void norlab_icp_mapper::Mapper::computeProbabilityOfPointsBeingDynamic(const PM:
 {
 	typedef Nabo::NearestNeighbourSearch<T> NNS;
 	const float eps = 0.0001;
-	
+
 	PM::DataPoints currentInputInSensorFrame = transformation->compute(currentInput, currentSensorPose.inverse());
-	
+
 	PM::Matrix currentInputInSensorFrameRadii;
 	PM::Matrix currentInputInSensorFrameAngles;
 	convertToSphericalCoordinates(currentInputInSensorFrame, currentInputInSensorFrameRadii, currentInputInSensorFrameAngles);
-	
+
 	PM::DataPoints cutMapInSensorFrame = transformation->compute(currentMap, currentSensorPose.inverse());
 	PM::Matrix globalId(1, currentMap.getNbPoints());
 	int nbPointsCutMap = 0;
@@ -255,16 +270,16 @@ void norlab_icp_mapper::Mapper::computeProbabilityOfPointsBeingDynamic(const PM:
 		}
 	}
 	cutMapInSensorFrame.conservativeResize(nbPointsCutMap);
-	
+
 	PM::Matrix cutMapInSensorFrameRadii;
 	PM::Matrix cutMapInSensorFrameAngles;
 	convertToSphericalCoordinates(cutMapInSensorFrame, cutMapInSensorFrameRadii, cutMapInSensorFrameAngles);
-	
+
 	std::shared_ptr<NNS> nns = std::shared_ptr<NNS>(NNS::create(currentInputInSensorFrameAngles));
 	PM::Matches::Dists dists(1, cutMapInSensorFrame.getNbPoints());
 	PM::Matches::Ids ids(1, cutMapInSensorFrame.getNbPoints());
 	nns->knn(cutMapInSensorFrameAngles, ids, dists, 1, 0, NNS::ALLOW_SELF_MATCH, 2 * beamHalfAngle);
-	
+
 	PM::DataPoints::View viewOnProbabilityDynamic = currentMap.getDescriptorViewByName("probabilityDynamic");
 	PM::DataPoints::View viewOnMapNormals = cutMapInSensorFrame.getDescriptorViewByName("normals");
 	for(int i = 0; i < cutMapInSensorFrame.getNbPoints(); i++)
@@ -273,17 +288,17 @@ void norlab_icp_mapper::Mapper::computeProbabilityOfPointsBeingDynamic(const PM:
 		{
 			const int readingPointId = ids(0, i);
 			const int mapPointId = globalId(0, i);
-			
+
 			const Eigen::VectorXf readingPoint = currentInputInSensorFrame.features.col(readingPointId).head(currentInputInSensorFrame.getEuclideanDim());
 			const Eigen::VectorXf mapPoint = cutMapInSensorFrame.features.col(i).head(cutMapInSensorFrame.getEuclideanDim());
 			const float delta = (readingPoint - mapPoint).norm();
 			const float d_max = epsilonA * readingPoint.norm();
-			
+
 			const Eigen::VectorXf mapPointNormal = viewOnMapNormals.col(i);
-			
+
 			const float w_v = eps + (1. - eps) * fabs(mapPointNormal.dot(mapPoint.normalized()));
 			const float w_d1 = eps + (1. - eps) * (1. - sqrt(dists(i)) / (2 * beamHalfAngle));
-			
+
 			const float offset = delta - epsilonD;
 			float w_d2 = 1.;
 			if(delta < epsilonD || mapPoint.norm() > readingPoint.norm())
@@ -297,7 +312,7 @@ void norlab_icp_mapper::Mapper::computeProbabilityOfPointsBeingDynamic(const PM:
 					w_d2 = eps + (1 - eps) * offset / d_max;
 				}
 			}
-			
+
 			float w_p2 = eps;
 			if(delta < epsilonD)
 			{
@@ -310,14 +325,14 @@ void norlab_icp_mapper::Mapper::computeProbabilityOfPointsBeingDynamic(const PM:
 					w_p2 = eps + (1. - eps) * (1. - offset / d_max);
 				}
 			}
-			
+
 			if((readingPoint.norm() + epsilonD + d_max) >= mapPoint.norm())
 			{
 				const float lastDyn = viewOnProbabilityDynamic(0, mapPointId);
-				
+
 				const float c1 = (1 - (w_v * w_d1));
 				const float c2 = w_v * w_d1;
-				
+
 				float probDynamic;
 				float probStatic;
 				if(lastDyn < thresholdDynamic)
@@ -330,7 +345,7 @@ void norlab_icp_mapper::Mapper::computeProbabilityOfPointsBeingDynamic(const PM:
 					probDynamic = 1 - eps;
 					probStatic = eps;
 				}
-				
+
 				viewOnProbabilityDynamic(0, mapPointId) = probDynamic / (probDynamic + probStatic);
 			}
 		}
@@ -342,16 +357,16 @@ norlab_icp_mapper::Mapper::retrievePointsFurtherThanMinDistNewPoint(const PM::Da
 																	const PM::TransformationParameters& currentSensorPose)
 {
 	typedef Nabo::NearestNeighbourSearch<T> NNS;
-	
+
 	PM::DataPoints cutMapInSensorFrame = transformation->compute(currentMap, currentSensorPose.inverse());
 	radiusFilter->inPlaceFilter(cutMapInSensorFrame);
 	PM::DataPoints cutMap = transformation->compute(cutMapInSensorFrame, currentSensorPose);
-	
+
 	PM::Matches matches(PM::Matches::Dists(1, currentInput.getNbPoints()), PM::Matches::Ids(1, currentInput.getNbPoints()));
 	std::shared_ptr<NNS> nns = std::shared_ptr<NNS>(NNS::create(cutMap.features, cutMap.features.rows() - 1, NNS::KDTREE_LINEAR_HEAP, NNS::TOUCH_STATISTICS));
-	
+
 	nns->knn(currentInput.features, matches.ids, matches.dists, 1, 0);
-	
+
 	int goodPointCount = 0;
 	PM::DataPoints goodPoints(currentInput.createSimilarEmpty());
 	for(int i = 0; i < currentInput.getNbPoints(); ++i)
@@ -363,7 +378,7 @@ norlab_icp_mapper::Mapper::retrievePointsFurtherThanMinDistNewPoint(const PM::Da
 		}
 	}
 	goodPoints.conservativeResize(goodPointCount);
-	
+
 	return goodPoints;
 }
 
@@ -371,7 +386,7 @@ void norlab_icp_mapper::Mapper::convertToSphericalCoordinates(const PM::DataPoin
 {
 	radii = points.features.topRows(points.getEuclideanDim()).colwise().norm();
 	angles = PM::Matrix(2, points.getNbPoints());
-	
+
 	for(int i = 0; i < points.getNbPoints(); i++)
 	{
 		angles(0, i) = 0;
@@ -396,27 +411,27 @@ void norlab_icp_mapper::Mapper::setMap(const PM::DataPoints& newMap, const PM::T
 	{
 		throw std::runtime_error("compute prob dynamic is set to true, but field normals does not exist for map points.");
 	}
-	
+
 	PM::DataPoints cutMapInSensorFrame = transformation->compute(newMap, newSensorPose.inverse());
 	radiusFilter->inPlaceFilter(cutMapInSensorFrame);
 	PM::DataPoints cutMap = transformation->compute(cutMapInSensorFrame, newSensorPose);
-	
+
 	icpMapLock.lock();
 	icp.setMap(cutMap);
 	icpMapLock.unlock();
-	
+
 	mapLock.lock();
 	map = newMap;
 	newMapAvailable = true;
 	mapLock.unlock();
-	
+
 	isMapEmpty = newMap.getNbPoints() == 0;
 }
 
 bool norlab_icp_mapper::Mapper::getNewMap(PM::DataPoints& mapOut)
 {
 	bool mapReturned = false;
-	
+
 	mapLock.lock();
 	if(newMapAvailable)
 	{
@@ -425,7 +440,7 @@ bool norlab_icp_mapper::Mapper::getNewMap(PM::DataPoints& mapOut)
 		mapReturned = true;
 	}
 	mapLock.unlock();
-	
+
 	return mapReturned;
 }
 
