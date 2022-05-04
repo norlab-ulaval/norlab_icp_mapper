@@ -40,6 +40,7 @@ namespace norlab_icp_mapper
 		bool useCRVModel;
 		bool useICRAModel;
 		bool afterDeskewing;
+		float scaleFactor;
 		bool isMapping;
 		int skewModel;
 		float cornerPointUncertainty;
@@ -71,7 +72,7 @@ namespace norlab_icp_mapper
 			   float mapUpdateOverlap, float mapUpdateDelay, float mapUpdateDistance, float minDistNewPoint, float sensorMaxRange,
 			   float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
 			   bool is3D, bool isOnline, bool computeProbDynamic, bool useCRVModel, bool useICRAModel, bool isMapping, int skewModel, float cornerPointUncertainty,
-			   float uncertaintyThreshold, float uncertaintyQuantile, bool softUncertaintyThreshold, float binaryUncertaintyThreshold, bool afterDeskewing);
+			   float uncertaintyThreshold, float uncertaintyQuantile, bool softUncertaintyThreshold, float binaryUncertaintyThreshold, bool afterDeskewing, float scaleFactor);
 
 		void loadYamlConfig();
 

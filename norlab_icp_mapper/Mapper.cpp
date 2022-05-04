@@ -9,7 +9,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 								  float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
 								  bool is3D, bool isOnline, bool computeProbDynamic, bool useCRVModel, bool useICRAModel, bool isMapping, int skewModel,
 								  float cornerPointUncertainty, float uncertaintyThreshold, float uncertaintyQuantile, bool softUncertaintyThreshold,
-								  float binaryUncertaintyThreshold, bool afterDeskewing) :
+								  float binaryUncertaintyThreshold, bool afterDeskewing, float scaleFactor) :
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
 		icpConfigFilePath(icpConfigFilePath),
 		inputFiltersConfigFilePath(inputFiltersConfigFilePath),
@@ -39,7 +39,8 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 		skewModel(skewModel),
 		cornerPointUncertainty(cornerPointUncertainty),
 		uncertaintyThreshold(uncertaintyThreshold),
-		uncertaintyQuantile(uncertaintyQuantile)
+		uncertaintyQuantile(uncertaintyQuantile),
+		scaleFactor(scaleFactor)
 {
 	loadYamlConfig();
 
@@ -56,6 +57,14 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 		outlierFilterParams["threshold"] = std::to_string(binaryUncertaintyThreshold);
 		std::shared_ptr<PM::OutlierFilter> outlierFilter = PM::get().OutlierFilterRegistrar.create("UncertaintyOutlierFilter", outlierFilterParams);
 		icp.outlierFilters.push_back(outlierFilter);
+	}
+
+	if(useICRAModel)
+	{
+		PM::Parameters errorMinimizerParams;
+		errorMinimizerParams["scaleFactor"] = std::to_string(scaleFactor);
+		std::shared_ptr<PM::ErrorMinimizer> errorMinimizer = PM::get().ErrorMinimizerRegistrar.create("GaussianToPointErrorMinimizer", errorMinimizerParams);
+		icp.errorMinimizer = errorMinimizer;
 	}
 
 	int homogeneousDim = is3D ? 4 : 3;
