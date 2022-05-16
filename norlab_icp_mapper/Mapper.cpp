@@ -9,7 +9,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 								  float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
 								  bool is3D, bool isOnline, bool computeProbDynamic, bool useCRVModel, bool useICRAModel, bool isMapping, int skewModel,
 								  float cornerPointUncertainty, float uncertaintyThreshold, float uncertaintyQuantile, bool softUncertaintyThreshold,
-								  float binaryUncertaintyThreshold, bool afterDeskewing, float scaleFactor) :
+								  float binaryUncertaintyThreshold, bool afterDeskewing, float scaleFactor, float angularSpeedNoiseStd) :
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
 		icpConfigFilePath(icpConfigFilePath),
 		inputFiltersConfigFilePath(inputFiltersConfigFilePath),
@@ -40,7 +40,8 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 		cornerPointUncertainty(cornerPointUncertainty),
 		uncertaintyThreshold(uncertaintyThreshold),
 		uncertaintyQuantile(uncertaintyQuantile),
-		scaleFactor(scaleFactor)
+		scaleFactor(scaleFactor),
+		angularSpeedNoiseStd(angularSpeedNoiseStd)
 {
 	loadYamlConfig();
 
@@ -148,6 +149,7 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 		deskewingFilterParams["angularSpeedsY"] = angularSpeedsY;
 		deskewingFilterParams["angularSpeedsZ"] = angularSpeedsZ;
 		deskewingFilterParams["measureTimes"] = measureTimes;
+		deskewingFilterParams["angularSpeedNoiseStd"] = std::to_string(angularSpeedNoiseStd);
 		std::shared_ptr<PM::DataPointsFilter> deskewingFilter = PM::get().DataPointsFilterRegistrar.create("DeskewingUncertaintyDataPointsFilter", deskewingFilterParams);
 		deskewingFilter->inPlaceFilter(inputInSensorFrame);
 	}
