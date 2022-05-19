@@ -42,6 +42,7 @@ namespace norlab_icp_mapper
 		bool afterDeskewing;
 		float scaleFactor;
 		float angularSpeedNoiseStd;
+		float maxAngularSpeed;
 		bool isMapping;
 		int skewModel;
 		float cornerPointUncertainty;
@@ -74,7 +75,7 @@ namespace norlab_icp_mapper
 			   float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
 			   bool is3D, bool isOnline, bool computeProbDynamic, bool useCRVModel, bool useICRAModel, bool isMapping, int skewModel, float cornerPointUncertainty,
 			   float uncertaintyThreshold, float uncertaintyQuantile, bool softUncertaintyThreshold, float binaryUncertaintyThreshold, bool afterDeskewing, float scaleFactor,
-			   float angularSpeedNoiseStd);
+			   float angularSpeedNoiseStd, float maxAngularSpeed);
 
 		void loadYamlConfig();
 
@@ -84,7 +85,8 @@ namespace norlab_icp_mapper
 						  const std::string& linearAccelerationsY, const std::string& linearAccelerationsZ,
 						  const std::string& angularSpeedsX, const std::string& angularSpeedsY, const std::string& angularSpeedsZ,
 						  const std::string& angularAccelerationsX, const std::string& angularAccelerationsY,
-						  const std::string& angularAccelerationsZ, const std::string& measureTimes);
+						  const std::string& angularAccelerationsZ, const std::string& measureTimes, const float& signedSaturationDurationAngularSpeedX,
+						  const float& signedSaturationDurationAngularSpeedY, const float& signedSaturationDurationAngularSpeedZ);
 
 		PM::DataPoints getMap();
 

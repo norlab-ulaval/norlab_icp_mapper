@@ -9,7 +9,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 								  float priorDynamic, float thresholdDynamic, float beamHalfAngle, float epsilonA, float epsilonD, float alpha, float beta,
 								  bool is3D, bool isOnline, bool computeProbDynamic, bool useCRVModel, bool useICRAModel, bool isMapping, int skewModel,
 								  float cornerPointUncertainty, float uncertaintyThreshold, float uncertaintyQuantile, bool softUncertaintyThreshold,
-								  float binaryUncertaintyThreshold, bool afterDeskewing, float scaleFactor, float angularSpeedNoiseStd) :
+								  float binaryUncertaintyThreshold, bool afterDeskewing, float scaleFactor, float angularSpeedNoiseStd, float maxAngularSpeed) :
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
 		icpConfigFilePath(icpConfigFilePath),
 		inputFiltersConfigFilePath(inputFiltersConfigFilePath),
@@ -41,7 +41,8 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 		uncertaintyThreshold(uncertaintyThreshold),
 		uncertaintyQuantile(uncertaintyQuantile),
 		scaleFactor(scaleFactor),
-		angularSpeedNoiseStd(angularSpeedNoiseStd)
+		angularSpeedNoiseStd(angularSpeedNoiseStd),
+		maxAngularSpeed(maxAngularSpeed)
 {
 	loadYamlConfig();
 
@@ -100,6 +101,14 @@ void norlab_icp_mapper::Mapper::loadYamlConfig()
 	}
 }
 
+float computeResidual(const PointMatcher<float>::DataPoints& reading, PointMatcher<float>::ICPSequence& icp)
+{
+	PointMatcher<float>::DataPoints reference = icp.getPrefilteredMap();
+	PointMatcher<float>::Matches matches = icp.matcher->findClosests(reading);
+	PointMatcher<float>::OutlierWeights weights = icp.outlierFilters.compute(reading, reference, matches);
+	return icp.errorMinimizer->getResidualError(reading, reference, weights, matches);
+}
+
 void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedSensorPose,
 											 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp,
 											 const std::string& linearSpeedsX, const std::string& linearSpeedsY,
@@ -108,7 +117,8 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 											 const std::string& angularSpeedsX, const std::string& angularSpeedsY,
 											 const std::string& angularSpeedsZ, const std::string& angularAccelerationsX,
 											 const std::string& angularAccelerationsY, const std::string& angularAccelerationsZ,
-											 const std::string& measureTimes)
+											 const std::string& measureTimes, const float& signedSaturationDurationAngularSpeedX,
+											 const float& signedSaturationDurationAngularSpeedY, const float& signedSaturationDurationAngularSpeedZ)
 {
 	radiusFilter->inPlaceFilter(inputInSensorFrame);
 	inputFilters.apply(inputInSensorFrame);
@@ -166,13 +176,78 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 	{
 		icpMapLock.lock();
 		PM::TransformationParameters correction = icp(inputInMapFrame);
+		float minResidual = computeResidual(transformation->compute(inputInMapFrame, correction), icp);
+		PM::TransformationParameters bestTransformation = correction;
+
+//		if(std::fabs(signedSaturationDurationAngularSpeedX) > 1e-3)
+//		{
+//			for(unsigned i = 1; i <= 5; ++i)
+//			{
+//				float angle = signedSaturationDurationAngularSpeedX * float(i) * (11.f - maxAngularSpeed) / 5.f;
+//				PM::TransformationParameters rotation = PM::TransformationParameters::Identity(4, 4);
+//				rotation(1, 1) = rotation(2, 2) = std::cos(angle);
+//				rotation(1, 2) = -std::sin(angle);
+//				rotation(2, 1) = std::sin(angle);
+//				rotation = estimatedSensorPose * rotation * estimatedSensorPose.inverse();
+//				correction = icp(transformation->compute(inputInMapFrame, rotation));
+//				PM::TransformationParameters correctedRotation = correction * rotation;
+//				float residual = computeResidual(transformation->compute(inputInMapFrame, correctedRotation), icp);
+//				if(residual < minResidual)
+//				{
+//					minResidual = residual;
+//					bestTransformation = correctedRotation;
+//				}
+//			}
+//		}
+//
+//		if(std::fabs(signedSaturationDurationAngularSpeedY) > 1e-3)
+//		{
+//			for(unsigned i = 1; i <= 5; ++i)
+//			{
+//				float angle = signedSaturationDurationAngularSpeedY * float(i) * (11.f - maxAngularSpeed) / 5.f;
+//				PM::TransformationParameters rotation = PM::TransformationParameters::Identity(4, 4);
+//				rotation(0, 0) = rotation(2, 2) = std::cos(angle);
+//				rotation(0, 2) = std::sin(angle);
+//				rotation(2, 0) = -std::sin(angle);
+//				rotation = estimatedSensorPose * rotation * estimatedSensorPose.inverse();
+//				correction = icp(transformation->compute(inputInMapFrame, rotation));
+//				PM::TransformationParameters correctedRotation = correction * rotation;
+//				float residual = computeResidual(transformation->compute(inputInMapFrame, correctedRotation), icp);
+//				if(residual < minResidual)
+//				{
+//					minResidual = residual;
+//					bestTransformation = correctedRotation;
+//				}
+//			}
+//		}
+//
+//		if(std::fabs(signedSaturationDurationAngularSpeedZ) > 1e-3)
+//		{
+//			for(unsigned i = 1; i <= 5; ++i)
+//			{
+//				float angle = signedSaturationDurationAngularSpeedZ * float(i) * (11.f - maxAngularSpeed) / 5.f;
+//				PM::TransformationParameters rotation = PM::TransformationParameters::Identity(4, 4);
+//				rotation(0, 0) = rotation(1, 1) = std::cos(angle);
+//				rotation(0, 1) = -std::sin(angle);
+//				rotation(1, 0) = std::sin(angle);
+//				rotation = estimatedSensorPose * rotation * estimatedSensorPose.inverse();
+//				correction = icp(transformation->compute(inputInMapFrame, rotation));
+//				PM::TransformationParameters correctedRotation = correction * rotation;
+//				float residual = computeResidual(transformation->compute(inputInMapFrame, correctedRotation), icp);
+//				if(residual < minResidual)
+//				{
+//					minResidual = residual;
+//					bestTransformation = correctedRotation;
+//				}
+//			}
+//		}
 		icpMapLock.unlock();
 
-		sensorPose = correction * estimatedSensorPose;
+		sensorPose = bestTransformation * estimatedSensorPose;
 
 		if(shouldUpdateMap(timeStamp, sensorPose, icp.errorMinimizer->getOverlap()))
 		{
-			updateMap(transformation->compute(inputInMapFrame, correction), timeStamp);
+			updateMap(transformation->compute(inputInMapFrame, bestTransformation), timeStamp);
 		}
 	}
 }
