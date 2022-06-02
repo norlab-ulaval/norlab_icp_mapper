@@ -63,7 +63,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 	{
 		PM::Parameters errorMinimizerParams;
 		errorMinimizerParams["scaleFactor"] = std::to_string(scaleFactor);
-		std::shared_ptr<PM::ErrorMinimizer> errorMinimizer = PM::get().ErrorMinimizerRegistrar.create("GaussianToGaussianErrorMinimizer", errorMinimizerParams);
+		std::shared_ptr<PM::ErrorMinimizer> errorMinimizer = PM::get().ErrorMinimizerRegistrar.create("GaussianToGaussianToPlaneErrorMinimizer", errorMinimizerParams);
 		icp.errorMinimizer = errorMinimizer;
 	}
 
