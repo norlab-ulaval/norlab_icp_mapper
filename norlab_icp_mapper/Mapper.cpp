@@ -22,6 +22,10 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 {
 	loadYamlConfig(inputFiltersConfigFilePath, icpConfigFilePath, mapPostFiltersConfigFilePath);
 
+	std::freopen("/tmp/mapper_logger.txt", "w", stdout);
+	std::cout << "nbPointsScan,nbPointsScanInputFilters,comulativeNbPointsScan,"
+				 "nbPointsOriginalMap,nbPointsMapIcpFilters,nbPointsMapPostFilters,"
+				 "icpUpdateDuration,mapUpdateDuration" << std::endl;
 	PM::Parameters radiusFilterParams;
 	radiusFilterParams["dim"] = "-1";
 	radiusFilterParams["dist"] = std::to_string(sensorMaxRange);
@@ -61,10 +65,21 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& inputFiltersCo
 void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,
 											 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp)
 {
+	unsigned int nbPointsScan;
+	unsigned int nbPointsScanInputFilters;
+	unsigned int nbPointsOriginalMap = map.getGlobalPointCloud().getNbPoints();
+	unsigned int nbPointsMapIcpFilters;
+	unsigned int nbPointsMapPostFilters;
+	long icpUpdateDuration = -1;
+	long mapUpdateDuration = -1;
+
 	PM::DataPoints filteredInputInSensorFrame = radiusFilter->filter(inputInSensorFrame);
+	nbPointsScan = filteredInputInSensorFrame.getNbPoints();
+
 	inputFilters.apply(filteredInputInSensorFrame);
 	PM::DataPoints input = transformation->compute(filteredInputInSensorFrame, estimatedPose);
 
+	nbPointsScanInputFilters = input.getNbPoints();
 	PM::TransformationParameters correctedPose;
 	if(map.isLocalPointCloudEmpty())
 	{
@@ -72,24 +87,47 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
 		map.updatePose(correctedPose);
 
+		auto start = std::chrono::high_resolution_clock::now();
+		comulativeNbScanPoints += input.getNbPoints();
 		updateMap(input, correctedPose, timeStamp);
+		auto stop = std::chrono::high_resolution_clock::now();
+		mapUpdateDuration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 	}
 	else
 	{
+		auto start = std::chrono::high_resolution_clock::now();
 		PM::TransformationParameters correction;
 		{
 			std::lock_guard<std::mutex> icpMapLockGuard(icpMapLock);
 			correction = icp(input);
 		}
+		auto stop = std::chrono::high_resolution_clock::now();
+		icpUpdateDuration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+		nbPointsMapIcpFilters = icp.getPrefilteredMap().getNbPoints();
+
 		correctedPose = correction * estimatedPose;
 
 		map.updatePose(correctedPose);
 
 		if(shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
 		{
+			start = std::chrono::high_resolution_clock::now();
+			comulativeNbScanPoints += input.getNbPoints();
 			updateMap(transformation->compute(input, correction), correctedPose, timeStamp);
+			stop = std::chrono::high_resolution_clock::now();
+			mapUpdateDuration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 		}
 	}
+	nbPointsMapPostFilters = map.getGlobalPointCloud().getNbPoints();
+
+	std::cout << nbPointsScan << ","
+			  << nbPointsScanInputFilters << ","
+			  << comulativeNbScanPoints << ","
+			<< nbPointsOriginalMap << ","
+			<< nbPointsMapIcpFilters << ","
+			<< nbPointsMapPostFilters << ","
+			<< icpUpdateDuration << ","
+			<< mapUpdateDuration << std::endl;
 
 	poseLock.lock();
 	pose = correctedPose;

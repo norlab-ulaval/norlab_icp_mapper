@@ -36,6 +36,8 @@ namespace norlab_icp_mapper
 		std::mutex icpMapLock;
 		std::future<void> mapUpdateFuture;
 
+		std::size_t comulativeNbScanPoints = 0;
+
 		bool shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime, const PM::TransformationParameters& currentPose,
 							 const float& currentOverlap) const;
 		void updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,

@@ -529,15 +529,9 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 		localPointCloud.concatenate(inputPointsToKeep);
 	}
 
-	PM::DataPoints localPointCloudInSensorFrame = transformation->compute(localPointCloud, pose.inverse());
-	postFilters.apply(localPointCloudInSensorFrame);
-	localPointCloud = transformation->compute(localPointCloudInSensorFrame, pose);
-
 //	apply bounding box to remove wall
 	PointMatcherSupport::Parametrizable::Parameters params;
-	std::string name;
-
-	name = "BoundingBoxDataPointsFilter";
+	std::string name = "BoundingBoxDataPointsFilter";
 	params["xMin"] = "-1000.0";
 	params["xMax"] = "-1.0";
 	params["yMin"] = "-100.0";
@@ -549,6 +543,10 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 		PM::get().DataPointsFilterRegistrar.create(name, params);
 	params.clear();
 	localPointCloud = pm_filter->filter(localPointCloud);
+
+	PM::DataPoints localPointCloudInSensorFrame = transformation->compute(localPointCloud, pose.inverse());
+	postFilters.apply(localPointCloudInSensorFrame);
+	localPointCloud = transformation->compute(localPointCloudInSensorFrame, pose);
 
 	icpMapLock.lock();
 	icp.setMap(localPointCloud);
