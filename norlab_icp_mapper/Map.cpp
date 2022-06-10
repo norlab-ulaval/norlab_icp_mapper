@@ -526,6 +526,10 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 		}
 
 		PM::DataPoints inputPointsToKeep = retrievePointsFurtherThanMinDistNewPoint(input, localPointCloud, pose);
+		std::cout << localPointCloud.getNbPoints() << " " << inputPointsToKeep.getNbPoints() << std::endl;
+//		TODO samplingSurfaceNormal fails here - there's a bug in the map
+//		localPointCloud.save("/home/mbo/Desktop/map_failure.vtk");
+//		inputPointsToKeep.save("/home/mbo/Desktop/inputPointsToKeep_failure.vtk");
 		localPointCloud.concatenate(inputPointsToKeep);
 	}
 

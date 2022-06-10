@@ -37,6 +37,11 @@ namespace norlab_icp_mapper
 		std::future<void> mapUpdateFuture;
 
 		std::size_t comulativeNbScanPoints = 0;
+		std::string filterName;
+		float desiredCompressionRatio;
+		float compressionRatio;
+		std::vector<float> compRatios;
+		std::vector<float> paramValues;
 
 		bool shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime, const PM::TransformationParameters& currentPose,
 							 const float& currentOverlap) const;
