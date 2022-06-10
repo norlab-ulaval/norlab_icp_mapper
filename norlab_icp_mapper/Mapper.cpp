@@ -120,7 +120,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 {
 	unsigned int nbPointsScan;
 	unsigned int nbPointsScanInputFilters;
-	unsigned int nbPointsOriginalMap = map.getGlobalPointCloud().getNbPoints();
+	unsigned int nbPointsOriginalMap = map.getLocalPointCloud().getNbPoints();
 	unsigned int nbPointsMapIcpFilters = -1;
 	unsigned int nbPointsMapPostFilters;
 	long icpUpdateDuration = -1;
@@ -171,7 +171,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 			mapUpdateDuration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 		}
 	}
-	nbPointsMapPostFilters = map.getGlobalPointCloud().getNbPoints();
+	nbPointsMapPostFilters = map.getLocalPointCloud().getNbPoints();
 
 	std::clog << nbPointsScan << ","
 			  << nbPointsScanInputFilters << ","
@@ -238,15 +238,12 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 	}
 	else
 	{
+		map.updateLocalPointCloud(currentInput, currentPose, mapPostFilters);
 		if(desiredCompressionRatio != 0.0) {
-		size_t pointsNow;
-		if (comulativeNbScanPoints == currentInput.getNbPoints())
-			pointsNow = currentInput.getNbPoints();
-		else
-			pointsNow = map.getGlobalPointCloud().getNbPoints() + currentInput.getNbPoints();
+		size_t pointsNow = map.getLocalPointCloud().getNbPoints();
 
 		auto pointDesired = (size_t)((1.0 - compressionRatio) * (float)comulativeNbScanPoints);
-		float prob = ((float)pointDesired * 100.0 / (float)pointsNow) / 100.0;
+		float prob = (1.0 - compressionRatio) * ((float)comulativeNbScanPoints / (float)pointsNow);
 		float cr = 1.0 - prob;
 
 		PM::Parameters filterParams;
@@ -266,14 +263,11 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 		}
 		else
 		{
-
-			std::cout << "pointsNow: " << pointsNow << " pointDesired: " << pointDesired << " cr: " << cr << " prob: " << prob << std::endl;
+//			std::cout << "pointsNow: " << pointsNow << " pointDesired: " << pointDesired << " cum: " << comulativeNbScanPoints << " cr: " << cr << " prob: " << prob << std::endl;
 			if (filterName == "random")
 			{
 				filterParams["prob"] = std::to_string(prob);
-				std::cout << "parameter set\n";
 				filter = PM::get().DataPointsFilterRegistrar.create("RandomSamplingDataPointsFilter", filterParams);
-				std::cout << "filter created\n";
 			}
 			else
 			{
@@ -344,9 +338,8 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 		}
 
 		filters.push_back(filter);
-//		filters = mapPostFilters;
-		map.updateLocalPointCloud(currentInput, currentPose, filters);
-		float achievedCR = (1.0 - ((float)map.getGlobalPointCloud().getNbPoints() / (float)comulativeNbScanPoints));
+		map.applyPostFilters(currentInput, currentPose, filters);
+		float achievedCR = (1.0 - ((float)map.getLocalPointCloud().getNbPoints() / (float)comulativeNbScanPoints));
 		std::cout << "Desired CR: " << desiredCompressionRatio << " Used: " << compressionRatio << " Achieved: " << achievedCR << std::endl;
 
 		if (desiredCompressionRatio - achievedCR < -0.5 / 100.0)
@@ -361,6 +354,7 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 		else
 		{
 			map.updateLocalPointCloud(currentInput, currentPose, mapPostFilters);
+			map.applyPostFilters(currentInput, currentPose, mapPostFilters);
 		}
 	}
 }
