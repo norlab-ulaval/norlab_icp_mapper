@@ -88,7 +88,7 @@ namespace norlab_icp_mapper
 		~Map();
 		void updatePose(const PM::TransformationParameters& pose);
 		PM::DataPoints getLocalPointCloud();
-		void updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters);
+		void updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters, bool removeWall);
 		bool getNewLocalPointCloud(PM::DataPoints& localPointCloudOut);
 		PM::DataPoints getGlobalPointCloud();
 		void setGlobalPointCloud(const PM::DataPoints& newLocalPointCloud);
