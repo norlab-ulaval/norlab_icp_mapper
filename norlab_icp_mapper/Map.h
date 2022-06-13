@@ -94,7 +94,9 @@ namespace norlab_icp_mapper
 		void setGlobalPointCloud(const PM::DataPoints& newLocalPointCloud);
 		bool isLocalPointCloudEmpty() const;
 
-		void applyPostFilters(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters);
+		void applyPostFilters(const PM::TransformationParameters &pose, PM::DataPointsFilters postFilters);
+		PM::DataPoints getMapInSensorFrame(const PM::TransformationParameters &pose);
+		void setLocalMap(const PM::DataPoints &map, const PM::TransformationParameters &pose, bool isInSensorFrame);
 	};
 }
 

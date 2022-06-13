@@ -43,6 +43,7 @@ namespace norlab_icp_mapper
 		std::vector<float> compRatios;
 		std::vector<float> paramValues;
 		bool removeWall;
+		long mapUpdateDuration = -1;
 
 		bool shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime, const PM::TransformationParameters& currentPose,
 							 const float& currentOverlap) const;
@@ -50,6 +51,10 @@ namespace norlab_icp_mapper
 					   const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp);
 		std::shared_ptr<PM::DataPointsFilter> getFilter(PM::Parameters filterParams, std::shared_ptr<PM::DataPointsFilter> filter,
 									const std::string &paramName, const PM::DataPoints &pointCloud);
+		PM::DataPoints getOptimallyFilteredCloud(PM::Parameters filterParams, std::shared_ptr<PM::DataPointsFilter> filter,
+			const std::string &paramName, const PM::DataPoints &pointCloud);
+
+
 
 	public:
 		Mapper(const std::string& inputFiltersConfigFilePath, const std::string& icpConfigFilePath, const std::string& mapPostFiltersConfigFilePath,

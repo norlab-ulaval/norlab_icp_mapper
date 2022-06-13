@@ -126,7 +126,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 	int nbPointsMapIcpFilters = -1;
 	unsigned int nbPointsMapPostFilters;
 	long icpUpdateDuration = -1;
-	long mapUpdateDuration = -1;
+	mapUpdateDuration = -1;
 
 	PM::DataPoints filteredInputInSensorFrame = radiusFilter->filter(inputInSensorFrame);
 	nbPointsScan = filteredInputInSensorFrame.getNbPoints();
@@ -167,7 +167,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 		if(shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
 		{
 			comulativeNbScanPoints += input.getNbPoints();
-			mapUpdateDuration = updateMap(transformation->compute(input, correction), correctedPose, timeStamp);
+			updateMap(transformation->compute(input, correction), correctedPose, timeStamp);
 		}
 	}
 	nbPointsMapPostFilters = map.getLocalPointCloud().getNbPoints();
@@ -372,11 +372,138 @@ std::shared_ptr<norlab_icp_mapper::Mapper::PM::DataPointsFilter> norlab_icp_mapp
 }
 
 
+norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getOptimallyFilteredCloud(PM::Parameters filterParams,
+	std::shared_ptr<PM::DataPointsFilter> filter, const std::string &paramName, const PM::DataPoints &ptCloud)
+{
+	bool end = false;
+	int maxIter = 100;
+	int iter = 0;
+	int sign = 1.0;
+	long tmpUpdateDuration = 0;
+	std::string paramOldTMinus1 = "dummy1";
+	std::string paramOldTMinus2 = "dummy2";
+	PM::DataPoints filteredCloud;
+	PM::DataPoints pointCloudOldTMinus1;
+	double crOldTMinus1;
+	double achievedCR = 0;
+	std::string paramBeforeStr = filterParams[paramName];
+	std::string paramAfterStr = filterParams[paramName];
+	while (true)
+	{
+		iter++;
+
+		pointCloudOldTMinus1 = filteredCloud;
+		auto start = std::chrono::high_resolution_clock::now();
+		filteredCloud = filter->filter(ptCloud);
+		auto stop = std::chrono::high_resolution_clock::now();
+		tmpUpdateDuration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+
+		crOldTMinus1 = achievedCR;
+		achievedCR = (1.0 - ((float)filteredCloud.getNbPoints() / (float)comulativeNbScanPoints));
+
+		if (std::abs(desiredCompressionRatio - achievedCR) < (0.5/100.0) || iter >= maxIter || end || paramOldTMinus2 == paramAfterStr) {
+//			std::cout << "-----" << paramName << ": Before: " << paramBeforeStr << ", After: " << paramAfterStr << ", Iter: " << iter << std::endl;
+			if(paramOldTMinus2 == paramAfterStr &&
+				std::abs(desiredCompressionRatio - crOldTMinus1) < std::abs(desiredCompressionRatio - achievedCR))
+			{
+				filteredCloud = pointCloudOldTMinus1;
+			}
+			if(paramBeforeStr != paramAfterStr)
+			{
+				compressionRatio = getClosestCRForParamValue(compRatios, paramValues, std::stof(paramAfterStr));
+//				std::cout << "-----New CR: " << compressionRatio << std::endl;
+			}
+//			std::cout << "--------Leaving getOptimallyFilteredCloud() function-----------" << std::endl;
+			mapUpdateDuration += tmpUpdateDuration;
+			return filteredCloud;
+		}
+		if (desiredCompressionRatio > achievedCR)
+		{
+			sign = -1;
+		}
+		else if (desiredCompressionRatio < achievedCR)
+		{
+			sign = 1;
+		}
+
+		if (paramName == "maxDensity")
+		{
+			float paramBefore = std::stof(filterParams[paramName]);
+			float paramAfter = paramBefore + (sign*5.0);
+			if (iter == 1)
+				paramBeforeStr = filterParams[paramName];
+			if(paramAfter < 0.0000001)
+			{
+				end = true;
+				continue;
+			}
+			filterParams[paramName] = std::to_string(paramAfter);
+			paramOldTMinus2 = paramOldTMinus1;
+			paramOldTMinus1 = paramAfterStr;
+			paramAfterStr = filterParams[paramName];
+			filter = PM::get().DataPointsFilterRegistrar.create("MaxDensityDataPointsFilter", filterParams);
+		}
+		else if (paramName == "maxPointByNode")
+		{
+			int paramBefore = std::stoi(filterParams[paramName]);
+			int paramAfter = paramBefore - (sign*1);
+			if (iter == 1)
+				paramBeforeStr = filterParams[paramName];
+			if(paramAfter < 1)
+			{
+				end = true;
+				continue;
+			}
+			filterParams[paramName] = std::to_string(static_cast<std::size_t>(paramAfter));
+			paramOldTMinus2 = paramOldTMinus1;
+			paramOldTMinus1 = paramAfterStr;
+			paramAfterStr = filterParams[paramName];
+			filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
+		}
+		else if (paramName == "ratio")
+		{
+			float paramBefore = std::stof(filterParams[paramName]);
+			float paramAfter = paramBefore + (sign*0.025);
+			if (iter == 1)
+				paramBeforeStr = filterParams[paramName];
+			if(paramAfter < 0.0000001 || paramAfter > 0.9999999)
+			{
+				end = true;
+				continue;
+			}
+			filterParams[paramName] = std::to_string(paramAfter);
+			paramOldTMinus2 = paramOldTMinus1;
+			paramOldTMinus1 = paramAfterStr;
+			paramAfterStr = filterParams[paramName];
+			filter = PM::get().DataPointsFilterRegistrar.create("SamplingSurfaceNormalDataPointsFilter", filterParams);
+		}
+		else if (paramName == "radius")
+		{
+			float paramBefore = std::stof(filterParams[paramName]);
+			float paramAfter = paramBefore - (sign*0.01);
+			if (iter == 1)
+				paramBeforeStr = filterParams[paramName];
+			if(paramAfter < 0.0)
+			{
+				end = true;
+				continue;
+			}
+			filterParams[paramName] = std::to_string(paramAfter);
+			paramOldTMinus2 = paramOldTMinus1;
+			paramOldTMinus1 = paramAfterStr;
+			paramAfterStr = filterParams[paramName];
+			filter = PM::get().DataPointsFilterRegistrar.create("SpectralDecompositionDataPointsFilter", filterParams);
+		}
+		else {
+			std::cout << "unknown param name" << std::endl;
+		}
+	}
+}
+
 long norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,
 										  const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp)
 {
-
-	long mapUpdateDuration = 0;
+	mapUpdateDuration = 0;
 	lastTimeMapWasUpdated = currentTimeStamp;
 	lastPoseWhereMapWasUpdated = currentPose;
 
@@ -421,6 +548,10 @@ long norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 				{
 					filterParams["prob"] = std::to_string(prob);
 					filter = PM::get().DataPointsFilterRegistrar.create("RandomSamplingDataPointsFilter", filterParams);
+					filters.push_back(filter);
+					start = std::chrono::high_resolution_clock::now();
+					map.applyPostFilters(currentPose, filters);
+					stop = std::chrono::high_resolution_clock::now();
 				}
 				else
 				{
@@ -464,7 +595,6 @@ long norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 					{
 						paramName = "ratio";
 						filterParams["keepNormals"] = "0";
-						filterParams["keepDensities"] = "0";
 						filterParams[paramName] = std::to_string(param_value);
 						filter = PM::get().DataPointsFilterRegistrar.create("SamplingSurfaceNormalDataPointsFilter", filterParams);
 					}
@@ -489,23 +619,21 @@ long norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 						filter = PM::get().DataPointsFilterRegistrar.create("VoxelGridDataPointsFilter", filterParams);
 					}
 
-				filter = getFilter(filterParams, filter, paramName, map.getLocalPointCloud());
+					auto localPointCloudInSensorFrame = map.getMapInSensorFrame(currentPose);
+					auto filteredMap = getOptimallyFilteredCloud(filterParams, filter, paramName, localPointCloudInSensorFrame);
+					map.setLocalMap(filteredMap, currentPose, true);
 				}
 			}
-			filters.push_back(filter);
-			start = std::chrono::high_resolution_clock::now();
-			map.applyPostFilters(currentInput, currentPose, filters);
-			stop = std::chrono::high_resolution_clock::now();
 			mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 			float achievedCR = (1.0 - ((float)map.getLocalPointCloud().getNbPoints() / (float)comulativeNbScanPoints));
-			std::cout << "Desired CR: " << desiredCompressionRatio << " Used: " << compressionRatio << " Achieved: " << achievedCR << std::endl;
+//			std::cout << "Desired CR: " << desiredCompressionRatio << " Used: " << compressionRatio << " Achieved: " << achievedCR << std::endl;
 
 		}
 		else
 		{
 
 			start = std::chrono::high_resolution_clock::now();
-			map.applyPostFilters(currentInput, currentPose, mapPostFilters);
+			map.applyPostFilters(currentPose, mapPostFilters);
 			stop = std::chrono::high_resolution_clock::now();
 			mapUpdateDuration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 		}

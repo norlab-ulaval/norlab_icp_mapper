@@ -552,7 +552,7 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 	localPointCloudLock.unlock();
 }
 
-void norlab_icp_mapper::Map::applyPostFilters(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters)
+void norlab_icp_mapper::Map::applyPostFilters(const PM::TransformationParameters &pose, PM::DataPointsFilters postFilters)
 {
 	localPointCloudLock.lock();
 	PM::DataPoints localPointCloudInSensorFrame = transformation->compute(localPointCloud, pose.inverse());
@@ -566,6 +566,33 @@ void norlab_icp_mapper::Map::applyPostFilters(PM::DataPoints input, PM::Transfor
 	localPointCloudEmpty.store(localPointCloud.getNbPoints() == 0);
 	newLocalPointCloudAvailable = true;
 	localPointCloudLock.unlock();
+}
+
+void norlab_icp_mapper::Map::setLocalMap(const PM::DataPoints& map, const PM::TransformationParameters &pose, bool isInSensorFrame)
+{
+	localPointCloudLock.lock();
+	if(isInSensorFrame)
+		localPointCloud = transformation->compute(map, pose);
+	else
+		localPointCloud = map;
+
+	icpMapLock.lock();
+	icp.setMap(localPointCloud);
+	icpMapLock.unlock();
+
+	localPointCloudEmpty.store(localPointCloud.getNbPoints() == 0);
+	newLocalPointCloudAvailable = true;
+	localPointCloudLock.unlock();
+
+}
+
+
+norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getMapInSensorFrame(const PM::TransformationParameters &pose)
+{
+	localPointCloudLock.lock();
+	PM::DataPoints localPointCloudInSensorFrame = transformation->compute(localPointCloud, pose.inverse());
+	localPointCloudLock.unlock();
+	return localPointCloudInSensorFrame;
 }
 
 void norlab_icp_mapper::Map::computeProbabilityOfPointsBeingDynamic(const PM::DataPoints& input, PM::DataPoints& currentLocalPointCloud,
