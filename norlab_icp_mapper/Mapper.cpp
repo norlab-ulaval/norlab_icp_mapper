@@ -300,7 +300,6 @@ norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getOptimall
 			if(paramBeforeStr != paramAfterStr)
 			{
 				compressionRatio = getClosestCRForParamValue(compRatios, paramValues, std::stof(paramAfterStr));
-//				std::cout << "-----New CR: " << compressionRatio << std::endl;
 			}
 //			std::cout << "--------Leaving getOptimallyFilteredCloud() function-----------" << std::endl;
 			mapUpdateDuration += tmpUpdateDuration;
@@ -317,8 +316,8 @@ norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getOptimall
 
 		if (paramName == "maxDensity")
 		{
-			float paramBefore = std::stof(filterParams[paramName]);
-			float paramAfter = paramBefore + (sign*5.0);
+			double paramBefore = std::stof(filterParams[paramName]);
+			double paramAfter = paramBefore + (sign*5.0);
 			if (iter == 1)
 				paramBeforeStr = filterParams[paramName];
 			if(paramAfter < 0.0000001)
@@ -331,6 +330,23 @@ norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getOptimall
 			paramOldTMinus1 = paramAfterStr;
 			paramAfterStr = filterParams[paramName];
 			filter = PM::get().DataPointsFilterRegistrar.create("MaxDensityDataPointsFilter", filterParams);
+		}
+		else if (paramName == "maxSizeByNode")
+		{
+			double paramBefore = std::stof(filterParams[paramName]);
+			double paramAfter = paramBefore - (sign*0.005);
+			if (iter == 1)
+				paramBeforeStr = filterParams[paramName];
+			if(paramAfter < 0.0)
+			{
+				end = true;
+				continue;
+			}
+			filterParams[paramName] = std::to_string(paramAfter);
+			paramOldTMinus2 = paramOldTMinus1;
+			paramOldTMinus1 = paramAfterStr;
+			paramAfterStr = filterParams[paramName];
+			filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
 		}
 		else if (paramName == "maxPointByNode")
 		{
@@ -351,8 +367,8 @@ norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getOptimall
 		}
 		else if (paramName == "ratio")
 		{
-			float paramBefore = std::stof(filterParams[paramName]);
-			float paramAfter = paramBefore + (sign*0.025);
+			double paramBefore = std::stof(filterParams[paramName]);
+			double paramAfter = paramBefore + (sign*0.025);
 			if (iter == 1)
 				paramBeforeStr = filterParams[paramName];
 			if(paramAfter < 0.0000001 || paramAfter > 0.9999999)
@@ -368,8 +384,8 @@ norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getOptimall
 		}
 		else if (paramName == "radius")
 		{
-			float paramBefore = std::stof(filterParams[paramName]);
-			float paramAfter = paramBefore - (sign*0.01);
+			double paramBefore = std::stof(filterParams[paramName]);
+			double paramAfter = paramBefore - (sign*0.01);
 			if (iter == 1)
 				paramBeforeStr = filterParams[paramName];
 			if(paramAfter < 0.0)
@@ -455,6 +471,34 @@ long norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 						paramName = "maxDensity";
 						filterParams[paramName] = std::to_string(param_value);
 						filter = PM::get().DataPointsFilterRegistrar.create("MaxDensityDataPointsFilter", filterParams);
+					}
+					else if (filterName == "octreeVoxelFirstPoint")
+					{
+						paramName = "maxSizeByNode";
+						filterParams["samplingMethod"] = "0";
+						filterParams[paramName] = std::to_string(param_value);
+						filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
+					}
+					else if (filterName == "octreeVoxelRandom")
+					{
+						paramName = "maxSizeByNode";
+						filterParams["samplingMethod"] = "1";
+						filterParams[paramName] = std::to_string(param_value);
+						filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
+					}
+					else if (filterName == "octreeVoxelCentroid")
+					{
+						paramName = "maxSizeByNode";
+						filterParams["samplingMethod"] = "2";
+						filterParams[paramName] = std::to_string(param_value);
+						filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
+					}
+					else if (filterName == "octreeVoxelMedoid")
+					{
+						paramName = "maxSizeByNode";
+						filterParams["samplingMethod"] = "3";
+						filterParams[paramName] = std::to_string(param_value);
+						filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
 					}
 					else if (filterName == "octreeFirstPoint")
 					{
