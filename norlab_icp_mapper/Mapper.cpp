@@ -429,6 +429,10 @@ long norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 				auto nbSample = static_cast<std::size_t>((1.0 - compressionRatio) * (float)comulativeNbScanPoints);
 				filterParams["nbSample"] = std::to_string(nbSample);
 				filter = PM::get().DataPointsFilterRegistrar.create(tmpName, filterParams);
+				filters.push_back(filter);
+				start = std::chrono::high_resolution_clock::now();
+				map.applyPostFilters(currentPose, filters);
+				stop = std::chrono::high_resolution_clock::now();
 			}
 			else
 			{
@@ -520,7 +524,6 @@ long norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 		}
 		else
 		{
-
 			start = std::chrono::high_resolution_clock::now();
 			map.applyPostFilters(currentPose, mapPostFilters);
 			stop = std::chrono::high_resolution_clock::now();
