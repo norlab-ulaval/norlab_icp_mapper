@@ -556,9 +556,9 @@ long norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 						filter = PM::get().DataPointsFilterRegistrar.create("VoxelGridDataPointsFilter", filterParams);
 					}
 
-					auto localPointCloudInSensorFrame = map.getMapInSensorFrame(currentPose);
-					auto filteredMap = getOptimallyFilteredCloud(filterParams, filter, paramName, localPointCloudInSensorFrame);
-					map.setLocalMap(filteredMap, currentPose, true);
+//					auto localPointCloudInSensorFrame = map.getMapInSensorFrame(currentPose);
+					auto filteredMap = getOptimallyFilteredCloud(filterParams, filter, paramName, map.getLocalPointCloud());
+					map.setLocalMap(filteredMap, currentPose, false);
 				}
 			}
 			mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
