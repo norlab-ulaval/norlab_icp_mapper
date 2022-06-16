@@ -30,12 +30,26 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 		getline(sampingParamsFile, filterValue);
 		getline(sampingParamsFile, tmp);
 		std::istringstream("1") >> removeWall;
-		getline(sampingParamsFile, tmp);
-		seed = std::stoi(tmp);
 		std::cout << "Open file " << sampingParamsFileName << "\n"
 					<< "Loaded name: " << filterName << ", filterValue: " << filterValue << std::endl;
 		sampingParamsFile.close(); //close the file object.
 		}
+	else
+	{
+		std::cout << "Could not open the file: " << sampingParamsFileName << std::endl;
+		throw std::exception();
+	}
+
+	std::string seedFileName = "/tmp/seed.txt";
+	std::fstream seedFile;
+	seedFile.open(seedFileName,std::ios::in); //open a file to perform read operation using file object
+	if (seedFile.is_open()){ //checking whether the file is open
+		std::string tmp;
+		getline(seedFile, tmp);
+		seed = std::stoi(tmp);
+		std::cout << "Open file " << seedFileName << "Loaded seed: " << seed << std::endl;
+		seedFile.close(); //close the file object.
+	}
 	else
 	{
 		std::cout << "Could not open the file: " << sampingParamsFileName << std::endl;
