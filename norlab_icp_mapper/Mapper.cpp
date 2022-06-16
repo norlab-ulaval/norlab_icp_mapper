@@ -21,7 +21,6 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation"))
 {
 	loadYamlConfig(inputFiltersConfigFilePath, icpConfigFilePath, mapPostFiltersConfigFilePath);
-
 	std::string sampingParamsFileName = "/tmp/map_sampling_params.txt";
 	std::fstream sampingParamsFile;
 	sampingParamsFile.open(sampingParamsFileName,std::ios::in); //open a file to perform read operation using file object
@@ -34,6 +33,8 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 		desiredCompressionRatio = std::stof(tmp);
 		getline(sampingParamsFile, tmp);
 		std::istringstream("1") >> removeWall;
+		getline(sampingParamsFile, tmp);
+		seed = std::stoi(tmp);
 		std::cout << "Open file " << sampingParamsFileName << "\n"
 					<< "Loaded name: " << filterName << ", desired CR: " << desiredCompressionRatio << ", init CR: " << compressionRatio << std::endl;
 		sampingParamsFile.close(); //close the file object.
@@ -49,6 +50,7 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 	{
 		std::string lookupTableFilePath =
 			"/home/mbo/norlab_ws/playground/norlab_utils/data/sampling_lookup_tables/map_" + filterName + ".csv";
+		std::cout << "Opening " << lookupTableFilePath << std::endl;
 		std::fstream lookupTableFile;
 		lookupTableFile.open(lookupTableFilePath, std::ios::in); //open a file to perform read operation using file object
 		std::vector<std::string> row;
@@ -77,7 +79,8 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 
 
 //	print to log file
-	std::freopen("/tmp/mapper_logger.txt", "w", stderr);
+	if (! std::freopen("/tmp/mapper_logger.txt", "w", stderr))
+		throw std::exception();
 	std::cerr << "nbPointsScan,nbPointsScanInputFilters,comulativeNbPointsScan,"
 				 "nbPointsOriginalMap,nbPointsMapIcpFilters,nbPointsMapPostFilters,"
 				 "icpUpdateDuration,mapUpdateDuration" << std::endl;
@@ -120,6 +123,8 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& inputFiltersCo
 void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,
 											 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp)
 {
+	iterationCtr++;
+
 	unsigned int nbPointsScan;
 	unsigned int nbPointsScanInputFilters;
 	unsigned int nbPointsOriginalMap = map.getLocalPointCloud().getNbPoints();
@@ -130,6 +135,25 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
 	PM::DataPoints filteredInputInSensorFrame = radiusFilter->filter(inputInSensorFrame);
 	nbPointsScan = filteredInputInSensorFrame.getNbPoints();
+
+	PointMatcherSupport::Parametrizable::Parameters params;
+	std::shared_ptr<PM::DataPointsFilter> pm_filter;
+	params["xMin"] = "-1.2";
+	params["xMax"] = "0.5";
+	params["yMin"] = "-0.3";
+	params["yMax"] = "0.3";
+	params["zMin"] = "-0.3";
+	params["zMax"] = "0.6";
+	params["removeInside"] = "1";
+	pm_filter = PM::get().DataPointsFilterRegistrar.create("BoundingBoxDataPointsFilter", params);
+	params.clear();
+	filteredInputInSensorFrame = pm_filter->filter(filteredInputInSensorFrame);
+
+	params["prob"] = "0.3";
+	params["seed"] = std::to_string(seed + iterationCtr);
+	pm_filter = PM::get().DataPointsFilterRegistrar.create("RandomSamplingDataPointsFilter", params);
+	params.clear();
+	filteredInputInSensorFrame = pm_filter->filter(filteredInputInSensorFrame);
 
 	inputFilters.apply(filteredInputInSensorFrame);
 	PM::DataPoints input = transformation->compute(filteredInputInSensorFrame, estimatedPose);
@@ -142,11 +166,8 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
 		map.updatePose(correctedPose);
 
-		auto start = std::chrono::high_resolution_clock::now();
 		comulativeNbScanPoints += input.getNbPoints();
 		updateMap(input, correctedPose, timeStamp);
-		auto stop = std::chrono::high_resolution_clock::now();
-		mapUpdateDuration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 	}
 	else
 	{
@@ -264,24 +285,36 @@ float getClosestCRForParamValue(const std::vector<float> &compRatios, const std:
 norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getOptimallyFilteredCloud(PM::Parameters filterParams,
 	std::shared_ptr<PM::DataPointsFilter> filter, const std::string &paramName, const PM::DataPoints &ptCloud)
 {
+	float tolerance;
+	if (desiredCompressionRatio <= 95)
+		tolerance = 0.5;
+	else
+		tolerance = 0.1;
+	double paramMin = 0.0001;
+	double paramMax = 0.5;
 	bool end = false;
-	int maxIter = 100;
+	int maxIter = 200;
+	if (paramName == "maxSizeByNode")
+		maxIter = 2000;
+	else if (paramName == "radius")
+		maxIter = 20;
 	int iter = 0;
 	int sign = 1.0;
-	long tmpUpdateDuration = 0;
+	long tmpUpdateDuration;
 	std::string paramOldTMinus1 = "dummy1";
 	std::string paramOldTMinus2 = "dummy2";
 	PM::DataPoints filteredCloud;
-	PM::DataPoints pointCloudOldTMinus1;
-	double crOldTMinus1;
-	double achievedCR = 0;
+	PM::DataPoints bestFilteredCloud;
+	double bestCR = 0.0;
+	double crOldTMinus1 = 100.0;
+	double achievedCR = 100.0;
 	std::string paramBeforeStr = filterParams[paramName];
 	std::string paramAfterStr = filterParams[paramName];
+	std::cout << "========================\n";
 	while (true)
 	{
 		iter++;
 
-		pointCloudOldTMinus1 = filteredCloud;
 		auto start = std::chrono::high_resolution_clock::now();
 		filteredCloud = filter->filter(ptCloud);
 		auto stop = std::chrono::high_resolution_clock::now();
@@ -290,19 +323,37 @@ norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getOptimall
 		crOldTMinus1 = achievedCR;
 		achievedCR = (1.0 - ((float)filteredCloud.getNbPoints() / (float)comulativeNbScanPoints));
 
-		if (std::abs(desiredCompressionRatio - achievedCR) < (0.5/100.0) || iter >= maxIter || end || paramOldTMinus2 == paramAfterStr) {
-//			std::cout << "-----" << paramName << ": Before: " << paramBeforeStr << ", After: " << paramAfterStr << ", Iter: " << iter << std::endl;
-			if(paramOldTMinus2 == paramAfterStr &&
-				std::abs(desiredCompressionRatio - crOldTMinus1) < std::abs(desiredCompressionRatio - achievedCR))
+		if (achievedCR <= desiredCompressionRatio && abs(achievedCR - desiredCompressionRatio) < abs(bestCR - desiredCompressionRatio))
+		{
+			bestFilteredCloud = filteredCloud;
+			bestCR = achievedCR;
+		}
+
+		std::cout << "Param: " << paramAfterStr << ": Param min: " << paramMin << ": Param max: " << paramMax << " iter: " << iter << "\n";
+		std::cout << "Achieved: " << achievedCR << ", Desired: " << desiredCompressionRatio << ", T-1: " << crOldTMinus1 << std::endl;
+		if (iter >= maxIter
+			|| abs(paramMin - paramMax) < 0.0001
+			|| end
+			|| paramOldTMinus2 == paramAfterStr
+			|| desiredCompressionRatio > achievedCR &&
+			   (desiredCompressionRatio - achievedCR < tolerance/100.0))
+		{
+			std::cout << "-------------------\n";
+			std::cout << "Param: " << paramAfterStr << ": Param min: " << paramMin << ": Param max: " << paramMax << " iter: " << iter << "\n";
+			double achievedOld = achievedCR;
+			if(desiredCompressionRatio < achievedCR)
 			{
-				filteredCloud = pointCloudOldTMinus1;
+				achievedCR = bestCR;
+				filteredCloud = bestFilteredCloud;
+				std::cout <<  "Achieved: " << achievedCR << ", AchievedOld: " << achievedOld<<", Desired: " << desiredCompressionRatio << ", T-1: " << crOldTMinus1 << std::endl;
 			}
-			if(paramBeforeStr != paramAfterStr)
-			{
-				compressionRatio = getClosestCRForParamValue(compRatios, paramValues, std::stof(paramAfterStr));
-			}
-//			std::cout << "--------Leaving getOptimallyFilteredCloud() function-----------" << std::endl;
+			else
+				std::cout << "Achieved: " << achievedCR << ", Desired: " << desiredCompressionRatio << ", T-1: " << crOldTMinus1 << std::endl;
+			std::cout << "Param t: " << paramAfterStr << ": Param t-1: " << paramOldTMinus1 << ": Param t-2: " << paramOldTMinus2 << "\n";
+			std::cout << "Before: " << paramBeforeStr << ", After: " << paramAfterStr << "\n";
+			std::cout << "Iter: " << iter << ", End flag: " << end  << " Same as before: " << (paramOldTMinus2 == paramAfterStr) << "\n";
 			mapUpdateDuration += tmpUpdateDuration;
+			paramValueInit = paramAfterStr;
 			return filteredCloud;
 		}
 		if (desiredCompressionRatio > achievedCR)
@@ -314,10 +365,14 @@ norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getOptimall
 			sign = 1;
 		}
 
+		double paramBefore = std::stof(filterParams[paramName]);
+
 		if (paramName == "maxDensity")
 		{
-			double paramBefore = std::stof(filterParams[paramName]);
-			double paramAfter = paramBefore + (sign*5.0);
+			double increment = 2.5;
+			if (desiredCompressionRatio < achievedCR)
+				increment = 4.8;
+			double paramAfter = paramBefore + (sign*increment);
 			if (iter == 1)
 				paramBeforeStr = filterParams[paramName];
 			if(paramAfter < 0.0000001)
@@ -333,8 +388,13 @@ norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getOptimall
 		}
 		else if (paramName == "maxSizeByNode")
 		{
-			double paramBefore = std::stof(filterParams[paramName]);
-			double paramAfter = paramBefore - (sign*0.005);
+			double paramAfter;
+			if (desiredCompressionRatio > achievedCR)
+				paramMin = paramBefore;
+			else if (desiredCompressionRatio < achievedCR)
+				paramMax = paramBefore;
+			paramAfter = (paramMin + paramMax) / 2;
+//			paramAfter = paramBefore - (sign*0.0025);
 			if (iter == 1)
 				paramBeforeStr = filterParams[paramName];
 			if(paramAfter < 0.0)
@@ -347,6 +407,48 @@ norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getOptimall
 			paramOldTMinus1 = paramAfterStr;
 			paramAfterStr = filterParams[paramName];
 			filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
+		}
+		else if (paramName == "ratio")
+		{
+			double paramAfter = paramBefore + (sign*0.025);
+			if (iter == 1)
+				paramBeforeStr = filterParams[paramName];
+			if(paramAfter < 0.0000001 || paramAfter > 0.9999999)
+			{
+				end = true;
+				continue;
+			}
+			filterParams[paramName] = std::to_string(paramAfter);
+			paramOldTMinus2 = paramOldTMinus1;
+			paramOldTMinus1 = paramAfterStr;
+			paramAfterStr = filterParams[paramName];
+			filter = PM::get().DataPointsFilterRegistrar.create("SamplingSurfaceNormalDataPointsFilter", filterParams);
+		}
+		else if (paramName == "radius")
+		{
+			double increment = 0.05;
+			double paramAfter = paramBefore - (sign*increment);
+			if (desiredCompressionRatio < achievedCR && crOldTMinus1 < desiredCompressionRatio && paramOldTMinus1 != "dummy1")
+			{
+				paramAfter = (std::stof(paramOldTMinus1) + paramBefore)/2;
+			}
+			else if (desiredCompressionRatio < achievedCR && paramOldTMinus1 == "dummy1")
+			{
+				paramAfter = paramBefore - (sign*increment*3);
+			}
+
+			if (iter == 1)
+				paramBeforeStr = filterParams[paramName];
+			if(paramAfter < 0.0)
+			{
+				end = true;
+				continue;
+			}
+			filterParams[paramName] = std::to_string(paramAfter);
+			paramOldTMinus2 = paramOldTMinus1;
+			paramOldTMinus1 = paramAfterStr;
+			paramAfterStr = filterParams[paramName];
+			filter = PM::get().DataPointsFilterRegistrar.create("SpectralDecompositionDataPointsFilter", filterParams);
 		}
 		else if (paramName == "maxPointByNode")
 		{
@@ -365,47 +467,13 @@ norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getOptimall
 			paramAfterStr = filterParams[paramName];
 			filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
 		}
-		else if (paramName == "ratio")
-		{
-			double paramBefore = std::stof(filterParams[paramName]);
-			double paramAfter = paramBefore + (sign*0.025);
-			if (iter == 1)
-				paramBeforeStr = filterParams[paramName];
-			if(paramAfter < 0.0000001 || paramAfter > 0.9999999)
-			{
-				end = true;
-				continue;
-			}
-			filterParams[paramName] = std::to_string(paramAfter);
-			paramOldTMinus2 = paramOldTMinus1;
-			paramOldTMinus1 = paramAfterStr;
-			paramAfterStr = filterParams[paramName];
-			filter = PM::get().DataPointsFilterRegistrar.create("SamplingSurfaceNormalDataPointsFilter", filterParams);
-		}
-		else if (paramName == "radius")
-		{
-			double paramBefore = std::stof(filterParams[paramName]);
-			double paramAfter = paramBefore - (sign*0.01);
-			if (iter == 1)
-				paramBeforeStr = filterParams[paramName];
-			if(paramAfter < 0.0)
-			{
-				end = true;
-				continue;
-			}
-			filterParams[paramName] = std::to_string(paramAfter);
-			paramOldTMinus2 = paramOldTMinus1;
-			paramOldTMinus1 = paramAfterStr;
-			paramAfterStr = filterParams[paramName];
-			filter = PM::get().DataPointsFilterRegistrar.create("SpectralDecompositionDataPointsFilter", filterParams);
-		}
 		else {
 			std::cout << "unknown param name" << std::endl;
 		}
 	}
 }
 
-long norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,
+void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,
 										  const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp)
 {
 	mapUpdateDuration = 0;
@@ -548,15 +616,9 @@ long norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 						filterParams[paramName] = std::to_string(param_value);
 						filter = PM::get().DataPointsFilterRegistrar.create("SpectralDecompositionDataPointsFilter", filterParams);
 					}
-					else if (filterName == "voxelGrid")
-					{
-						filterParams["vSizeX"] = std::to_string(param_value);
-						filterParams["vSizeY"] = std::to_string(param_value);
-						filterParams["vSizeZ"] = std::to_string(param_value);
-						filter = PM::get().DataPointsFilterRegistrar.create("VoxelGridDataPointsFilter", filterParams);
-					}
 
-//					auto localPointCloudInSensorFrame = map.getMapInSensorFrame(currentPose);
+					if (! paramValueInit.empty())
+						filterParams[paramName] = paramValueInit;
 					auto filteredMap = getOptimallyFilteredCloud(filterParams, filter, paramName, map.getLocalPointCloud());
 					map.setLocalMap(filteredMap, currentPose, false);
 				}
@@ -564,7 +626,6 @@ long norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 			mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 			float achievedCR = (1.0 - ((float)map.getLocalPointCloud().getNbPoints() / (float)comulativeNbScanPoints));
 //			std::cout << "Desired CR: " << desiredCompressionRatio << " Used: " << compressionRatio << " Achieved: " << achievedCR << std::endl;
-
 		}
 		else
 		{
@@ -574,7 +635,6 @@ long norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 			mapUpdateDuration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 		}
 	}
-	return mapUpdateDuration;
 }
 
 norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getMap()
