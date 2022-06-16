@@ -38,13 +38,9 @@ namespace norlab_icp_mapper
 
 		std::size_t comulativeNbScanPoints = 0;
 		std::string filterName;
-		float desiredCompressionRatio;
-		float compressionRatio;
-		std::vector<float> compRatios;
-		std::vector<float> paramValues;
+		std::string filterValue;
 		bool removeWall;
 		long mapUpdateDuration = -1;
-		std::string paramValueInit;
 		int seed;
 		int iterationCtr = 0;
 
@@ -52,8 +48,6 @@ namespace norlab_icp_mapper
 							 const float& currentOverlap) const;
 		void updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,
 					   const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp);
-		PM::DataPoints getOptimallyFilteredCloud(PM::Parameters filterParams, std::shared_ptr<PM::DataPointsFilter> filter,
-			const std::string &paramName, const PM::DataPoints &pointCloud);
 
 
 

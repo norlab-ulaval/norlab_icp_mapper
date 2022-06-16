@@ -526,9 +526,6 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 		}
 
 		PM::DataPoints inputPointsToKeep = retrievePointsFurtherThanMinDistNewPoint(input, localPointCloud, pose);
-//		TODO samplingSurfaceNormal fails here - there's a bug in the map
-//		localPointCloud.save("/home/mbo/Desktop/map_failure.vtk");
-//		inputPointsToKeep.save("/home/mbo/Desktop/inputPointsToKeep_failure.vtk");
 		localPointCloud.concatenate(inputPointsToKeep);
 	}
 
@@ -552,29 +549,17 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 	localPointCloudLock.unlock();
 }
 
-void norlab_icp_mapper::Map::applyPostFilters(const PM::TransformationParameters &pose, PM::DataPointsFilters postFilters)
+void norlab_icp_mapper::Map::applyPostFilters(const PM::TransformationParameters &pose, PM::DataPointsFilters postFilters, bool inRobotFrame)
 {
 	localPointCloudLock.lock();
-	PM::DataPoints localPointCloudInSensorFrame = transformation->compute(localPointCloud, pose.inverse());
-	postFilters.apply(localPointCloudInSensorFrame);
-	localPointCloud = transformation->compute(localPointCloudInSensorFrame, pose);
-
-	icpMapLock.lock();
-	icp.setMap(localPointCloud);
-	icpMapLock.unlock();
-
-	localPointCloudEmpty.store(localPointCloud.getNbPoints() == 0);
-	newLocalPointCloudAvailable = true;
-	localPointCloudLock.unlock();
-}
-
-void norlab_icp_mapper::Map::setLocalMap(const PM::DataPoints& map, const PM::TransformationParameters &pose, bool isInSensorFrame)
-{
-	localPointCloudLock.lock();
-	if(isInSensorFrame)
-		localPointCloud = transformation->compute(map, pose);
+	if (inRobotFrame)
+	{
+		PM::DataPoints localPointCloudInSensorFrame = transformation->compute(localPointCloud, pose.inverse());
+		postFilters.apply(localPointCloudInSensorFrame);
+		localPointCloud = transformation->compute(localPointCloudInSensorFrame, pose);
+	}
 	else
-		localPointCloud = map;
+		postFilters.apply(localPointCloud);
 
 	icpMapLock.lock();
 	icp.setMap(localPointCloud);
@@ -583,16 +568,6 @@ void norlab_icp_mapper::Map::setLocalMap(const PM::DataPoints& map, const PM::Tr
 	localPointCloudEmpty.store(localPointCloud.getNbPoints() == 0);
 	newLocalPointCloudAvailable = true;
 	localPointCloudLock.unlock();
-
-}
-
-
-norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getMapInSensorFrame(const PM::TransformationParameters &pose)
-{
-	localPointCloudLock.lock();
-	PM::DataPoints localPointCloudInSensorFrame = transformation->compute(localPointCloud, pose.inverse());
-	localPointCloudLock.unlock();
-	return localPointCloudInSensorFrame;
 }
 
 void norlab_icp_mapper::Map::computeProbabilityOfPointsBeingDynamic(const PM::DataPoints& input, PM::DataPoints& currentLocalPointCloud,

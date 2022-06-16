@@ -27,54 +27,19 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 	if (sampingParamsFile.is_open()){ //checking whether the file is open
 		std::string tmp;
 		getline(sampingParamsFile, filterName);
-		getline(sampingParamsFile, tmp);
-		compressionRatio = std::stof(tmp);
-		getline(sampingParamsFile, tmp);
-		desiredCompressionRatio = std::stof(tmp);
+		getline(sampingParamsFile, filterValue);
 		getline(sampingParamsFile, tmp);
 		std::istringstream("1") >> removeWall;
 		getline(sampingParamsFile, tmp);
 		seed = std::stoi(tmp);
 		std::cout << "Open file " << sampingParamsFileName << "\n"
-					<< "Loaded name: " << filterName << ", desired CR: " << desiredCompressionRatio << ", init CR: " << compressionRatio << std::endl;
+					<< "Loaded name: " << filterName << ", filterValue: " << filterValue << std::endl;
 		sampingParamsFile.close(); //close the file object.
 		}
 	else
 	{
 		std::cout << "Could not open the file: " << sampingParamsFileName << std::endl;
 		throw std::exception();
-	}
-
-
-	if(desiredCompressionRatio != 0.0)
-	{
-		std::string lookupTableFilePath =
-			"/home/mbo/norlab_ws/playground/norlab_utils/data/sampling_lookup_tables/map_" + filterName + ".csv";
-		std::cout << "Opening " << lookupTableFilePath << std::endl;
-		std::fstream lookupTableFile;
-		lookupTableFile.open(lookupTableFilePath, std::ios::in); //open a file to perform read operation using file object
-		std::vector<std::string> row;
-		std::string line, word;
-		if (lookupTableFile.is_open())
-		{
-//		skip header line
-			getline(lookupTableFile, line);
-			while (getline(lookupTableFile, line))
-			{
-				row.clear();
-
-				std::stringstream str(line);
-
-				std::getline(str, word, ',');
-				std::getline(str, word, ',');
-				compRatios.push_back(std::stof(word));
-				std::getline(str, word, ',');
-				paramValues.push_back(std::stof(word));
-			}
-			lookupTableFile.close();
-		}
-		else
-			std::cout << "Could not open the file: " << lookupTableFilePath << std::endl;
 	}
 
 
@@ -246,233 +211,6 @@ bool norlab_icp_mapper::Mapper::shouldUpdateMap(const std::chrono::time_point<st
 	}
 }
 
-
-float getClosestParamForCR(const std::vector<float> &compRatios, const std::vector<float> &paramValues, float compressionRatio)
-{
-	auto iter_closest = std::lower_bound(compRatios.begin(), compRatios.end(), 100.0 * compressionRatio);
-	auto idx_closest = iter_closest - compRatios.begin();
-	if(idx_closest == compRatios.size())
-		idx_closest -= 1;
-	float param_value = paramValues[idx_closest];
-//	std::cout << "For CR: " << compressionRatio <<", Closest: idx: " << idx_closest << " cr value: " << compRatios[idx_closest] << " param: "
-//			  << param_value << std::endl;
-	return param_value;
-}
-
-float getClosestCRForParamValue(const std::vector<float> &compRatios, const std::vector<float> &paramValues, float paramValue)
-{
-//	reversed order
-	size_t idx_closest;
-	if (paramValues[0] > paramValues[paramValues.size()-1])
-	{
-		auto iter_closest = std::lower_bound(paramValues.begin(), paramValues.end(), paramValue, std::greater<float>());
-		idx_closest = iter_closest - paramValues.begin();
-	}
-	else
-	{
-		auto iter_closest = std::lower_bound(paramValues.begin(), paramValues.end(), paramValue);
-		idx_closest = iter_closest - paramValues.begin();
-	}
-	if(idx_closest == paramValues.size())
-		idx_closest -= 1;
-	float cr = compRatios[idx_closest];
-//	std::cout << "For param: " << paramValue << ", Closest: idx: " << idx_closest << " found param value: " << paramValues[idx_closest] << " cr: "
-//			  << cr << std::endl;
-	return cr/100.0;
-}
-
-
-norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getOptimallyFilteredCloud(PM::Parameters filterParams,
-	std::shared_ptr<PM::DataPointsFilter> filter, const std::string &paramName, const PM::DataPoints &ptCloud)
-{
-	float tolerance;
-	if (desiredCompressionRatio <= 95)
-		tolerance = 0.5;
-	else
-		tolerance = 0.1;
-	double paramMin = 0.0001;
-	double paramMax = 0.5;
-	bool end = false;
-	int maxIter = 200;
-	if (paramName == "maxSizeByNode")
-		maxIter = 2000;
-	else if (paramName == "radius")
-		maxIter = 20;
-	int iter = 0;
-	int sign = 1.0;
-	long tmpUpdateDuration;
-	std::string paramOldTMinus1 = "dummy1";
-	std::string paramOldTMinus2 = "dummy2";
-	PM::DataPoints filteredCloud;
-	PM::DataPoints bestFilteredCloud;
-	double bestCR = 0.0;
-	double crOldTMinus1 = 100.0;
-	double achievedCR = 100.0;
-	std::string paramBeforeStr = filterParams[paramName];
-	std::string paramAfterStr = filterParams[paramName];
-	std::cout << "========================\n";
-	while (true)
-	{
-		iter++;
-
-		auto start = std::chrono::high_resolution_clock::now();
-		filteredCloud = filter->filter(ptCloud);
-		auto stop = std::chrono::high_resolution_clock::now();
-		tmpUpdateDuration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-
-		crOldTMinus1 = achievedCR;
-		achievedCR = (1.0 - ((float)filteredCloud.getNbPoints() / (float)comulativeNbScanPoints));
-
-		if (achievedCR <= desiredCompressionRatio && abs(achievedCR - desiredCompressionRatio) < abs(bestCR - desiredCompressionRatio))
-		{
-			bestFilteredCloud = filteredCloud;
-			bestCR = achievedCR;
-		}
-
-		std::cout << "Param: " << paramAfterStr << ": Param min: " << paramMin << ": Param max: " << paramMax << " iter: " << iter << "\n";
-		std::cout << "Achieved: " << achievedCR << ", Desired: " << desiredCompressionRatio << ", T-1: " << crOldTMinus1 << std::endl;
-		if (iter >= maxIter
-			|| abs(paramMin - paramMax) < 0.0001
-			|| end
-			|| paramOldTMinus2 == paramAfterStr
-			|| desiredCompressionRatio > achievedCR &&
-			   (desiredCompressionRatio - achievedCR < tolerance/100.0))
-		{
-			std::cout << "-------------------\n";
-			std::cout << "Param: " << paramAfterStr << ": Param min: " << paramMin << ": Param max: " << paramMax << " iter: " << iter << "\n";
-			double achievedOld = achievedCR;
-			if(desiredCompressionRatio < achievedCR)
-			{
-				achievedCR = bestCR;
-				filteredCloud = bestFilteredCloud;
-				std::cout <<  "Achieved: " << achievedCR << ", AchievedOld: " << achievedOld<<", Desired: " << desiredCompressionRatio << ", T-1: " << crOldTMinus1 << std::endl;
-			}
-			else
-				std::cout << "Achieved: " << achievedCR << ", Desired: " << desiredCompressionRatio << ", T-1: " << crOldTMinus1 << std::endl;
-			std::cout << "Param t: " << paramAfterStr << ": Param t-1: " << paramOldTMinus1 << ": Param t-2: " << paramOldTMinus2 << "\n";
-			std::cout << "Before: " << paramBeforeStr << ", After: " << paramAfterStr << "\n";
-			std::cout << "Iter: " << iter << ", End flag: " << end  << " Same as before: " << (paramOldTMinus2 == paramAfterStr) << "\n";
-			mapUpdateDuration += tmpUpdateDuration;
-			paramValueInit = paramAfterStr;
-			return filteredCloud;
-		}
-		if (desiredCompressionRatio > achievedCR)
-		{
-			sign = -1;
-		}
-		else if (desiredCompressionRatio < achievedCR)
-		{
-			sign = 1;
-		}
-
-		double paramBefore = std::stof(filterParams[paramName]);
-
-		if (paramName == "maxDensity")
-		{
-			double increment = 2.5;
-			if (desiredCompressionRatio < achievedCR)
-				increment = 4.8;
-			double paramAfter = paramBefore + (sign*increment);
-			if (iter == 1)
-				paramBeforeStr = filterParams[paramName];
-			if(paramAfter < 0.0000001)
-			{
-				end = true;
-				continue;
-			}
-			filterParams[paramName] = std::to_string(paramAfter);
-			paramOldTMinus2 = paramOldTMinus1;
-			paramOldTMinus1 = paramAfterStr;
-			paramAfterStr = filterParams[paramName];
-			filter = PM::get().DataPointsFilterRegistrar.create("MaxDensityDataPointsFilter", filterParams);
-		}
-		else if (paramName == "maxSizeByNode")
-		{
-			double paramAfter;
-			if (desiredCompressionRatio > achievedCR)
-				paramMin = paramBefore;
-			else if (desiredCompressionRatio < achievedCR)
-				paramMax = paramBefore;
-			paramAfter = (paramMin + paramMax) / 2;
-//			paramAfter = paramBefore - (sign*0.0025);
-			if (iter == 1)
-				paramBeforeStr = filterParams[paramName];
-			if(paramAfter < 0.0)
-			{
-				end = true;
-				continue;
-			}
-			filterParams[paramName] = std::to_string(paramAfter);
-			paramOldTMinus2 = paramOldTMinus1;
-			paramOldTMinus1 = paramAfterStr;
-			paramAfterStr = filterParams[paramName];
-			filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
-		}
-		else if (paramName == "ratio")
-		{
-			double paramAfter = paramBefore + (sign*0.025);
-			if (iter == 1)
-				paramBeforeStr = filterParams[paramName];
-			if(paramAfter < 0.0000001 || paramAfter > 0.9999999)
-			{
-				end = true;
-				continue;
-			}
-			filterParams[paramName] = std::to_string(paramAfter);
-			paramOldTMinus2 = paramOldTMinus1;
-			paramOldTMinus1 = paramAfterStr;
-			paramAfterStr = filterParams[paramName];
-			filter = PM::get().DataPointsFilterRegistrar.create("SamplingSurfaceNormalDataPointsFilter", filterParams);
-		}
-		else if (paramName == "radius")
-		{
-			double increment = 0.05;
-			double paramAfter = paramBefore - (sign*increment);
-			if (desiredCompressionRatio < achievedCR && crOldTMinus1 < desiredCompressionRatio && paramOldTMinus1 != "dummy1")
-			{
-				paramAfter = (std::stof(paramOldTMinus1) + paramBefore)/2;
-			}
-			else if (desiredCompressionRatio < achievedCR && paramOldTMinus1 == "dummy1")
-			{
-				paramAfter = paramBefore - (sign*increment*3);
-			}
-
-			if (iter == 1)
-				paramBeforeStr = filterParams[paramName];
-			if(paramAfter < 0.0)
-			{
-				end = true;
-				continue;
-			}
-			filterParams[paramName] = std::to_string(paramAfter);
-			paramOldTMinus2 = paramOldTMinus1;
-			paramOldTMinus1 = paramAfterStr;
-			paramAfterStr = filterParams[paramName];
-			filter = PM::get().DataPointsFilterRegistrar.create("SpectralDecompositionDataPointsFilter", filterParams);
-		}
-		else if (paramName == "maxPointByNode")
-		{
-			int paramBefore = std::stoi(filterParams[paramName]);
-			int paramAfter = paramBefore - (sign*1);
-			if (iter == 1)
-				paramBeforeStr = filterParams[paramName];
-			if(paramAfter < 1)
-			{
-				end = true;
-				continue;
-			}
-			filterParams[paramName] = std::to_string(static_cast<std::size_t>(paramAfter));
-			paramOldTMinus2 = paramOldTMinus1;
-			paramOldTMinus1 = paramAfterStr;
-			paramAfterStr = filterParams[paramName];
-			filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
-		}
-		else {
-			std::cout << "unknown param name" << std::endl;
-		}
-	}
-}
-
 void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,
 										  const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp)
 {
@@ -490,18 +228,11 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 		map.updateLocalPointCloud(currentInput, currentPose, mapPostFilters, removeWall);
 		auto stop = std::chrono::high_resolution_clock::now();
 		mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-		if(desiredCompressionRatio != 0.0) {
-			size_t pointsNow = map.getLocalPointCloud().getNbPoints();
-
-			std::string paramName;
-
-			auto pointDesired = (size_t)((1.0 - compressionRatio) * (float)comulativeNbScanPoints);
-			float prob = (1.0 - compressionRatio) * ((float)comulativeNbScanPoints / (float)pointsNow);
-			float cr = 1.0 - prob;
-
+		auto filters = PM::DataPointsFilters();
+		if(!filterName.empty() && !filterValue.empty()) {
 			PM::Parameters filterParams;
-			auto filters = PM::DataPointsFilters();
 			std::shared_ptr<PM::DataPointsFilter> filter;
+
 			if (filterName == "normalSpace" || filterName == "covariance")
 			{
 				std::string tmpName;
@@ -510,130 +241,97 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 				else
 					tmpName = "CovarianceSamplingDataPointsFilter";
 
-				auto nbSample = static_cast<std::size_t>((1.0 - compressionRatio) * (float)comulativeNbScanPoints);
-				filterParams["nbSample"] = std::to_string(nbSample);
+				filterParams["nbSample"] = filterValue;
 				filter = PM::get().DataPointsFilterRegistrar.create(tmpName, filterParams);
 				filters.push_back(filter);
-				start = std::chrono::high_resolution_clock::now();
-				map.applyPostFilters(currentPose, filters);
-				stop = std::chrono::high_resolution_clock::now();
 			}
-			else
+			else if (filterName == "random")
 			{
-	//			std::cout << "pointsNow: " << pointsNow << " pointDesired: " << pointDesired << " cum: " << comulativeNbScanPoints << " cr: " << cr << " prob: " << prob << std::endl;
-				if (filterName == "random")
-				{
-					filterParams["prob"] = std::to_string(prob);
-					filter = PM::get().DataPointsFilterRegistrar.create("RandomSamplingDataPointsFilter", filterParams);
-					filters.push_back(filter);
-					start = std::chrono::high_resolution_clock::now();
-					map.applyPostFilters(currentPose, filters);
-					stop = std::chrono::high_resolution_clock::now();
-				}
-				else
-				{
-					float param_value = getClosestParamForCR(compRatios, paramValues, compressionRatio);
-
-					if (filterName == "maxDensity")
-					{
-						paramName = "maxDensity";
-						filterParams[paramName] = std::to_string(param_value);
-						filter = PM::get().DataPointsFilterRegistrar.create("MaxDensityDataPointsFilter", filterParams);
-					}
-					else if (filterName == "octreeVoxelFirstPoint")
-					{
-						paramName = "maxSizeByNode";
-						filterParams["samplingMethod"] = "0";
-						filterParams[paramName] = std::to_string(param_value);
-						filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
-					}
-					else if (filterName == "octreeVoxelRandom")
-					{
-						paramName = "maxSizeByNode";
-						filterParams["samplingMethod"] = "1";
-						filterParams[paramName] = std::to_string(param_value);
-						filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
-					}
-					else if (filterName == "octreeVoxelCentroid")
-					{
-						paramName = "maxSizeByNode";
-						filterParams["samplingMethod"] = "2";
-						filterParams[paramName] = std::to_string(param_value);
-						filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
-					}
-					else if (filterName == "octreeVoxelMedoid")
-					{
-						paramName = "maxSizeByNode";
-						filterParams["samplingMethod"] = "3";
-						filterParams[paramName] = std::to_string(param_value);
-						filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
-					}
-					else if (filterName == "octreeFirstPoint")
-					{
-						paramName = "maxPointByNode";
-						filterParams["samplingMethod"] = "0";
-						filterParams[paramName] = std::to_string(static_cast<std::size_t>(param_value));
-						filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
-					}
-					else if (filterName == "octreeRandom")
-					{
-						paramName = "maxPointByNode";
-						filterParams["samplingMethod"] = "1";
-						filterParams[paramName] = std::to_string(static_cast<std::size_t>(param_value));
-						filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
-					}
-					else if (filterName == "octreeCentroid")
-					{
-						paramName = "maxPointByNode";
-						filterParams["samplingMethod"] = "2";
-						filterParams[paramName] = std::to_string(static_cast<std::size_t>(param_value));
-						filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
-					}
-					else if (filterName == "octreeMedoid")
-					{
-						paramName = "maxPointByNode";
-						filterParams["samplingMethod"] = "3";
-						filterParams[paramName] = std::to_string(static_cast<std::size_t>(param_value));
-						filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
-					}
-					else if (filterName == "samplingSurfaceNormal")
-					{
-						paramName = "ratio";
-						filterParams["keepNormals"] = "0";
-						filterParams[paramName] = std::to_string(param_value);
-						filter = PM::get().DataPointsFilterRegistrar.create("SamplingSurfaceNormalDataPointsFilter", filterParams);
-					}
-					else if (filterName == "spdf")
-					{
-						paramName = "radius";
-						filterParams["k"] = "50";
-						filterParams["sigma"] = "0.2";
-						filterParams["itMax"] = "15";
-						filterParams["keepNormals"] = "0";
-						filterParams["keepLabels"] = "0";
-						filterParams["keepLambdas"] = "0";
-						filterParams["keepTensors"] = "0";
-						filterParams[paramName] = std::to_string(param_value);
-						filter = PM::get().DataPointsFilterRegistrar.create("SpectralDecompositionDataPointsFilter", filterParams);
-					}
-
-					if (! paramValueInit.empty())
-						filterParams[paramName] = paramValueInit;
-					auto filteredMap = getOptimallyFilteredCloud(filterParams, filter, paramName, map.getLocalPointCloud());
-					map.setLocalMap(filteredMap, currentPose, false);
-				}
+				filterParams["prob"] = filterValue;
+				filter = PM::get().DataPointsFilterRegistrar.create("RandomSamplingDataPointsFilter", filterParams);
 			}
-			mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-			float achievedCR = (1.0 - ((float)map.getLocalPointCloud().getNbPoints() / (float)comulativeNbScanPoints));
-//			std::cout << "Desired CR: " << desiredCompressionRatio << " Used: " << compressionRatio << " Achieved: " << achievedCR << std::endl;
+			else if (filterName == "maxDensity")
+			{
+				filterParams["maxDensity"] = filterValue;
+				filter = PM::get().DataPointsFilterRegistrar.create("MaxDensityDataPointsFilter", filterParams);
+			}
+			else if (filterName == "octreeVoxelFirstPoint")
+			{
+				filterParams["samplingMethod"] = "0";
+				filterParams["maxSizeByNode"] = filterValue;
+				filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
+			}
+			else if (filterName == "octreeVoxelRandom")
+			{
+				filterParams["samplingMethod"] = "1";
+				filterParams["maxSizeByNode"] = filterValue;
+				filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
+			}
+			else if (filterName == "octreeVoxelCentroid")
+			{
+				filterParams["samplingMethod"] = "2";
+				filterParams["maxSizeByNode"] = filterValue;
+				filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
+			}
+			else if (filterName == "octreeVoxelMedoid")
+			{
+				filterParams["samplingMethod"] = "3";
+				filterParams["maxSizeByNode"] = filterValue;
+				filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
+			}
+			else if (filterName == "octreeFirstPoint")
+			{
+				filterParams["samplingMethod"] = "0";
+				filterParams["maxPointByNode"] = filterValue;
+				filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
+			}
+			else if (filterName == "octreeRandom")
+			{
+				filterParams["samplingMethod"] = "1";
+				filterParams["maxPointByNode"] = filterValue;
+				filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
+			}
+			else if (filterName == "octreeCentroid")
+			{
+				filterParams["samplingMethod"] = "2";
+				filterParams["maxPointByNode"] = filterValue;
+				filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
+			}
+			else if (filterName == "octreeMedoid")
+			{
+				filterParams["samplingMethod"] = "3";
+				filterParams["maxPointByNode"] = filterValue;
+				filter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", filterParams);
+			}
+			else if (filterName == "samplingSurfaceNormal")
+			{
+				filterParams["keepNormals"] = "0";
+				filterParams["ratio"] = filterValue;
+				filter = PM::get().DataPointsFilterRegistrar.create("SamplingSurfaceNormalDataPointsFilter", filterParams);
+			}
+			else if (filterName == "spdf")
+			{
+				filterParams["k"] = "50";
+				filterParams["sigma"] = "0.2";
+				filterParams["itMax"] = "15";
+				filterParams["keepNormals"] = "0";
+				filterParams["keepLabels"] = "0";
+				filterParams["keepLambdas"] = "0";
+				filterParams["keepTensors"] = "0";
+				filterParams["radius"] = filterValue;
+				filter = PM::get().DataPointsFilterRegistrar.create("SpectralDecompositionDataPointsFilter", filterParams);
+			}
+
+			filters.push_back(filter);
 		}
 		else
 		{
-			start = std::chrono::high_resolution_clock::now();
-			map.applyPostFilters(currentPose, mapPostFilters);
-			stop = std::chrono::high_resolution_clock::now();
-			mapUpdateDuration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+			filters = mapPostFilters;
 		}
+		start = std::chrono::high_resolution_clock::now();
+		map.applyPostFilters(currentPose, filters, false);
+		stop = std::chrono::high_resolution_clock::now();
+		mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 	}
 }
 
