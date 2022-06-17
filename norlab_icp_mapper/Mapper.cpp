@@ -128,7 +128,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 	params.clear();
 	filteredInputInSensorFrame = pm_filter->filter(filteredInputInSensorFrame);
 
-	params["prob"] = "0.3";
+	params["prob"] = "0.2";
 	params["seed"] = std::to_string(seed + iterationCtr);
 	pm_filter = PM::get().DataPointsFilterRegistrar.create("RandomSamplingDataPointsFilter", params);
 	params.clear();
