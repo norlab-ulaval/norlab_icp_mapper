@@ -29,9 +29,9 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 		getline(sampingParamsFile, filterName);
 		getline(sampingParamsFile, filterValue);
 		getline(sampingParamsFile, tmp);
-		std::istringstream("1") >> removeWall;
-		std::cout << "Open file " << sampingParamsFileName << "\n"
-					<< "Loaded name: " << filterName << ", filterValue: " << filterValue << std::endl;
+		std::istringstream(tmp) >> removeWall;
+		std::cout << "Open file: " << sampingParamsFileName << "\n"
+					<< ", Loaded name: " << filterName << ", filterValue: " << filterValue << ", removeWall: " << removeWall << std::endl;
 		sampingParamsFile.close(); //close the file object.
 		}
 	else
