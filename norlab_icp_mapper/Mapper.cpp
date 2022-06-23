@@ -28,10 +28,11 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 		std::string tmp;
 		getline(sampingParamsFile, filterName);
 		getline(sampingParamsFile, filterValue);
+		getline(sampingParamsFile, tmp); // compression ratio
 		getline(sampingParamsFile, tmp);
-		std::istringstream("1") >> removeWall;
-		std::cout << "Open file " << sampingParamsFileName << "\n"
-					<< "Loaded name: " << filterName << ", filterValue: " << filterValue << std::endl;
+		removeWall = std::stoi(tmp) == 1;
+		std::cout << "Open file: " << sampingParamsFileName << "\n"
+					<< ", Loaded name: " << filterName << ", filterValue: " << filterValue << ", removeWall: " << removeWall << std::endl;
 		sampingParamsFile.close(); //close the file object.
 		}
 	else
