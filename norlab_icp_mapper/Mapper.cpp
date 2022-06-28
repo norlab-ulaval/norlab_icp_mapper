@@ -259,9 +259,25 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 			}
 			else if (filterName == "randomInformed")
 			{
+// remove wall from current input
+				std::string name = "BoundingBoxDataPointsFilter";
+				filterParams["xMin"] = "-1000.0";
+				filterParams["xMax"] = "-1.0";
+				filterParams["yMin"] = "-100.0";
+				filterParams["yMax"] = "100.0";
+				filterParams["zMin"] = "-1000.0";
+				filterParams["zMax"] = "1000.0";
+				filterParams["removeInside"] = "1";
+				filter = PM::get().DataPointsFilterRegistrar.create(name, filterParams);
+				auto start = std::chrono::high_resolution_clock::now();
+				inputCloud = filter->filter(currentInput);
+				auto stop = std::chrono::high_resolution_clock::now();
+				mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+				filterParams.clear();
+
 				float compressionRatio = std::stof(filterValue);
 				size_t current_map_nb_points = map.getLocalPointCloud().getNbPoints();
-				size_t current_scan_nb_points = currentInput.getNbPoints();
+				size_t current_scan_nb_points = inputCloud.getNbPoints();
 
 				size_t nb_point_we_want = ((100.0 - compressionRatio) / 100.0) * (float) comulativeNbScanPoints;
 				long difference_nb_points = std::abs(long (current_map_nb_points + current_scan_nb_points - nb_point_we_want));
@@ -271,9 +287,9 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 				filterParams["prob"] = std::to_string(prob);
 				filter = PM::get().DataPointsFilterRegistrar.create("RandomSamplingDataPointsFilter", filterParams);
 
-				auto start = std::chrono::high_resolution_clock::now();
-				inputCloud = filter->filter(currentInput);
-				auto stop = std::chrono::high_resolution_clock::now();
+				start = std::chrono::high_resolution_clock::now();
+				inputCloud = filter->filter(inputCloud);
+				stop = std::chrono::high_resolution_clock::now();
 				mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 
 				filterParams.clear();
