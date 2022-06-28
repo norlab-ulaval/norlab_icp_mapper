@@ -239,11 +239,8 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 	}
 	else
 	{
-		auto start = std::chrono::high_resolution_clock::now();
-		map.updateLocalPointCloud(currentInput, currentPose, mapPostFilters, removeWall);
-		auto stop = std::chrono::high_resolution_clock::now();
-		mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 		auto filters = PM::DataPointsFilters();
+		auto inputCloud = PM::DataPoints(currentInput);
 		if(!filterName.empty() && !filterValue.empty()) {
 			PM::Parameters filterParams;
 			std::shared_ptr<PM::DataPointsFilter> filter;
@@ -259,6 +256,28 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 				filterParams["nbSample"] = filterValue;
 				filter = PM::get().DataPointsFilterRegistrar.create(tmpName, filterParams);
 				filters.push_back(filter);
+			}
+			else if (filterName == "randomInformed")
+			{
+				float compressionRatio = std::stof(filterValue);
+				size_t current_map_nb_points = map.getLocalPointCloud().getNbPoints();
+				size_t current_scan_nb_points = currentInput.getNbPoints();
+
+				size_t nb_point_we_want = ((100.0 - compressionRatio) / 100.0) * (float) comulativeNbScanPoints;
+				long difference_nb_points = std::abs(long (current_map_nb_points + current_scan_nb_points - nb_point_we_want));
+				float prob = 1.0 - static_cast<float>(difference_nb_points) / static_cast<float>(current_scan_nb_points);
+
+				// filter reading point cloud
+				filterParams["prob"] = std::to_string(prob);
+				filter = PM::get().DataPointsFilterRegistrar.create("RandomSamplingDataPointsFilter", filterParams);
+
+				auto start = std::chrono::high_resolution_clock::now();
+				inputCloud = filter->filter(currentInput);
+				auto stop = std::chrono::high_resolution_clock::now();
+				mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+
+				filterParams.clear();
+				filter = PM::get().DataPointsFilterRegistrar.create("IdentityDataPointsFilter", filterParams);
 			}
 			else if (filterName == "random")
 			{
@@ -343,6 +362,13 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 		{
 			filters = mapPostFilters;
 		}
+		// merge scan
+		auto start = std::chrono::high_resolution_clock::now();
+		map.updateLocalPointCloud(inputCloud, currentPose, mapPostFilters, removeWall);
+		auto stop = std::chrono::high_resolution_clock::now();
+		mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+
+		// apply map post filters
 		start = std::chrono::high_resolution_clock::now();
 		map.applyPostFilters(currentPose, filters, false);
 		stop = std::chrono::high_resolution_clock::now();
