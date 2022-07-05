@@ -363,7 +363,7 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 			}
 			else if (filterName == "spdf")
 			{
-				filterParams["k"] = "50";
+				filterParams["k"] = "500";
 				filterParams["sigma"] = "0.2";
 				filterParams["itMax"] = "15";
 				filterParams["keepNormals"] = "0";
