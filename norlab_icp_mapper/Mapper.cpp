@@ -302,6 +302,8 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 			}
 			else if (filterName == "maxDensity")
 			{
+				filter = getSurfaceNormalFilter();
+				filters.push_back(filter);
 				filterParams["maxDensity"] = filterValue;
 				filter = PM::get().DataPointsFilterRegistrar.create("MaxDensityDataPointsFilter", filterParams);
 			}
@@ -430,4 +432,14 @@ Trajectory norlab_icp_mapper::Mapper::getTrajectory()
 {
 	std::lock_guard<std::mutex> lock(trajectoryLock);
 	return trajectory;
+}
+
+std::shared_ptr<PointMatcher<float>::DataPointsFilter> norlab_icp_mapper::Mapper::getSurfaceNormalFilter()
+{
+	PM::Parameters filterParams;
+	filterParams["knn"] = "12";
+	filterParams["epsilon"] = "0.0";
+	filterParams["keepNormals"] = "1";
+	filterParams["keepDensities"] = "1";
+	return PM::get().DataPointsFilterRegistrar.create("SurfaceNormalDataPointsFilter", filterParams);
 }

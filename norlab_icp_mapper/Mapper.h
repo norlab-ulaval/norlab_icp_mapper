@@ -48,6 +48,7 @@ namespace norlab_icp_mapper
 							 const float& currentOverlap) const;
 		void updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,
 					   const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp);
+		std::shared_ptr<PM::DataPointsFilter> getSurfaceNormalFilter();
 
 
 
