@@ -235,7 +235,7 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 
 	if(isOnline && !map.isLocalPointCloudEmpty())
 	{
-		mapUpdateFuture = std::async(std::launch::async, &Map::updateLocalPointCloud, &map, currentInput, currentPose, mapPostFilters, removeWall);
+		mapUpdateFuture = std::async(std::launch::async, &Map::updateLocalPointCloud, &map, currentInput, currentPose, removeWall);
 	}
 	else
 	{
@@ -386,14 +386,16 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 		}
 		// merge scan
 		auto start = std::chrono::high_resolution_clock::now();
-		map.updateLocalPointCloud(inputCloud, currentPose, mapPostFilters, removeWall);
+		if (filterName == "randomInformed")
+		{
+			map.updateLocalPointCloud(inputCloud, currentPose, false);
+		}
+		else
+		{
+			map.updateLocalPointCloud(inputCloud, currentPose, removeWall);
+			map.applyPostFilters(currentPose, filters, false);
+		}
 		auto stop = std::chrono::high_resolution_clock::now();
-		mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-
-		// apply map post filters
-		start = std::chrono::high_resolution_clock::now();
-		map.applyPostFilters(currentPose, filters, false);
-		stop = std::chrono::high_resolution_clock::now();
 		mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 	}
 }

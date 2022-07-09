@@ -506,7 +506,7 @@ norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getLocalPointClou
 	return localPointCloud;
 }
 
-void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters, bool removeWall)
+void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, const PM::TransformationParameters& pose, bool removeWall)
 {
 	if(computeProbDynamic)
 	{
