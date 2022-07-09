@@ -272,6 +272,7 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 				auto start = std::chrono::high_resolution_clock::now();
 				inputCloud = filter->filter(currentInput);
 				auto stop = std::chrono::high_resolution_clock::now();
+				std::cout << "Wall removed. Remaining points: " << inputCloud.getNbPoints() << std::endl;
 				mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 				filterParams.clear();
 
@@ -280,8 +281,11 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 				size_t current_scan_nb_points = inputCloud.getNbPoints();
 
 				size_t nb_point_we_want = ((100.0 - compressionRatio) / 100.0) * (float) comulativeNbScanPoints;
-				long difference_nb_points = std::abs(long (current_map_nb_points + current_scan_nb_points - nb_point_we_want));
+				long difference_nb_points = long (current_map_nb_points + current_scan_nb_points - nb_point_we_want);
 				float prob = 1.0 - static_cast<float>(difference_nb_points) / static_cast<float>(current_scan_nb_points);
+
+				if (prob > 1.0)
+					prob = 1.0;
 
 				// filter reading point cloud
 				filterParams["prob"] = std::to_string(prob);
