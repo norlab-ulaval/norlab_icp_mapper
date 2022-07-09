@@ -272,7 +272,6 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 				auto start = std::chrono::high_resolution_clock::now();
 				inputCloud = filter->filter(currentInput);
 				auto stop = std::chrono::high_resolution_clock::now();
-				std::cout << "Wall removed. Remaining points: " << inputCloud.getNbPoints() << std::endl;
 				mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 				filterParams.clear();
 
