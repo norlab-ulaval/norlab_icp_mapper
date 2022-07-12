@@ -374,11 +374,14 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 				filterParams["k"] = "500";
 				filterParams["sigma"] = "0.2";
 				filterParams["itMax"] = "15";
-				filterParams["keepNormals"] = "0";
-				filterParams["keepLabels"] = "0";
-				filterParams["keepLambdas"] = "0";
-				filterParams["keepTensors"] = "0";
-				filterParams["radius"] = filterValue;
+				filterParams["keepNormals"] = "1";
+				filterParams["keepLabels"] = "1";
+				filterParams["keepLambdas"] = "1";
+				filterParams["keepTensors"] = "1";
+				filterParams["keepPrimitives"] = "1";
+				filterParams["radius_surface"] = filterValue;
+				filterParams["radius_curve"] = filterValue;
+				filterParams["radius_junction"] = filterValue;
 				filter = PM::get().DataPointsFilterRegistrar.create("SpectralDecompositionDataPointsFilter", filterParams);
 			}
 
