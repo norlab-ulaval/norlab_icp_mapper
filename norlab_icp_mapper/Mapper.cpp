@@ -253,7 +253,7 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 				else
 					tmpName = "CovarianceSamplingDataPointsFilter";
 
-				filterParams["nbSample"] = filterValue;
+				filterParams["compRatio"] = filterValue;
 				filter = PM::get().DataPointsFilterRegistrar.create(tmpName, filterParams);
 				filters.push_back(filter);
 			}
