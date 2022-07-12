@@ -247,6 +247,22 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 
 			if (filterName == "normalSpace" || filterName == "covariance")
 			{
+				// remove wall from current input
+				std::string name = "BoundingBoxDataPointsFilter";
+				filterParams["xMin"] = "-1000.0";
+				filterParams["xMax"] = "-1.0";
+				filterParams["yMin"] = "-100.0";
+				filterParams["yMax"] = "100.0";
+				filterParams["zMin"] = "-1000.0";
+				filterParams["zMax"] = "1000.0";
+				filterParams["removeInside"] = "1";
+				filter = PM::get().DataPointsFilterRegistrar.create(name, filterParams);
+				auto start = std::chrono::high_resolution_clock::now();
+				inputCloud = filter->filter(currentInput);
+				auto stop = std::chrono::high_resolution_clock::now();
+				mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+				filterParams.clear();
+
 				std::string tmpName;
 				if (filterName == "normalSpace")
 					tmpName = "NormalSpaceDataPointsFilter";
@@ -255,7 +271,14 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 
 				filterParams["compRatio"] = filterValue;
 				filter = PM::get().DataPointsFilterRegistrar.create(tmpName, filterParams);
-				filters.push_back(filter);
+
+				start = std::chrono::high_resolution_clock::now();
+				inputCloud = filter->filter(inputCloud);
+				stop = std::chrono::high_resolution_clock::now();
+				mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+
+				filterParams.clear();
+				filter = PM::get().DataPointsFilterRegistrar.create("IdentityDataPointsFilter", filterParams);
 			}
 			else if (filterName == "maxDensityGlobal")
 			{
@@ -264,7 +287,7 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 			}
 			else if (filterName == "randomInformed")
 			{
-// remove wall from current input
+				// remove wall from current input
 				std::string name = "BoundingBoxDataPointsFilter";
 				filterParams["xMin"] = "-1000.0";
 				filterParams["xMax"] = "-1.0";
