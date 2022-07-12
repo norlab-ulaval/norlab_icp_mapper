@@ -43,6 +43,11 @@ norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMax
 	}
 }
 
+void norlab_icp_mapper::Map::setMinDistNewPoint(float distance)
+{
+	minDistNewPoint = distance;
+}
+
 void norlab_icp_mapper::Map::updateThreadFunction()
 {
 	while(updateThreadLooping.load())
@@ -508,6 +513,24 @@ norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getLocalPointClou
 
 void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, const PM::TransformationParameters& pose, bool removeWall)
 {
+	if(removeWall)
+	{
+//	apply bounding box to remove wall
+		PointMatcherSupport::Parametrizable::Parameters params;
+		std::string name = "BoundingBoxDataPointsFilter";
+		params["xMin"] = "-1000.0";
+		params["xMax"] = "-1.0";
+		params["yMin"] = "-100.0";
+		params["yMax"] = "100.0";
+		params["zMin"] = "-1000.0";
+		params["zMax"] = "1000.0";
+		params["removeInside"] = "1";
+		std::shared_ptr<PM::DataPointsFilter> pm_filter =
+			PM::get().DataPointsFilterRegistrar.create(name, params);
+		params.clear();
+		input = pm_filter->filter(input);
+	}
+
 	if(computeProbDynamic)
 	{
 		input.addDescriptor("probabilityDynamic", PM::Matrix::Constant(1, input.features.cols(), priorDynamic));
@@ -527,24 +550,6 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, const P
 
 		PM::DataPoints inputPointsToKeep = retrievePointsFurtherThanMinDistNewPoint(input, localPointCloud, pose);
 		localPointCloud.concatenate(inputPointsToKeep);
-	}
-
-	if(removeWall)
-	{
-//	apply bounding box to remove wall
-		PointMatcherSupport::Parametrizable::Parameters params;
-		std::string name = "BoundingBoxDataPointsFilter";
-		params["xMin"] = "-1000.0";
-		params["xMax"] = "-1.0";
-		params["yMin"] = "-100.0";
-		params["yMax"] = "100.0";
-		params["zMin"] = "-1000.0";
-		params["zMax"] = "1000.0";
-		params["removeInside"] = "1";
-		std::shared_ptr<PM::DataPointsFilter> pm_filter =
-			PM::get().DataPointsFilterRegistrar.create(name, params);
-		params.clear();
-		localPointCloud = pm_filter->filter(localPointCloud);
 	}
 	localPointCloudLock.unlock();
 }

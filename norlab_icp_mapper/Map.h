@@ -94,6 +94,7 @@ namespace norlab_icp_mapper
 		void setGlobalPointCloud(const PM::DataPoints& newLocalPointCloud);
 		bool isLocalPointCloudEmpty() const;
 		void applyPostFilters(const PM::TransformationParameters &pose, PM::DataPointsFilters postFilters, bool inRobotFrame);
+		void setMinDistNewPoint(float distance);
 	};
 }
 

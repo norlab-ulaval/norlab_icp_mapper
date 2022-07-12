@@ -257,6 +257,11 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 				filter = PM::get().DataPointsFilterRegistrar.create(tmpName, filterParams);
 				filters.push_back(filter);
 			}
+			else if (filterName == "maxDensityGlobal")
+			{
+				filter = PM::get().DataPointsFilterRegistrar.create("IdentityDataPointsFilter", filterParams);
+				map.setMinDistNewPoint(std::stof(filterValue));
+			}
 			else if (filterName == "randomInformed")
 			{
 // remove wall from current input
