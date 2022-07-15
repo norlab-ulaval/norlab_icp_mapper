@@ -146,7 +146,6 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
 		map.updatePose(correctedPose);
 
-		comulativeNbScanPoints += input.getNbPoints();
 		updateMap(input, correctedPose, timeStamp);
 	}
 	else
@@ -167,7 +166,6 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
 		if(shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
 		{
-			comulativeNbScanPoints += input.getNbPoints();
 			updateMap(transformation->compute(input, correction), correctedPose, timeStamp);
 		}
 	}
@@ -240,29 +238,32 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 	else
 	{
 		auto filters = PM::DataPointsFilters();
+		PM::Parameters filterParams;
+		std::shared_ptr<PM::DataPointsFilter> filter;
 		auto inputCloud = PM::DataPoints(currentInput);
+
+
+		// remove wall from current input
+		std::string name = "BoundingBoxDataPointsFilter";
+		filterParams["xMin"] = "-1000.0";
+		filterParams["xMax"] = "-1.0";
+		filterParams["yMin"] = "-100.0";
+		filterParams["yMax"] = "100.0";
+		filterParams["zMin"] = "-1000.0";
+		filterParams["zMax"] = "1000.0";
+		filterParams["removeInside"] = "1";
+		filter = PM::get().DataPointsFilterRegistrar.create(name, filterParams);
+		auto start = std::chrono::high_resolution_clock::now();
+		inputCloud = filter->filter(currentInput);
+		auto stop = std::chrono::high_resolution_clock::now();
+		mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+		comulativeNbScanPoints += inputCloud.getNbPoints();
+		filterParams.clear();
+
 		if(!filterName.empty() && !filterValue.empty()) {
-			PM::Parameters filterParams;
-			std::shared_ptr<PM::DataPointsFilter> filter;
 
 			if (filterName == "normalSpace" || filterName == "covariance")
 			{
-				// remove wall from current input
-				std::string name = "BoundingBoxDataPointsFilter";
-				filterParams["xMin"] = "-1000.0";
-				filterParams["xMax"] = "-1.0";
-				filterParams["yMin"] = "-100.0";
-				filterParams["yMax"] = "100.0";
-				filterParams["zMin"] = "-1000.0";
-				filterParams["zMax"] = "1000.0";
-				filterParams["removeInside"] = "1";
-				filter = PM::get().DataPointsFilterRegistrar.create(name, filterParams);
-				auto start = std::chrono::high_resolution_clock::now();
-				inputCloud = filter->filter(currentInput);
-				auto stop = std::chrono::high_resolution_clock::now();
-				mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-				filterParams.clear();
-
 				std::string tmpName;
 				if (filterName == "normalSpace")
 					tmpName = "NormalSpaceDataPointsFilter";
@@ -287,22 +288,6 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 			}
 			else if (filterName == "randomInformed")
 			{
-				// remove wall from current input
-				std::string name = "BoundingBoxDataPointsFilter";
-				filterParams["xMin"] = "-1000.0";
-				filterParams["xMax"] = "-1.0";
-				filterParams["yMin"] = "-100.0";
-				filterParams["yMax"] = "100.0";
-				filterParams["zMin"] = "-1000.0";
-				filterParams["zMax"] = "1000.0";
-				filterParams["removeInside"] = "1";
-				filter = PM::get().DataPointsFilterRegistrar.create(name, filterParams);
-				auto start = std::chrono::high_resolution_clock::now();
-				inputCloud = filter->filter(currentInput);
-				auto stop = std::chrono::high_resolution_clock::now();
-				mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-				filterParams.clear();
-
 				float compressionRatio = std::stof(filterValue);
 				size_t current_map_nb_points = map.getLocalPointCloud().getNbPoints();
 				size_t current_scan_nb_points = inputCloud.getNbPoints();
@@ -415,13 +400,10 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 			filters = mapPostFilters;
 		}
 		// merge scan
-		auto start = std::chrono::high_resolution_clock::now();
-		if (filterName == "randomInformed")
-			map.updateLocalPointCloud(inputCloud, currentPose, false);
-		else
-			map.updateLocalPointCloud(inputCloud, currentPose, removeWall);
+		start = std::chrono::high_resolution_clock::now();
+		map.updateLocalPointCloud(inputCloud, currentPose, false);
 		map.applyPostFilters(currentPose, filters, false);
-		auto stop = std::chrono::high_resolution_clock::now();
+		stop = std::chrono::high_resolution_clock::now();
 		mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 	}
 }
