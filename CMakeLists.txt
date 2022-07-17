@@ -6,6 +6,12 @@ set(CMAKE_CXX_STANDARD 11)
 set(EXTERNAL_INCLUDE_DIRS "")
 set(EXTERNAL_LIBS "")
 
+set(CMAKE_CXX_FLAGS                " ${CMAKE_CXX_FLAGS_INIT} -std=c++11 -fPIC")
+set(CMAKE_CXX_FLAGS_DEBUG          "-g -DDEBUG")
+set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE        "-O4 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -DDEBUG")
+
 find_package(libpointmatcher CONFIG)
 set(EXTERNAL_INCLUDE_DIRS ${EXTERNAL_INCLUDE_DIRS} ${libpointmatcher_INCLUDE_DIRS})
 set(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${libpointmatcher_LIBRARIES})
@@ -45,3 +51,10 @@ if (NOT TARGET uninstall)
             COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 endif ()
 
+option(BUILD_PYTHON_MODULE "Build the python module" ON)
+option(USE_SYSTEM_PYBIND11 "Use the system installed pybind11 rather than using a git submodule" ON)
+set(PYTHON_INSTALL_TARGET "" CACHE PATH "Target where to install the python module")
+
+if (BUILD_PYTHON_MODULE)
+    add_subdirectory(python)
+endif()
