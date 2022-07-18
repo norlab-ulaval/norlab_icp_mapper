@@ -15,10 +15,12 @@ namespace python
 			    .def("updatePose", &Map::updatePose, py::arg("pose"))
 				.def("getLocalPointCloud", &Map::getLocalPointCloud)
 				.def("updateLocalPointCloud", &Map::updateLocalPointCloud, py::arg("input"), py::arg("pose"), py::arg("postFilters"))
-				.def("getNewLocalPointCloud", &Map::getNewLocalPointCloud, py::arg("loalPointCloudOut"))
+				.def("getNewLocalPointCloud", &Map::getNewLocalPointCloud, py::arg("localPointCloudOut"))
 				.def("getGlobalPointCloud", &Map::getGlobalPointCloud)
 				.def("setGlobalPointCloud", &Map::setGlobalPointCloud, py::arg("newLocalPointCloud"))
 				.def("isLocalPointCloudEmpty", &Map::isLocalPointCloudEmpty)
+				.def_static("retrievePointsFurtherThanMinDistNewPointStatic", &Map::retrievePointsFurtherThanMinDistNewPointStatic,
+					py::arg("input"),	py::arg("currentLocalPointCloud"), py::arg("minDistNewPoint"))
 				.def(py::init<const float&, const float&, const float&, const float&, const float&,
 			const float&, const float&, const float&, const float&, const bool&, const bool&,
 			const bool&, const bool&, PM::ICPSequence&, std::mutex&>(),

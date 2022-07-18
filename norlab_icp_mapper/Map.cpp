@@ -710,6 +710,33 @@ norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::retrievePointsFur
 	return goodPoints;
 }
 
+
+ norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::retrievePointsFurtherThanMinDistNewPointStatic(const PM::DataPoints& input,
+	const PM::DataPoints& currentLocalPointCloud, float minDistNewPoint)
+{
+	typedef Nabo::NearestNeighbourSearch<float> NNS;
+
+	PM::Matches matches(PM::Matches::Dists(1, input.getNbPoints()), PM::Matches::Ids(1, input.getNbPoints()));
+	std::shared_ptr<NNS> nns = std::shared_ptr<NNS>(NNS::create(currentLocalPointCloud.features, currentLocalPointCloud.features.rows() - 1,
+		NNS::KDTREE_LINEAR_HEAP, NNS::TOUCH_STATISTICS));
+
+	nns->knn(input.features, matches.ids, matches.dists, 1, 0);
+
+	int goodPointCount = 0;
+	PM::DataPoints goodPoints(input.createSimilarEmpty());
+	for(int i = 0; i < input.getNbPoints(); ++i)
+	{
+		if(matches.dists(i) >= std::pow(minDistNewPoint, 2))
+		{
+			goodPoints.setColFrom(goodPointCount, input, i);
+			goodPointCount++;
+		}
+	}
+	goodPoints.conservativeResize(goodPointCount);
+
+	return goodPoints;
+}
+
 void norlab_icp_mapper::Map::convertToSphericalCoordinates(const PM::DataPoints& points, PM::Matrix& radii, PM::Matrix& angles) const
 {
 	radii = points.features.topRows(points.getEuclideanDim()).colwise().norm();
