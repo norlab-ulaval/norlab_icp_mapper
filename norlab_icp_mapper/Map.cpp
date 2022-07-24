@@ -548,7 +548,11 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, const P
 			computeProbabilityOfPointsBeingDynamic(input, localPointCloud, pose);
 		}
 
-		PM::DataPoints inputPointsToKeep = retrievePointsFurtherThanMinDistNewPoint(input, localPointCloud, pose);
+		PM::DataPoints inputPointsToKeep;
+		if (minDistNewPoint > 0.0)
+			inputPointsToKeep = retrievePointsFurtherThanMinDistNewPoint(input, localPointCloud, pose);
+		else
+			inputPointsToKeep = input;
 		localPointCloud.concatenate(inputPointsToKeep);
 	}
 	localPointCloudLock.unlock();
