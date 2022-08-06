@@ -243,20 +243,25 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 		auto inputCloud = PM::DataPoints(currentInput);
 
 
-		// remove wall from current input
-		std::string name = "BoundingBoxDataPointsFilter";
-		filterParams["xMin"] = "-1000.0";
-		filterParams["xMax"] = "-1.0";
-		filterParams["yMin"] = "-100.0";
-		filterParams["yMax"] = "100.0";
-		filterParams["zMin"] = "-1000.0";
-		filterParams["zMax"] = "1000.0";
-		filterParams["removeInside"] = "1";
-		filter = PM::get().DataPointsFilterRegistrar.create(name, filterParams);
 		auto start = std::chrono::high_resolution_clock::now();
-		inputCloud = filter->filter(currentInput);
 		auto stop = std::chrono::high_resolution_clock::now();
-		mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+		// remove wall from current input
+		if (removeWall)
+		{
+			std::string name = "BoundingBoxDataPointsFilter";
+			filterParams["xMin"] = "-1000.0";
+			filterParams["xMax"] = "-1.0";
+			filterParams["yMin"] = "-100.0";
+			filterParams["yMax"] = "100.0";
+			filterParams["zMin"] = "-1000.0";
+			filterParams["zMax"] = "1000.0";
+			filterParams["removeInside"] = "1";
+			filter = PM::get().DataPointsFilterRegistrar.create(name, filterParams);
+			start = std::chrono::high_resolution_clock::now();
+			inputCloud = filter->filter(currentInput);
+			stop = std::chrono::high_resolution_clock::now();
+			mapUpdateDuration += std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+		}
 		comulativeNbScanPoints += inputCloud.getNbPoints();
 		filterParams.clear();
 
