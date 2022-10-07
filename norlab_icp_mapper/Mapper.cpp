@@ -101,9 +101,10 @@ norlab_icp_mapper::DiagnosticInformation norlab_icp_mapper::Mapper::processInput
 																						 estimatedPose.cols());
 
 		if(!skip_icp) {
-			icpMapLock.lock();
-			correction = icp(input);
-			icpMapLock.unlock();
+			{
+				std::lock_guard<std::mutex> icpMapLockGuard(icpMapLock);
+				correction = icp(input);
+			}
 			estimatedOverlap = icp.errorMinimizer->getOverlap();
 		}
 
