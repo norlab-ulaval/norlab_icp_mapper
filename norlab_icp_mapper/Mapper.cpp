@@ -58,8 +58,17 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& inputFiltersCo
 	}
 }
 
-norlab_icp_mapper::DiagnosticInformation norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,
-											 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp)
+norlab_icp_mapper::DiagnosticInformation norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame,
+                                                                                 const PM::TransformationParameters& estimatedPose,
+                                                                                 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp)
+{
+	return norlab_icp_mapper::Mapper::processInput(inputInSensorFrame, estimatedPose, timeStamp, false);
+}
+
+norlab_icp_mapper::DiagnosticInformation norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame,
+                                                                                 const PM::TransformationParameters& estimatedPose,
+                                                                                 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp,
+                                                                                 bool skip_icp)
 {
 	std::chrono::time_point<std::chrono::steady_clock> processingStartTime = std::chrono::steady_clock::now();
 	DiagnosticInformation info;
@@ -87,14 +96,19 @@ norlab_icp_mapper::DiagnosticInformation norlab_icp_mapper::Mapper::processInput
 	}
 	else
 	{
-		icpMapLock.lock();
-		PM::TransformationParameters correction = icp(input);
-		icpMapLock.unlock();
+		float estimatedOverlap = 0.0;
+		PM::TransformationParameters correction = PM::TransformationParameters::Identity(estimatedPose.rows(),
+																						 estimatedPose.cols());
 
-		float estimatedOverlap = icp.errorMinimizer->getOverlap();
-		info.estimatedOverlap = estimatedOverlap;
+		if(!skip_icp) {
+			icpMapLock.lock();
+			correction = icp(input);
+			icpMapLock.unlock();
+			estimatedOverlap = icp.errorMinimizer->getOverlap();
+		}
 
 		correctedPose = correction * estimatedPose;
+		info.estimatedOverlap = estimatedOverlap;
 
 		map.updatePose(correctedPose);
 
