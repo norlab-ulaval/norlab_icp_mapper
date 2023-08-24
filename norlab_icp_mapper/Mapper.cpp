@@ -63,7 +63,7 @@ norlab_icp_mapper::Mapper::Mapper(std::string icpConfigFilePath, std::string inp
 	{
 		PM::Parameters errorMinimizerParams;
 		errorMinimizerParams["scaleFactor"] = std::to_string(scaleFactor);
-		std::shared_ptr<PM::ErrorMinimizer> errorMinimizer = PM::get().ErrorMinimizerRegistrar.create("GaussianToGaussianToPlaneErrorMinimizer", errorMinimizerParams);
+		std::shared_ptr<PM::ErrorMinimizer> errorMinimizer = PM::get().ErrorMinimizerRegistrar.create("GaussianToPlaneErrorMinimizer", errorMinimizerParams);
 		icp.errorMinimizer = errorMinimizer;
 	}
 
@@ -101,12 +101,14 @@ void norlab_icp_mapper::Mapper::loadYamlConfig()
 
 void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedSensorPose,
 											 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp,
-											 const std::string& linearSpeedsX, const std::string& linearSpeedsY,
-											 const std::string& linearSpeedsZ, const std::string& linearAccelerationsX,
-											 const std::string& linearAccelerationsY, const std::string& linearAccelerationsZ,
-											 const std::string& angularSpeedsX, const std::string& angularSpeedsY,
-											 const std::string& angularSpeedsZ, const std::string& angularAccelerationsX,
-											 const std::string& angularAccelerationsY, const std::string& angularAccelerationsZ,
+											 const std::string& linearSpeedsX, const std::string& linearSpeedsY, const std::string& linearSpeedsZ,
+                                             const std::string& linearSpeedVariancesX, const std::string& linearSpeedCovariancesXY, const std::string& linearSpeedCovariancesXZ,
+                                             const std::string& linearSpeedVariancesY, const std::string& linearSpeedCovariancesYZ, const std::string& linearSpeedVariancesZ,
+                                             const std::string& linearAccelerationsX, const std::string& linearAccelerationsY, const std::string& linearAccelerationsZ,
+											 const std::string& angularSpeedsX, const std::string& angularSpeedsY, const std::string& angularSpeedsZ,
+                                             const std::string& angularSpeedVariancesX, const std::string& angularSpeedCovariancesXY, const std::string& angularSpeedCovariancesXZ,
+                                             const std::string& angularSpeedVariancesY, const std::string& angularSpeedCovariancesYZ, const std::string& angularSpeedVariancesZ,
+                                             const std::string& angularAccelerationsX, const std::string& angularAccelerationsY, const std::string& angularAccelerationsZ,
 											 const std::string& measureTimes)
 {
 	radiusFilter->inPlaceFilter(inputInSensorFrame);
@@ -144,9 +146,21 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 		deskewingFilterParams["linearSpeedsX"] = linearSpeedsX;
 		deskewingFilterParams["linearSpeedsY"] = linearSpeedsY;
 		deskewingFilterParams["linearSpeedsZ"] = linearSpeedsZ;
+        deskewingFilterParams["linearSpeedVariancesX"] = linearSpeedVariancesX;
+        deskewingFilterParams["linearSpeedCovariancesXY"] = linearSpeedCovariancesXY;
+        deskewingFilterParams["linearSpeedCovariancesXZ"] = linearSpeedCovariancesXZ;
+        deskewingFilterParams["linearSpeedVariancesY"] = linearSpeedVariancesY;
+        deskewingFilterParams["linearSpeedCovariancesYZ"] = linearSpeedCovariancesYZ;
+        deskewingFilterParams["linearSpeedVariancesZ"] = linearSpeedVariancesZ;
 		deskewingFilterParams["angularSpeedsX"] = angularSpeedsX;
 		deskewingFilterParams["angularSpeedsY"] = angularSpeedsY;
 		deskewingFilterParams["angularSpeedsZ"] = angularSpeedsZ;
+        deskewingFilterParams["angularSpeedVariancesX"] = angularSpeedVariancesX;
+        deskewingFilterParams["angularSpeedCovariancesXY"] = angularSpeedCovariancesXY;
+        deskewingFilterParams["angularSpeedCovariancesXZ"] = angularSpeedCovariancesXZ;
+        deskewingFilterParams["angularSpeedVariancesY"] = angularSpeedVariancesY;
+        deskewingFilterParams["angularSpeedCovariancesYZ"] = angularSpeedCovariancesYZ;
+        deskewingFilterParams["angularSpeedVariancesZ"] = angularSpeedVariancesZ;
 		deskewingFilterParams["measureTimes"] = measureTimes;
 		std::shared_ptr<PM::DataPointsFilter> deskewingFilter = PM::get().DataPointsFilterRegistrar.create("DeskewingUncertaintyDataPointsFilter", deskewingFilterParams);
 		deskewingFilter->inPlaceFilter(inputInSensorFrame);

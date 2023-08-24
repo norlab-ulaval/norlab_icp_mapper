@@ -77,12 +77,16 @@ namespace norlab_icp_mapper
 		void loadYamlConfig();
 
 		void processInput(PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedSensorPose,
-						  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp, const std::string& linearSpeedsX,
-						  const std::string& linearSpeedsY, const std::string& linearSpeedsZ, const std::string& linearAccelerationsX,
-						  const std::string& linearAccelerationsY, const std::string& linearAccelerationsZ,
+						  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp,
+                          const std::string& linearSpeedsX, const std::string& linearSpeedsY, const std::string& linearSpeedsZ,
+                          const std::string& linearSpeedVariancesX, const std::string& linearSpeedCovariancesXY, const std::string& linearSpeedCovariancesXZ,
+                          const std::string& linearSpeedVariancesY, const std::string& linearSpeedCovariancesYZ, const std::string& linearSpeedVariancesZ,
+                          const std::string& linearAccelerationsX, const std::string& linearAccelerationsY, const std::string& linearAccelerationsZ,
 						  const std::string& angularSpeedsX, const std::string& angularSpeedsY, const std::string& angularSpeedsZ,
-						  const std::string& angularAccelerationsX, const std::string& angularAccelerationsY,
-						  const std::string& angularAccelerationsZ, const std::string& measureTimes);
+                          const std::string& angularSpeedVariancesX, const std::string& angularSpeedCovariancesXY, const std::string& angularSpeedCovariancesXZ,
+                          const std::string& angularSpeedVariancesY, const std::string& angularSpeedCovariancesYZ, const std::string& angularSpeedVariancesZ,
+						  const std::string& angularAccelerationsX, const std::string& angularAccelerationsY, const std::string& angularAccelerationsZ,
+                          const std::string& measureTimes);
 
 		PM::DataPoints getMap();
 
