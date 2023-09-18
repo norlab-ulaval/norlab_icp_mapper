@@ -115,7 +115,7 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 	inputFilters.apply(inputInSensorFrame);
 
 	if(useCRVModel)
-	{
+    {
 		inputInSensorFrame.addTime("stamps", inputInSensorFrame.getDescriptorViewByName("t").cast<std::int64_t>());
 		PM::Parameters skewFilterParams;
 		skewFilterParams["skewModel"] = std::to_string(skewModel);
@@ -138,7 +138,7 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 		skewFilterParams["afterDeskewing"] = afterDeskewing ? "1" : "0";
 		std::shared_ptr<PM::DataPointsFilter> skewFilter = PM::get().DataPointsFilterRegistrar.create("NoiseSkewDataPointsFilter", skewFilterParams);
 		skewFilter->inPlaceFilter(inputInSensorFrame);
-	}
+    }
 	if(useICRAModel)
 	{
 		inputInSensorFrame.addTime("stamps", inputInSensorFrame.getDescriptorViewByName("t").cast<std::int64_t>());
@@ -178,7 +178,7 @@ void norlab_icp_mapper::Mapper::processInput(PM::DataPoints& inputInSensorFrame,
 	{
 		icpMapLock.lock();
 		PM::TransformationParameters correction = icp(inputInMapFrame);
-		icpMapLock.unlock();
+        icpMapLock.unlock();
 
 		sensorPose = correction * estimatedSensorPose;
 
