@@ -18,6 +18,8 @@ namespace norlab_icp_mapper
 		float estimatedOverlap;
 		float processingTime;
 		float processingTimePercentage;
+    int successfully_processed_frames;
+    int failed_frames;
 	} DiagnosticInformation;
 
 	class Mapper
@@ -47,6 +49,8 @@ namespace norlab_icp_mapper
 		std::mutex icpMapLock;
 		std::future<void> mapUpdateFuture;
 		std::chrono::time_point<std::chrono::steady_clock> lastTimeStamp;
+    int success_frames;
+    int failed_frames;
 
 		bool shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime, const PM::TransformationParameters& currentPose,
 							 const float& currentOverlap) const;

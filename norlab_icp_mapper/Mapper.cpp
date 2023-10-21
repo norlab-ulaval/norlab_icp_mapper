@@ -18,7 +18,9 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 		map(minDistNewPoint, sensorMaxRange, priorDynamic, thresholdDynamic, beamHalfAngle, epsilonA, epsilonD, alpha, beta, is3D,
 			isOnline, computeProbDynamic, saveMapCellsOnHardDrive, icp, icpMapLock),
 		trajectory(is3D ? 3 : 2),
-		transformation(PM::get().TransformationRegistrar.create("RigidTransformation"))
+		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
+    success_frames(0),
+    failed_frames(0)
 {
 	loadYamlConfig(inputFiltersConfigFilePath, icpConfigFilePath, mapPostFiltersConfigFilePath);
 
@@ -102,9 +104,18 @@ norlab_icp_mapper::DiagnosticInformation norlab_icp_mapper::Mapper::processInput
 
 		if(!skip_icp) {
 			{
-				std::lock_guard<std::mutex> icpMapLockGuard(icpMapLock);
-				correction = icp(input);
-			}
+        try
+        {
+				  std::lock_guard<std::mutex> icpMapLockGuard(icpMapLock);
+				  correction = icp(input);
+          success_frames++;
+        }
+        catch (const PM::ConvergenceError& convergenceError)
+        {
+          correction.setIdentity();
+          failed_frames++;
+        }
+      }
 			estimatedOverlap = icp.errorMinimizer->getOverlap();
 		}
 
@@ -135,6 +146,8 @@ norlab_icp_mapper::DiagnosticInformation norlab_icp_mapper::Mapper::processInput
 		info.processingTimePercentage = 100.0f * processingTime / std::chrono::duration<float>(timeStamp - lastTimeStamp).count();
 	}
 	lastTimeStamp = timeStamp;
+  info.successfully_processed_frames = success_frames;
+  info.failed_frames = failed_frames;
 
 	return info;
 }
