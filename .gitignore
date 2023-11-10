@@ -1,5 +1,6 @@
 ### Build files ###
 build
+cmake-build*
 
 ### C++ ###
 # Prerequisites
@@ -51,3 +52,6 @@ _deps
 ### CMake Patch ###
 # External projects
 *-prefix/
+
+### IDE ###
+.idea
