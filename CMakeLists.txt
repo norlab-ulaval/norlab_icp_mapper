@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(norlab_icp_mapper)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 set(EXTERNAL_INCLUDE_DIRS "")
 set(EXTERNAL_LIBS "")
@@ -34,6 +34,14 @@ install(FILES
         DESTINATION ${DEF_INSTALL_CMAKE_DIR}
         COMPONENT dev
         )
+
+#=============== trigger other makefile ======================
+
+# Example programs
+option(NORLAB_MAPPER_BUILD_EXAMPLES "Build norlab_icp_mapper examples" ON)
+if (NORLAB_MAPPER_BUILD_EXAMPLES)
+  add_subdirectory(examples)
+endif()
 
 # uninstall target
 if (NOT TARGET uninstall)
