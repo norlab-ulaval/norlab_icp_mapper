@@ -4,8 +4,6 @@
 #include <nabo/nabo.h>
 #include <unordered_map>
 
-#define INITIAL_CELL_NBPOINTS_WHEN_UNLOADING 100    // seems like a good number, should fit in ram for hundreds of cells
-
 norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic,
 							const float& beamHalfAngle, const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D,
 							const bool& isOnline, const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp,
@@ -222,21 +220,17 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 		std::string cellId = std::to_string(row) + "_" + std::to_string(column) + "_" + std::to_string(aisle);
 
 		if(cells[cellId].getNbPoints() == 0)
-		{
-			// We reserve only a limited number of points for the cell to avoid running out of RAM for large pointclouds
-			cells[cellId] = oldChunk.createSimilarEmpty(INITIAL_CELL_NBPOINTS_WHEN_UNLOADING);
-		}
+        {
+            cells[cellId] = oldChunk.createSimilarEmpty(INITIAL_CELL_NB_POINTS_WHEN_UNLOADING);
+        }
+        else if(cells[cellId].getNbPoints() == cellPointCounts[cellId])
+        {
+            cells[cellId].conservativeResize(cells[cellId].getNbPoints() * 2);
+        }
 
-		// if we run out of available size in the cell, double the size
-		if(cells[cellId].getNbPoints() <= cellPointCounts[cellId]){
-			cells[cellId].conservativeResize(cells[cellId].getNbPoints()*2);
-		}
-
-		//copy the point to the cell
 		cells[cellId].setColFrom(cellPointCounts[cellId], oldChunk, i);
 		cellPointCounts[cellId]++;
 	}
-
 	for(auto& cell: cells)
 	{
 		cell.second.conservativeResize(cellPointCounts[cell.first]);

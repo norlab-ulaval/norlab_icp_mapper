@@ -28,6 +28,7 @@ namespace norlab_icp_mapper
 
 		const int BUFFER_SIZE = 2;
 		const float CELL_SIZE = 20.0;
+        const int INITIAL_CELL_NB_POINTS_WHEN_UNLOADING = 100;
 
 		float sensorMaxRange;
 		float minDistNewPoint;
