@@ -220,9 +220,13 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 		std::string cellId = std::to_string(row) + "_" + std::to_string(column) + "_" + std::to_string(aisle);
 
 		if(cells[cellId].getNbPoints() == 0)
-		{
-			cells[cellId] = oldChunk.createSimilarEmpty();
-		}
+        {
+            cells[cellId] = oldChunk.createSimilarEmpty(INITIAL_CELL_NB_POINTS_WHEN_UNLOADING);
+        }
+        else if(cells[cellId].getNbPoints() == cellPointCounts[cellId])
+        {
+            cells[cellId].conservativeResize(cells[cellId].getNbPoints() * 2);
+        }
 
 		cells[cellId].setColFrom(cellPointCounts[cellId], oldChunk, i);
 		cellPointCounts[cellId]++;
