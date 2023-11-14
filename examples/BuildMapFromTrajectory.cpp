@@ -2,8 +2,7 @@
 // Created by Matěj Boxan on 2023-11-10.
 //
 
-#include "Mapper.h"
-
+#include <norlab_icp_mapper/Mapper.h>
 #include <iostream>
 #include <fstream>
 #include <memory>
@@ -15,7 +14,7 @@
 typedef PointMatcher<float> PM;
 typedef PM::DataPoints DP;
 
-std::vector<std::pair<Eigen::Affine3d, uint>> getStampedTransformations(const std::string &filepath)
+std::vector<std::pair<Eigen::Affine3d, unsigned long>> getStampedTransformations(const std::string &filepath)
 {
     // Open the CSV file
     std::ifstream file(filepath);
@@ -72,7 +71,7 @@ std::vector<std::pair<Eigen::Affine3d, uint>> getStampedTransformations(const st
     using Affine3d = Eigen::Affine3d;
 
     // Containers to store data
-    std::vector<std::pair<Affine3d, uint>> stamped_transformations;
+    std::vector<std::pair<Affine3d, unsigned long>> stamped_transformations;
 
     // Read the file line by line
     std::string line;
@@ -82,14 +81,16 @@ std::vector<std::pair<Eigen::Affine3d, uint>> getStampedTransformations(const st
 
         Vector3d position;
         Quaterniond quaternion;
-        unsigned int timestamp = 0;
+        unsigned long timestamp = 0;
         // Extract the required columns
         for (int i = 0; i < column_names.size(); ++i) {
             std::getline(linestream, token, ',');
+            std::stringstream ss;
+            ss << token;
             if (i == x_index || i == y_index || i == z_index) {
                 // Extract position (x, y, z)
                 double value;
-                linestream >> value;
+                ss >> value;
                 if (i == x_index) {
                     position.x() = value;
                 } else if (i == y_index) {
@@ -100,7 +101,7 @@ std::vector<std::pair<Eigen::Affine3d, uint>> getStampedTransformations(const st
             } else if (i == qx_index || i == qy_index || i == qz_index || i == qw_index) {
                 // Extract quaternion (x, y, z, w)
                 double value;
-                linestream >> value;
+                ss >> value;
                 if (i == qx_index) {
                     quaternion.x() = value;
                 } else if (i == qy_index) {
@@ -112,12 +113,12 @@ std::vector<std::pair<Eigen::Affine3d, uint>> getStampedTransformations(const st
                 }
             } else if (i == sec_index || i == nsec_index) {
                 // Extract timestamp (sec, nsec)
-                double value;
-                linestream >> value;
+                unsigned long value;
+                ss >> value;
                 if (i == sec_index) {
-                    timestamp += static_cast<unsigned int>(value)*1e9;
+                    timestamp += value*static_cast<unsigned long>(1e9);
                 } else if (i == nsec_index) {
-                    timestamp += static_cast<unsigned int>(value);
+                    timestamp += value;
                 }
             }
         }
@@ -152,15 +153,8 @@ int main() {
     std::string path = "/Users/mbo/Documents/python/code-publication-IROS2024-MatejBoxan/data/scans_trajectories/short/";
     auto stampedTransformations = getStampedTransformations(path + "icp_odom.csv");
     auto vtk_files_paths = getScansPaths(path + "scans/");
-    // Display the list of .vtk files
-    std::cout << "List of .vtk files in the directory:\n";
-    for (const auto& file_path : vtk_files_paths) {
-        std::cout << file_path << std::endl;
-    }
 
     assert(stampedTransformations.size() == vtk_files_paths.size());
-
-//    auto transformation = PM::get().TransformationRegistrar.create("RigidTransformation");
 
     using namespace norlab_icp_mapper;
     auto mapper = std::make_unique<Mapper>("examples/config/input_filters.yaml",
@@ -168,26 +162,27 @@ int main() {
                                                      "examples/config/output_filters.yaml",
                                                      "delay",
                                                       1.0, 0.0,
-                                                      0.0, 0.1,
+                                                      0.0, 0.0,
                                                       200, 0.6, 0.9,
                                                       0.01, 0.01, 0.01, 0.8,
                                                       0.99, true, false, false,
                                                       true, false);
 
 
-//    for (size_t i = 0; i < stampedTransformations.size(); ++i) {
-//        std::string cloud_path = vtk_files_paths[i];
-//        std::cout << "Processing " << cloud_path << std::endl;
-//        DP cloud(DP::load(cloud_path));
-//
-//        PM::TransformationParameters transformationParameters(stampedTransformations[i].first.matrix().cast<float>());
-//        auto timestamp = std::chrono::time_point<std::chrono::steady_clock>(std::chrono::nanoseconds(stampedTransformations[i].second));
-//
-//        mapper->processInput(cloud, transformationParameters, timestamp);
-//
-//        std::cout << "Transformation:\n" << stampedTransformations[i].first.matrix() << "\nat " << stampedTransformations[i].second << " ns" << std::endl;
-//    }
+    int sum_number_of_points = 0;
+    for (size_t i = 0; i < stampedTransformations.size(); ++i) {
+        std::string cloud_path = vtk_files_paths[i];
+        DP cloud(DP::load(cloud_path));
 
+        sum_number_of_points += cloud.getNbPoints();
+        PM::TransformationParameters transformationParameters(stampedTransformations[i].first.matrix().cast<float>());
+        auto timestamp = std::chrono::time_point<std::chrono::steady_clock>(std::chrono::nanoseconds(stampedTransformations[i].second));
+
+        mapper->processInput(cloud, transformationParameters, timestamp);
+        assert(sum_number_of_points == mapper->getMap().getNbPoints());
+    }
+
+    mapper->getMap().save("examples/map_out.vtk");
 
     return 0;
 }
