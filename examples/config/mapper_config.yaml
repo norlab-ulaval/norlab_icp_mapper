@@ -1,3 +1,5 @@
 mapper:
-    PointDistanceMapperModule:
-      minDistNewPoint: 0.0
+    OctreeMapperModule:
+      buildParallel: 1
+      maxSizeByNode: 0.15
+      samplingMethod: 1
