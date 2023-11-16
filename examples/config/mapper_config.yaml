@@ -1,0 +1,3 @@
+mapper:
+    PointDistanceMapperModule:
+      minDistNewPoint: 0.0

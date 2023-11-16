@@ -7,6 +7,7 @@
 #include <list>
 #include <unordered_set>
 #include "CellManager.h"
+#include "MapperModules/MapperModule.h"
 
 namespace norlab_icp_mapper
 {
@@ -64,6 +65,8 @@ namespace norlab_icp_mapper
 		std::list<Update> updateList;
 		std::mutex updateListLock;
 
+        std::shared_ptr<MapperModule> mappingModule;
+
 		void updateThreadFunction();
 		void applyUpdate(const Update& update);
 		void loadCells(int startRow, int endRow, int startColumn, int endColumn, int startAisle, int endAisle);
@@ -76,8 +79,6 @@ namespace norlab_icp_mapper
 		int toInferiorGridCoordinate(const float& worldCoordinate, const float& range) const;
 		int toSuperiorGridCoordinate(const float& worldCoordinate, const float& range) const;
 		void scheduleUpdate(const Update& update);
-		PM::DataPoints retrievePointsFurtherThanMinDistNewPoint(const PM::DataPoints& input, const PM::DataPoints& currentLocalPointCloud,
-																const PM::TransformationParameters& pose) const;
 		void computeProbabilityOfPointsBeingDynamic(const PM::DataPoints& input, PM::DataPoints& currentLocalPointCloud,
 													const PM::TransformationParameters& pose) const;
 		void convertToSphericalCoordinates(const PM::DataPoints& points, PM::Matrix& radii, PM::Matrix& angles) const;
@@ -93,7 +94,14 @@ namespace norlab_icp_mapper
 		bool getNewLocalPointCloud(PM::DataPoints& localPointCloudOut);
 		PM::DataPoints getGlobalPointCloud();
 		void setGlobalPointCloud(const PM::DataPoints& newLocalPointCloud);
-		bool isLocalPointCloudEmpty() const;
+		inline bool isLocalPointCloudEmpty() const
+        {
+            return localPointCloudEmpty.load();
+        }
+        void setMappingModule(std::shared_ptr<MapperModule> mappingModule)
+        {
+            this->mappingModule = std::move(mappingModule);
+        }
 	};
 }
 
