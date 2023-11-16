@@ -518,9 +518,9 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 	}
 
 	localPointCloudLock.lock();
-	if(localPointCloudEmpty.load())
+	if(isLocalPointCloudEmpty())
 	{
-		localPointCloud = input;
+        localPointCloud = mappingModule->createMap(input, pose);
 	}
 	else
 	{
@@ -529,8 +529,7 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 			computeProbabilityOfPointsBeingDynamic(input, localPointCloud, pose);
 		}
 
-		PM::DataPoints inputPointsToKeep = retrievePointsFurtherThanMinDistNewPoint(input, localPointCloud, pose);
-		localPointCloud.concatenate(inputPointsToKeep);
+        mappingModule->inPlaceUpdateMap(input, localPointCloud, pose);
 	}
 
 	PM::DataPoints localPointCloudInSensorFrame = transformation->compute(localPointCloud, pose.inverse());
@@ -654,32 +653,6 @@ void norlab_icp_mapper::Map::computeProbabilityOfPointsBeingDynamic(const PM::Da
 	}
 }
 
-norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::retrievePointsFurtherThanMinDistNewPoint(const PM::DataPoints& input,
-																										const PM::DataPoints& currentLocalPointCloud,
-																										const PM::TransformationParameters& pose) const
-{
-	typedef Nabo::NearestNeighbourSearch<float> NNS;
-
-	PM::Matches matches(PM::Matches::Dists(1, input.getNbPoints()), PM::Matches::Ids(1, input.getNbPoints()));
-	std::shared_ptr<NNS> nns = std::shared_ptr<NNS>(NNS::create(currentLocalPointCloud.features, currentLocalPointCloud.features.rows() - 1,
-																NNS::KDTREE_LINEAR_HEAP, NNS::TOUCH_STATISTICS));
-
-	nns->knn(input.features, matches.ids, matches.dists, 1, 0);
-
-	int goodPointCount = 0;
-	PM::DataPoints goodPoints(input.createSimilarEmpty());
-	for(int i = 0; i < input.getNbPoints(); ++i)
-	{
-		if(matches.dists(i) >= std::pow(minDistNewPoint, 2))
-		{
-			goodPoints.setColFrom(goodPointCount, input, i);
-			goodPointCount++;
-		}
-	}
-	goodPoints.conservativeResize(goodPointCount);
-
-	return goodPoints;
-}
 
 void norlab_icp_mapper::Map::convertToSphericalCoordinates(const PM::DataPoints& points, PM::Matrix& radii, PM::Matrix& angles) const
 {
@@ -755,9 +728,4 @@ void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalP
 
 	firstPoseUpdate.store(true);
 	localPointCloudLock.unlock();
-}
-
-bool norlab_icp_mapper::Map::isLocalPointCloudEmpty() const
-{
-	return localPointCloudEmpty.load();
 }

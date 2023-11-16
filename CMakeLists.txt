@@ -6,9 +6,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(EXTERNAL_INCLUDE_DIRS "")
 set(EXTERNAL_LIBS "")
 
+message(STATUS "Looking for libpointmatcher on system...")
 find_package(libpointmatcher CONFIG)
 set(EXTERNAL_INCLUDE_DIRS ${EXTERNAL_INCLUDE_DIRS} ${libpointmatcher_INCLUDE_DIRS})
 set(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${libpointmatcher_LIBRARIES})
+
+message(STATUS "Looking for yaml-cpp on system...")
+find_package(yaml-cpp CONFIG)
 
 # norlab_icp_mapper target
 add_library(norlab_icp_mapper
@@ -17,11 +21,19 @@ add_library(norlab_icp_mapper
         norlab_icp_mapper/Trajectory.cpp
         norlab_icp_mapper/RAMCellManager.cpp
         norlab_icp_mapper/HardDriveCellManager.cpp
+
+#        MapperModules
+        norlab_icp_mapper/MapperModules/PointDistanceMapperModule.cpp
+        norlab_icp_mapper/MapperModules/MapperModule.cpp
         )
 target_include_directories(norlab_icp_mapper PUBLIC
         ${libpointmatcher_INCLUDE_DIRS}
+        ${YAML_CPP_INCLUDE_DIR}
         )
-target_link_libraries(norlab_icp_mapper ${libpointmatcher_LIBRARIES})
+target_link_libraries(norlab_icp_mapper
+        ${libpointmatcher_LIBRARIES}
+        ${YAML_CPP_LIBRARIES}
+        )
 
 # install target
 set(INSTALL_LIB_DIR lib CACHE PATH "Installation directory for libraries")
@@ -35,6 +47,7 @@ install(FILES
         norlab_icp_mapper/Map.h
         norlab_icp_mapper/Trajectory.h
         norlab_icp_mapper/CellManager.h
+        norlab_icp_mapper/MapperModules/MapperModule.h
         DESTINATION ${INSTALL_INCLUDE_DIR}/norlab_icp_mapper
         )
 

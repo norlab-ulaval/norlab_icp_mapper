@@ -6,6 +6,7 @@
 #include "Trajectory.h"
 #include <future>
 #include <mutex>
+#include "MapperModules/MapperModule.h"
 
 namespace norlab_icp_mapper
 {
@@ -43,12 +44,13 @@ namespace norlab_icp_mapper
 
 	public:
 		Mapper(const std::string& inputFiltersConfigFilePath, const std::string& icpConfigFilePath, const std::string& mapPostFiltersConfigFilePath,
+               const std::string& mapperConfigFilePath,
 			   const std::string& mapUpdateCondition, const float& mapUpdateOverlap, const float& mapUpdateDelay, const float& mapUpdateDistance,
 			   const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle,
 			   const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
 			   const bool& computeProbDynamic, const bool& isMapping, const bool& saveMapCellsOnHardDrive);
 		void loadYamlConfig(const std::string& inputFiltersConfigFilePath, const std::string& icpConfigFilePath,
-							const std::string& mapPostFiltersConfigFilePath);
+							const std::string& mapPostFiltersConfigFilePath, const std::string& mapperConfigFilePath);
 		void processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,
 						  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp);
 		PM::DataPoints getMap();
@@ -58,7 +60,13 @@ namespace norlab_icp_mapper
 		bool getIsMapping() const;
 		void setIsMapping(const bool& newIsMapping);
 		Trajectory getTrajectory();
-	};
+        void setDefault();
+        void loadFromYaml(std::ifstream& ifstream);
+
+    private:
+        DEF_REGISTRAR(MapperModule)
+        void fillRegistrar();
+    };
 }
 
 #endif

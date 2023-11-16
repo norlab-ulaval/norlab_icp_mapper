@@ -1,9 +1,17 @@
 #include "Mapper.h"
+#include "MapperModules/PointDistanceMapperModule.h"
 #include <fstream>
 #include <chrono>
+#include <yaml-cpp/yaml.h>
+#include <yaml-cpp/node/iterator.h>
+
+void norlab_icp_mapper::Mapper::fillRegistrar() {
+    ADD_TO_REGISTRAR(MapperModule, PointDistanceMapperModule, PointDistanceMapperModule);
+}
 
 norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath, const std::string& icpConfigFilePath,
-								  const std::string& mapPostFiltersConfigFilePath, const std::string& mapUpdateCondition, const float& mapUpdateOverlap,
+								  const std::string& mapPostFiltersConfigFilePath, const std::string& mapperConfigFilePath,
+                                  const std::string& mapUpdateCondition, const float& mapUpdateOverlap,
 								  const float& mapUpdateDelay, const float& mapUpdateDistance, const float& minDistNewPoint, const float& sensorMaxRange,
 								  const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle, const float& epsilonA,
 								  const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
@@ -20,17 +28,19 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 		trajectory(is3D ? 3 : 2),
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation"))
 {
-	loadYamlConfig(inputFiltersConfigFilePath, icpConfigFilePath, mapPostFiltersConfigFilePath);
+    fillRegistrar();
+	loadYamlConfig(inputFiltersConfigFilePath, icpConfigFilePath, mapPostFiltersConfigFilePath, mapperConfigFilePath);
 
 	PM::Parameters radiusFilterParams;
 	radiusFilterParams["dim"] = "-1";
 	radiusFilterParams["dist"] = std::to_string(sensorMaxRange);
 	radiusFilterParams["removeInside"] = "0";
 	radiusFilter = PM::get().DataPointsFilterRegistrar.create("DistanceLimitDataPointsFilter", radiusFilterParams);
+
 }
 
 void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& inputFiltersConfigFilePath, const std::string& icpConfigFilePath,
-											   const std::string& mapPostFiltersConfigFilePath)
+											   const std::string& mapPostFiltersConfigFilePath, const std::string& mapperConfigFilePath)
 {
 	if(!icpConfigFilePath.empty())
 	{
@@ -55,6 +65,17 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& inputFiltersCo
 		std::ifstream ifs(mapPostFiltersConfigFilePath.c_str());
 		mapPostFilters = PM::DataPointsFilters(ifs);
 		ifs.close();
+	}
+
+	if(!mapperConfigFilePath.empty())
+	{
+		std::ifstream ifs(mapperConfigFilePath.c_str());
+		this->loadFromYaml(ifs);
+		ifs.close();
+	}
+	else
+	{
+		this->setDefault();
 	}
 }
 
@@ -189,4 +210,35 @@ Trajectory norlab_icp_mapper::Mapper::getTrajectory()
 {
 	std::lock_guard<std::mutex> lock(trajectoryLock);
 	return trajectory;
+}
+
+void norlab_icp_mapper::Mapper::setDefault()
+{
+}
+
+void norlab_icp_mapper::Mapper::loadFromYaml(std::ifstream& ifstream)
+{
+    try {
+        YAML::Node node = YAML::Load(ifstream);
+
+        // Fix for issue #6: compilation on gcc 4.4.4
+        const PointMatcher<float> & pm = PointMatcher<float>::get();
+
+        if (node["mapper"])
+        {
+            std::cout << "mapper config found with the following content:\n" << node["mapper"] << std::endl;
+            std::shared_ptr<MapperModule> module = REG(MapperModule).createFromYAML(node["mapper"]);
+            this->map.setMappingModule(module);
+        }
+        else
+        {
+            throw YAML::KeyNotFound(YAML::Mark::null_mark(), "Required key 'mapper' not found");
+        }
+
+
+
+    } catch (const YAML::Exception& e) {
+        std::cerr << "Error reading YAML file: " << e.what() << std::endl;
+    }
+
 }
