@@ -32,7 +32,6 @@ namespace norlab_icp_mapper
         const int INITIAL_CELL_NB_POINTS_WHEN_UNLOADING = 100;
 
 		float sensorMaxRange;
-		float minDistNewPoint;
 		float priorDynamic;
 		float thresholdDynamic;
 		float beamHalfAngle;
@@ -84,7 +83,7 @@ namespace norlab_icp_mapper
 		void convertToSphericalCoordinates(const PM::DataPoints& points, PM::Matrix& radii, PM::Matrix& angles) const;
 
 	public:
-		Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle,
+		Map(const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle,
 			const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
 			const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp, std::mutex& icpMapLock);
 		~Map();

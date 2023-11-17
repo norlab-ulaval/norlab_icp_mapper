@@ -4,11 +4,10 @@
 #include <nabo/nabo.h>
 #include <unordered_map>
 
-norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic,
+norlab_icp_mapper::Map::Map(const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic,
 							const float& beamHalfAngle, const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D,
 							const bool& isOnline, const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp,
 							std::mutex& icpMapLock):
-		minDistNewPoint(minDistNewPoint),
 		sensorMaxRange(sensorMaxRange),
 		priorDynamic(priorDynamic),
 		thresholdDynamic(thresholdDynamic),

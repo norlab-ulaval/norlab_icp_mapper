@@ -23,7 +23,7 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& configFilePath,
 		is3D(is3D),
 		isOnline(isOnline),
 		isMapping(isMapping),
-		map(minDistNewPoint, sensorMaxRange, priorDynamic, thresholdDynamic, beamHalfAngle, epsilonA, epsilonD, alpha, beta, is3D,
+		map(sensorMaxRange, priorDynamic, thresholdDynamic, beamHalfAngle, epsilonA, epsilonD, alpha, beta, is3D,
 			isOnline, computeProbDynamic, saveMapCellsOnHardDrive, icp, icpMapLock),
 		trajectory(is3D ? 3 : 2),
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation"))
