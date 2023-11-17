@@ -10,8 +10,6 @@ OctreeMapperModule::OctreeMapperModule(const PM::Parameters& params):
 	    maxSizeByNode(PM::Parametrizable::get<float>("maxSizeByNode")),
 	    samplingMethod(PM::Parametrizable::get<int>("samplingMethod"))
     {
-//        PM::Parameters fullParams(params);
-//        fullParams.insert(std::pair<std::string, Parameter>("maxPointByNode", ""))
         octreeFilter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", params);
     }
 

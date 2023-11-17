@@ -1,0 +1,65 @@
+input:
+  - BoundingBoxDataPointsFilter:
+      xMin: -1.5
+      xMax: 0.5
+      yMin: -1
+      yMax: 1
+      zMin: -1
+      zMax: 0.5
+      removeInside: 1
+
+  - BoundingBoxDataPointsFilter:
+      xMin: -6
+      xMax: -1.5
+      yMin: -2.5
+      yMax: 2.5
+      zMin: -1
+      zMax: 1
+      removeInside: 1
+
+  - RandomSamplingDataPointsFilter:
+      prob: 1.0
+
+post:
+  - SurfaceNormalDataPointsFilter:
+      knn: 15
+
+mapper:
+    OctreeMapperModule:
+      buildParallel: 1
+      maxSizeByNode: 0.15
+      samplingMethod: 1
+
+icp:
+  matcher:
+    KDTreeMatcher:
+      knn: 6
+      maxDist: 2.0
+      epsilon: 1
+
+
+  outlierFilters:
+    - TrimmedDistOutlierFilter:
+        ratio: 0.7
+
+
+  errorMinimizer:
+    PointToPointErrorMinimizer:
+
+
+  transformationCheckers:
+    - DifferentialTransformationChecker:
+        minDiffRotErr: 0.001
+        minDiffTransErr: 0.01
+        smoothLength: 2
+    - CounterTransformationChecker:
+        maxIterationCount: 40
+    - BoundTransformationChecker:
+        maxRotationNorm: 1.0
+        maxTranslationNorm: 1.0
+
+  inspector:
+    NullInspector
+
+  logger:
+    NullLogger

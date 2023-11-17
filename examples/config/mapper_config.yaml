@@ -1,5 +1,0 @@
-mapper:
-    OctreeMapperModule:
-      buildParallel: 1
-      maxSizeByNode: 0.15
-      samplingMethod: 1

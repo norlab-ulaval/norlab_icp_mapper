@@ -203,10 +203,7 @@ int main()
     assert(stampedTransformations.size() == vtk_files_paths.size());
 
     using namespace norlab_icp_mapper;
-    auto mapper = std::make_unique<Mapper>("examples/config/input_filters.yaml",
-                                           "examples/config/icp_config.yaml",
-                                           "examples/config/output_filters.yaml",
-                                           "examples/config/mapper_config.yaml",
+    auto mapper = std::make_unique<Mapper>("examples/config/config.yaml",
                                            "delay",
                                            1.0, 0.0,
                                            0.0, 0.0,
