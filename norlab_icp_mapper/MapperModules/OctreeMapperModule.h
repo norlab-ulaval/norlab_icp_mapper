@@ -22,7 +22,9 @@ public:
     //FIXME replace static methods by calls directly to libpointmatcher's datapointfilter
     inline static const std::string description()
     {
-        return "Construct an Octree grid representation of the point cloud. Constructed by limiting the size of the bounding box. Down-sample by taking either the first or a random point, or compute the centroid.";
+        return "Construct an Octree grid representation of the point cloud.\n"
+               "Constructed by limiting the size of the bounding box.\n"
+               "Down-sample by taking either the first or a random point, or compute the centroid.";
 	}
 
     inline static const PM::ParametersDoc availableParameters()

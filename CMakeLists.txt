@@ -25,6 +25,7 @@ add_library(norlab_icp_mapper
 #        MapperModules
         norlab_icp_mapper/MapperModules/PointDistanceMapperModule.cpp
         norlab_icp_mapper/MapperModules/OctreeMapperModule.cpp
+        norlab_icp_mapper/MapperModules/SymmetryMapperModule.cpp
         norlab_icp_mapper/MapperModules/MapperModule.cpp
         )
 target_include_directories(norlab_icp_mapper PUBLIC

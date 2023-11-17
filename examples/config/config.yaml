@@ -27,14 +27,20 @@ post:
 mapper:
   updateCondition:
     type: distance
-    value: 1.2
+    value: 0.0
 
   mapperModule:
-    OctreeMapperModule:
-      buildParallel: 1
-      maxSizeByNode: 0.15
-      samplingMethod: 1
+#    OctreeMapperModule:
+#      buildParallel: 1
+#      maxSizeByNode: 0.15
+#      samplingMethod: 1
 
+    SymmetryMapperModule:
+      vrs: 5.0
+      vro: 1.025
+      dt: 0.05
+      ct: 0.95
+      knn: 10
 icp:
   matcher:
     KDTreeMatcher:

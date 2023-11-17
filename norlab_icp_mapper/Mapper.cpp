@@ -1,6 +1,7 @@
 #include "Mapper.h"
 #include "MapperModules/PointDistanceMapperModule.h"
 #include "MapperModules/OctreeMapperModule.h"
+#include "MapperModules/SymmetryMapperModule.h"
 #include <fstream>
 #include <chrono>
 #include <yaml-cpp/node/iterator.h>
@@ -8,6 +9,7 @@
 void norlab_icp_mapper::Mapper::fillRegistrar() {
     ADD_TO_REGISTRAR(MapperModule, PointDistanceMapperModule, PointDistanceMapperModule);
     ADD_TO_REGISTRAR(MapperModule, OctreeMapperModule, OctreeMapperModule);
+    ADD_TO_REGISTRAR(MapperModule, SymmetryMapperModule, SymmetryMapperModule);
 }
 
 norlab_icp_mapper::Mapper::Mapper(const std::string& configFilePath, const float& sensorMaxRange,
