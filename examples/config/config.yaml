@@ -25,6 +25,11 @@ post:
       knn: 15
 
 mapper:
+  updateCondition:
+    type: distance
+    value: 1.2
+
+  mapperModule:
     OctreeMapperModule:
       buildParallel: 1
       maxSizeByNode: 0.15

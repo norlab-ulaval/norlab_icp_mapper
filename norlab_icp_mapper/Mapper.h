@@ -42,13 +42,14 @@ namespace norlab_icp_mapper
 							 const float& currentOverlap) const;
 		void updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,
 					   const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp);
-        void validateYamlKeys(const YAML::Node& node);
+        void validateYamlKeys(const YAML::Node& node, const std::vector<std::string>& validKeys);
 		void loadYamlConfig(const std::string& configFilePath);
+        void setDefaultMapUpdateConfig();
+        void setDefaultMapperConfig();
 
 	public:
 		Mapper(const std::string& configFilePath,
-			   const std::string& mapUpdateCondition, const float& mapUpdateOverlap, const float& mapUpdateDelay, const float& mapUpdateDistance,
-			   const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle,
+               const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle,
 			   const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
 			   const bool& computeProbDynamic, const bool& isMapping, const bool& saveMapCellsOnHardDrive);
 		void processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,
@@ -60,7 +61,7 @@ namespace norlab_icp_mapper
 		bool getIsMapping() const;
 		void setIsMapping(const bool& newIsMapping);
 		Trajectory getTrajectory();
-        void setDefault();
+        void setDefaultMapperModule();
 
     private:
         DEF_REGISTRAR(MapperModule)

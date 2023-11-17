@@ -204,9 +204,6 @@ int main()
 
     using namespace norlab_icp_mapper;
     auto mapper = std::make_unique<Mapper>("examples/config/config.yaml",
-                                           "delay",
-                                           1.0, 0.0,
-                                           0.0, 0.0,
                                            200, 0.6, 0.9,
                                            0.01, 0.01, 0.01, 0.8,
                                            0.99, true, false, false,

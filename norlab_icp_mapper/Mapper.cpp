@@ -10,16 +10,10 @@ void norlab_icp_mapper::Mapper::fillRegistrar() {
     ADD_TO_REGISTRAR(MapperModule, OctreeMapperModule, OctreeMapperModule);
 }
 
-norlab_icp_mapper::Mapper::Mapper(const std::string& configFilePath,
-                                  const std::string& mapUpdateCondition, const float& mapUpdateOverlap,
-								  const float& mapUpdateDelay, const float& mapUpdateDistance, const float& minDistNewPoint, const float& sensorMaxRange,
+norlab_icp_mapper::Mapper::Mapper(const std::string& configFilePath, const float& sensorMaxRange,
 								  const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle, const float& epsilonA,
 								  const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
 								  const bool& computeProbDynamic, const bool& isMapping, const bool& saveMapCellsOnHardDrive):
-		mapUpdateCondition(mapUpdateCondition),
-		mapUpdateOverlap(mapUpdateOverlap),
-		mapUpdateDelay(mapUpdateDelay),
-		mapUpdateDistance(mapUpdateDistance),
 		is3D(is3D),
 		isOnline(isOnline),
 		isMapping(isMapping),
@@ -39,7 +33,7 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& configFilePath,
 
 }
 
-void norlab_icp_mapper::Mapper::validateYamlKeys(const YAML::Node& node)
+void norlab_icp_mapper::Mapper::validateYamlKeys(const YAML::Node& node, const std::vector<std::string>& validKeys)
 {
     std::unordered_set<std::string> encounteredKeys;
     if (!node.IsMap())
@@ -55,7 +49,7 @@ void norlab_icp_mapper::Mapper::validateYamlKeys(const YAML::Node& node)
         {
             throw YAML::Exception(YAML::Mark::null_mark(), "Duplicated key: " + key); // TODO add yaml mark
         }
-        if (key != "icp" && key != "input" && key != "post" && key != "mapper")
+        if (std::find(validKeys.begin(), validKeys.end(), key) == validKeys.end())
         {
             throw YAML::Exception(YAML::Mark::null_mark(), "Invalid key: " + key); // TODO add yaml mark
         }
@@ -68,7 +62,7 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
     std::ifstream ifs(configFilePath.c_str());
     YAML::Node node = YAML::Load(ifs);
 
-    validateYamlKeys(node);
+    validateYamlKeys(node, std::vector<std::string>{"icp", "input", "post", "mapper"});
     if (node["icp"])
     {
         icp.loadFromYamlNode(node["icp"]);
@@ -101,13 +95,57 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
 
     if (node["mapper"])
     {
-        std::shared_ptr<MapperModule> module = REG(MapperModule).createFromYAML(node["mapper"]);
-        this->map.setMappingModule(module);
+        YAML::Node mapperNode = node["mapper"];
+        std::cout << mapperNode << std::endl;
+        
+        if(mapperNode["updateCondition"])
+        {
+            YAML::Node updateConditionNode = mapperNode["updateCondition"];
+            validateYamlKeys(updateConditionNode, std::vector<std::string>{"type", "value"});
+            if(! updateConditionNode["type"])
+            {
+                throw YAML::Exception(YAML::Mark::null_mark(), "Missing key: type"); // TODO add yaml mark
+            }
+            if(! updateConditionNode["value"])
+            {
+                throw YAML::Exception(YAML::Mark::null_mark(), "Missing key: value"); // TODO add yaml mark
+            }
+
+            mapUpdateCondition = updateConditionNode["type"].as<std::string>();
+            if(mapUpdateCondition == "distance")
+            {
+                mapUpdateDistance = updateConditionNode["value"].as<float>();
+            }
+            if(mapUpdateCondition == "overlap")
+            {
+                mapUpdateOverlap = updateConditionNode["value"].as<float>();
+            }
+            if(mapUpdateCondition == "delay")
+            {
+                mapUpdateDelay = updateConditionNode["value"].as<float>();
+            }
+        }
+        else
+        {
+            std::cout << "mapper update condition not found, using default" << std::endl;
+            setDefaultMapUpdateConfig();
+        }
+
+        if(mapperNode["mapperModule"])
+        {
+            std::shared_ptr<MapperModule> module = REG(MapperModule).createFromYAML(mapperNode["mapperModule"]);
+            map.setMappingModule(module);
+        }
+        else
+        {
+            std::cout << "mapper module not found, using default" << std::endl;
+            setDefaultMapperModule();
+        }
     }
     else
     {
         std::cout << "mapper config not found, using default" << std::endl;
-        this->setDefault();
+        setDefaultMapperConfig();
     }
     ifs.close();
 }
@@ -245,10 +283,22 @@ Trajectory norlab_icp_mapper::Mapper::getTrajectory()
 	return trajectory;
 }
 
-void norlab_icp_mapper::Mapper::setDefault()
+void norlab_icp_mapper::Mapper::setDefaultMapperModule()
 {
     std::map<std::string, PM::Parametrizable::Parameter> params;
     params.insert(std::pair<std::string, PM::Parametrizable::Parameter>("minDistNewPoint", "0.15"));
     PointDistanceMapperModule mapperModule(params);
     this->map.setMappingModule(std::make_shared<PointDistanceMapperModule>(mapperModule));
+}
+
+void norlab_icp_mapper::Mapper::setDefaultMapUpdateConfig()
+{
+    mapUpdateCondition = "distance";
+    mapUpdateDistance = 1.0;
+}
+
+void norlab_icp_mapper::Mapper::setDefaultMapperConfig()
+{
+    setDefaultMapUpdateConfig();
+    setDefaultMapperModule();
 }
