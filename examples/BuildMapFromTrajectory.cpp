@@ -190,13 +190,15 @@ std::vector<std::string> getScansPaths(const std::string& directory_path)
         }
     }
 
+    std::sort(vtk_files.begin(), vtk_files.end());
+
     return vtk_files;
 }
 
 int main()
 {
 
-    std::string path = "/Users/mbo/Documents/python/code-publication-IROS2024-MatejBoxan/data/scans_trajectories/short/";
+    std::string path = "/Users/mbo/Documents/python/code-publication-IROS2024-MatejBoxan/data/scans_trajectories/long/";
     auto stampedTransformations = getStampedTransformations(path + "icp_odom.csv");
     auto vtk_files_paths = getScansPaths(path + "scans/");
 
@@ -209,20 +211,22 @@ int main()
                                            0.99, true, false, false,
                                            true, false);
 
-    unsigned int sum_number_of_points = 0;
     for(size_t i = 0; i < stampedTransformations.size(); ++i)
     {
-        std::string cloud_path = vtk_files_paths[i];
-        DP cloud(DP::load(cloud_path));
-
-        sum_number_of_points += cloud.getNbPoints();
-        PM::TransformationParameters transformationParameters(stampedTransformations[i].first.matrix().cast<float>());
         auto timestamp = std::chrono::time_point<std::chrono::steady_clock>(std::chrono::nanoseconds(stampedTransformations[i].second));
+        PM::TransformationParameters transformationParameters(stampedTransformations[i].first.matrix().cast<float>());
+        if (i == 0 || mapper->shouldUpdateMap(timestamp, transformationParameters, 0.0))
+        {
+            std::string cloud_path = vtk_files_paths[i];
+            DP cloud(DP::load(cloud_path));
 
-        mapper->processInput(cloud, transformationParameters, timestamp);
+            mapper->processInput(cloud, transformationParameters, timestamp);
+        }
+        std::cout << i << std::endl;
+//        mapper->getMap().save("examples/map" + std::to_string(i) + ".vtk");
     }
 
-    mapper->getMap().save("examples/map_out.vtk");
+    mapper->getMap().save("examples/map_symmetry.vtk");
 
     return 0;
 }

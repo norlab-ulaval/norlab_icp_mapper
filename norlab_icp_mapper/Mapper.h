@@ -38,9 +38,7 @@ namespace norlab_icp_mapper
 		std::mutex icpMapLock;
 		std::future<void> mapUpdateFuture;
 
-		bool shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime, const PM::TransformationParameters& currentPose,
-							 const float& currentOverlap) const;
-		void updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,
+        void updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,
 					   const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp);
         void validateYamlKeys(const YAML::Node& node, const std::vector<std::string>& validKeys);
 		void loadYamlConfig(const std::string& configFilePath);
@@ -63,6 +61,8 @@ namespace norlab_icp_mapper
 		Trajectory getTrajectory();
         void setDefaultMapperModule();
 
+        bool shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime, const PM::TransformationParameters& currentPose,
+                             const float& currentOverlap) const;
     private:
         DEF_REGISTRAR(MapperModule)
         void fillRegistrar();
