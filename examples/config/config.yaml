@@ -62,7 +62,7 @@ icp:
 
 
   errorMinimizer:
-    PointToPointErrorMinimizer:
+    IdentityErrorMinimizer:
 
 
   transformationCheckers:
@@ -71,7 +71,7 @@ icp:
         minDiffTransErr: 0.01
         smoothLength: 2
     - CounterTransformationChecker:
-        maxIterationCount: 40
+        maxIterationCount: 1
     - BoundTransformationChecker:
         maxRotationNorm: 10.0
         maxTranslationNorm: 10.0
