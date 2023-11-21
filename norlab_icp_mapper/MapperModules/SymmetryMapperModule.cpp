@@ -25,8 +25,9 @@ PointMatcher<float>::DataPoints SymmetryMapperModule::createMap(const PM::DataPo
 
 void SymmetryMapperModule::inPlaceCreateMap(PM::DataPoints& input, const PM::TransformationParameters& pose)
 {
-    DataPoints emptyMap = input.createSimilarEmpty();
-    inPlaceUpdateMap(emptyMap, input, pose);
+    symmetryFilter->inPlaceFilter(input);
+    assert(input.descriptorExists("omega"));
+    assert(input.descriptorExists("deviation"));
 }
 
 PointMatcher<float>::DataPoints SymmetryMapperModule::updateMap(const PM::DataPoints& input, const PM::DataPoints& map, const PM::TransformationParameters& pose)
@@ -38,6 +39,30 @@ PointMatcher<float>::DataPoints SymmetryMapperModule::updateMap(const PM::DataPo
 
 void SymmetryMapperModule::inPlaceUpdateMap(const PM::DataPoints& input, PM::DataPoints& map, const PM::TransformationParameters& pose)
 {
-    map.concatenate(input);
+    // TODO replace this by AddDescriptorDataPointsFilter (to be coded)
+    PM::DataPoints input_enhanced(input);
+    PM::Matrix omegas = PM::Matrix::Zero(1, input_enhanced.getNbPoints());
+    omegas.setOnes();
+    input_enhanced.addDescriptor("omega", omegas);
+
+    unsigned dim = input_enhanced.getEuclideanDim();
+    PM::Matrix deviations = PM::Matrix::Zero(std::pow(dim, 2), input_enhanced.getNbPoints());
+    if(dim == 2)
+    {
+        deviations.row(0) = PM::Matrix::Constant(1, input_enhanced.getNbPoints(), initialVariance);
+        deviations.row(3) = PM::Matrix::Constant(1, input_enhanced.getNbPoints(), initialVariance);
+    }
+    else
+    {
+        deviations.row(0) = PM::Matrix::Constant(1, input_enhanced.getNbPoints(), initialVariance);
+        deviations.row(4) = PM::Matrix::Constant(1, input_enhanced.getNbPoints(), initialVariance);
+        deviations.row(8) = PM::Matrix::Constant(1, input_enhanced.getNbPoints(), initialVariance);
+    }
+
+    input_enhanced.addDescriptor("deviation", deviations);
+
+    map.concatenate(input_enhanced);
+    assert(map.descriptorExists("omega"));
+    assert(map.descriptorExists("deviation"));
     symmetryFilter->inPlaceFilter(map);
 }
