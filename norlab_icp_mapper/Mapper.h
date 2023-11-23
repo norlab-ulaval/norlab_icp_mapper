@@ -41,7 +41,6 @@ namespace norlab_icp_mapper
         void updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,
 					   const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp);
         void validateYamlKeys(const YAML::Node& node, const std::vector<std::string>& validKeys);
-		void loadYamlConfig(const std::string& configFilePath);
         void setDefaultMapUpdateConfig();
         void setDefaultMapperConfig();
 
@@ -60,6 +59,7 @@ namespace norlab_icp_mapper
 		void setIsMapping(const bool& newIsMapping);
 		Trajectory getTrajectory();
         void setDefaultMapperModule();
+		void loadYamlConfig(const std::string& configFilePath);
 
         bool shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime, const PM::TransformationParameters& currentPose,
                              const float& currentOverlap) const;
