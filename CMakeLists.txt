@@ -49,9 +49,11 @@ install(FILES
         norlab_icp_mapper/Map.h
         norlab_icp_mapper/Trajectory.h
         norlab_icp_mapper/CellManager.h
-        norlab_icp_mapper/MapperModules/MapperModule.h
         DESTINATION ${INSTALL_INCLUDE_DIR}/norlab_icp_mapper
         )
+install(FILES
+        norlab_icp_mapper/MapperModules/MapperModule.h
+        DESTINATION ${INSTALL_INCLUDE_DIR}/norlab_icp_mapper/MapperModules/)
 
 configure_file(norlab_icp_mapperConfig.cmake.in
         "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/norlab_icp_mapperConfig.cmake" @ONLY
