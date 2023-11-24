@@ -7,12 +7,12 @@ set(EXTERNAL_INCLUDE_DIRS "")
 set(EXTERNAL_LIBS "")
 
 message(STATUS "Looking for libpointmatcher on system...")
-find_package(libpointmatcher CONFIG)
+find_package(libpointmatcher CONFIG REQUIRED)
 set(EXTERNAL_INCLUDE_DIRS ${EXTERNAL_INCLUDE_DIRS} ${libpointmatcher_INCLUDE_DIRS})
 set(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${libpointmatcher_LIBRARIES})
 
 message(STATUS "Looking for yaml-cpp on system...")
-find_package(yaml-cpp CONFIG)
+find_package(yaml-cpp CONFIG REQUIRED)
 
 # norlab_icp_mapper target
 add_library(norlab_icp_mapper
