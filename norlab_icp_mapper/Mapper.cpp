@@ -238,6 +238,7 @@ void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, co
 	if(isOnline && !map.isLocalPointCloudEmpty())
 	{
 		mapUpdateFuture = std::async(std::launch::async, &Map::updateLocalPointCloud, &map, currentInput, currentPose, mapPostFilters);
+        mapUpdateFuture.get();
 	}
 	else
 	{
