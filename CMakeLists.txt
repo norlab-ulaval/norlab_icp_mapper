@@ -13,6 +13,13 @@ set(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${libpointmatcher_LIBRARIES})
 
 message(STATUS "Looking for yaml-cpp on system...")
 find_package(yaml-cpp CONFIG REQUIRED)
+if(TARGET yaml-cpp::yaml-cpp)
+	set(YAML_CPP_LIBRARIES "yaml-cpp::yaml-cpp")
+endif()
+if(YAML_CPP_LIBRARIES STREQUAL "")
+	set(YAML_CPP_LIBRARIES "yaml-cpp")
+endif ()
+
 
 # norlab_icp_mapper target
 add_library(norlab_icp_mapper
