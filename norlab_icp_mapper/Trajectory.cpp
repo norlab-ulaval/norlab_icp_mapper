@@ -24,11 +24,11 @@ void Trajectory::save(std::string filename) const
     Eigen::MatrixXf features(dimension, poses.size());
 
     PointMatcher<float>::DataPoints::Labels descriptorLabels;
-    descriptorLabels.push_back(PointMatcher<float>::DataPoints::Label("orientation_x", dimension));
-    descriptorLabels.push_back(PointMatcher<float>::DataPoints::Label("orientation_y", dimension));
+    descriptorLabels.push_back(PointMatcher<float>::DataPoints::Label("orientationX", dimension));
+    descriptorLabels.push_back(PointMatcher<float>::DataPoints::Label("orientationY", dimension));
     if(dimension == 3)
     {
-        descriptorLabels.push_back(PointMatcher<float>::DataPoints::Label("orientation_z", dimension));
+        descriptorLabels.push_back(PointMatcher<float>::DataPoints::Label("orientationZ", dimension));
     }
     Eigen::MatrixXf descriptors(dimension * dimension, poses.size());
 
