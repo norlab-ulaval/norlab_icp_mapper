@@ -31,8 +31,8 @@ add_library(norlab_icp_mapper
 
 #        MapperModules
         norlab_icp_mapper/MapperModules/PointDistanceMapperModule.cpp
+        norlab_icp_mapper/MapperModules/ComputeDynamicsMapperModule.cpp
         norlab_icp_mapper/MapperModules/OctreeMapperModule.cpp
-        norlab_icp_mapper/MapperModules/SymmetryMapperModule.cpp
         norlab_icp_mapper/MapperModules/MapperModule.cpp
         )
 target_include_directories(norlab_icp_mapper PUBLIC
@@ -72,12 +72,6 @@ install(FILES
         )
 
 #=============== trigger other makefile ======================
-
-# Example programs
-option(NORLAB_MAPPER_BUILD_EXAMPLES "Build norlab_icp_mapper examples" ON)
-if (NORLAB_MAPPER_BUILD_EXAMPLES)
-  add_subdirectory(examples)
-endif()
 
 # uninstall target
 if (NOT TARGET uninstall)

@@ -37,17 +37,22 @@ mapper:
     value: 1.0
 
   mapperModule:
-#    OctreeMapperModule:
-#      buildParallel: 1
-#      maxSizeByNode: 0.15
-#      samplingMethod: 1
+    ComputeDynamicsMapperModule:
+      priorDynamic: 0.6
+      thresholdDynamic: 0.9
+      alpha: 0.8
+      beta: 0.99
+      beamHalfAngle: 0.01
+      epsilonA: 0.01
+      epsilonD: 0.01
 
-    SymmetryMapperModule:
-      vrs: 5.0
-      vro: 1.025
-      dt: 0.05
-      ct: 0.95
-      knn: 10
+    OctreeMapperModule:
+      buildParallel: 1
+      maxSizeByNode: 0.15
+      samplingMethod: 1
+
+  sensorMaxRange: 200
+
 icp:
   matcher:
     KDTreeMatcher:

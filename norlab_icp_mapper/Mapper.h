@@ -45,10 +45,8 @@ namespace norlab_icp_mapper
         void setDefaultMapperConfig();
 
 	public:
-		Mapper(const std::string& configFilePath,
-               const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle,
-			   const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
-			   const bool& computeProbDynamic, const bool& isMapping, const bool& saveMapCellsOnHardDrive);
+		Mapper(const std::string& configFilePath, const bool& is3D, const bool& isOnline,
+			   const bool& isMapping, const bool& saveMapCellsOnHardDrive);
 		void processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,
 						  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp);
 		PM::DataPoints getMap();

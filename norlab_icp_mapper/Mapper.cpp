@@ -1,7 +1,7 @@
 #include "Mapper.h"
 #include "MapperModules/PointDistanceMapperModule.h"
 #include "MapperModules/OctreeMapperModule.h"
-#include "MapperModules/SymmetryMapperModule.h"
+#include "MapperModules/ComputeDynamicsMapperModule.h"
 #include <fstream>
 #include <chrono>
 #include <yaml-cpp/node/iterator.h>
@@ -9,18 +9,15 @@
 void norlab_icp_mapper::Mapper::fillRegistrar() {
     ADD_TO_REGISTRAR(MapperModule, PointDistanceMapperModule, PointDistanceMapperModule);
     ADD_TO_REGISTRAR(MapperModule, OctreeMapperModule, OctreeMapperModule);
-    ADD_TO_REGISTRAR(MapperModule, SymmetryMapperModule, SymmetryMapperModule);
+    ADD_TO_REGISTRAR(MapperModule, ComputeDynamicsMapperModule, ComputeDynamicsMapperModule);
 }
 
-norlab_icp_mapper::Mapper::Mapper(const std::string& configFilePath, const float& sensorMaxRange,
-								  const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle, const float& epsilonA,
-								  const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
-								  const bool& computeProbDynamic, const bool& isMapping, const bool& saveMapCellsOnHardDrive):
+norlab_icp_mapper::Mapper::Mapper(const std::string& configFilePath,
+                                  const bool& is3D, const bool& isOnline, const bool& isMapping, const bool& saveMapCellsOnHardDrive):
 		is3D(is3D),
 		isOnline(isOnline),
 		isMapping(isMapping),
-		map(sensorMaxRange, priorDynamic, thresholdDynamic, beamHalfAngle, epsilonA, epsilonD, alpha, beta, is3D,
-			isOnline, computeProbDynamic, saveMapCellsOnHardDrive, icp, icpMapLock),
+		map(is3D, isOnline, saveMapCellsOnHardDrive, icp, icpMapLock),
 		trajectory(is3D ? 3 : 2),
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation"))
 {
@@ -29,7 +26,7 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& configFilePath, const float
 
 	PM::Parameters radiusFilterParams;
 	radiusFilterParams["dim"] = "-1";
-	radiusFilterParams["dist"] = std::to_string(sensorMaxRange);
+	radiusFilterParams["dist"] = std::to_string(map.getSensorMaxRange());
 	radiusFilterParams["removeInside"] = "0";
 	radiusFilter = PM::get().DataPointsFilterRegistrar.create("DistanceLimitDataPointsFilter", radiusFilterParams);
 
@@ -133,10 +130,20 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
             setDefaultMapUpdateConfig();
         }
 
-        if(mapperNode["mapperModule"])
+        if(mapperNode["sensorMaxRange"])
         {
-            std::shared_ptr<MapperModule> module = REG(MapperModule).createFromYAML(mapperNode["mapperModule"]);
-            map.setMappingModule(module);
+            map.setSensorMaxRange(mapperNode["sensorMaxRange"].as<float>());
+        }
+
+        if(mapperNode["mapperModuleVec"])
+        {
+	        YAML::Node mapperModule = mapperNode["mapperModuleVec"];
+
+            for(YAML::const_iterator moduleIt = mapperModule.begin(); moduleIt != mapperModule.end(); ++moduleIt)
+            {
+                std::shared_ptr<MapperModule> module = REG(MapperModule).createFromYAML(*moduleIt);
+                map.addMapperModule(module);
+            }
         }
         else
         {
@@ -291,7 +298,7 @@ void norlab_icp_mapper::Mapper::setDefaultMapperModule()
     std::map<std::string, PM::Parametrizable::Parameter> params;
     params.insert(std::pair<std::string, PM::Parametrizable::Parameter>("minDistNewPoint", "0.15"));
     PointDistanceMapperModule mapperModule(params);
-    this->map.setMappingModule(std::make_shared<PointDistanceMapperModule>(mapperModule));
+    this->map.addMapperModule(std::make_shared<PointDistanceMapperModule>(mapperModule));
 }
 
 void norlab_icp_mapper::Mapper::setDefaultMapUpdateConfig()
