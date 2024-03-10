@@ -97,7 +97,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
 	int euclideanDim = is3D ? 3 : 2;
 	trajectoryLock.lock();
-	trajectory.addPoint(correctedPose.topRightCorner(euclideanDim, 1));
+	trajectory.addPose(correctedPose, timeStamp);
 	trajectoryLock.unlock();
 }
 
@@ -160,7 +160,7 @@ void norlab_icp_mapper::Mapper::setMap(const PM::DataPoints& newMap)
 {
 	map.setGlobalPointCloud(newMap);
 	trajectoryLock.lock();
-	trajectory.clearPoints();
+	trajectory.clear();
 	trajectoryLock.unlock();
 }
 
