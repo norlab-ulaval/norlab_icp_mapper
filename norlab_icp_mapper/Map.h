@@ -2,7 +2,6 @@
 #define MAP_H
 
 #include <pointmatcher/PointMatcher.h>
-#include <thread>
 #include <mutex>
 #include <list>
 #include <unordered_set>
@@ -40,9 +39,9 @@ namespace norlab_icp_mapper
         float alpha;
         float beta;
         bool is3D;
-        bool isOnline;
         bool computeProbDynamic;
         PM::ICPSequence& icp;
+        PM::DataPoints icpMap;
         std::mutex& icpMapLock;
         PM::DataPoints localPointCloud;
         std::mutex localPointCloudLock;
@@ -59,12 +58,7 @@ namespace norlab_icp_mapper
         bool newLocalPointCloudAvailable;
         std::atomic_bool localPointCloudEmpty;
         std::atomic_bool firstPoseUpdate;
-        std::atomic_bool updateThreadLooping;
-        std::thread updateThread;
-        std::list<Update> updateList;
-        std::mutex updateListLock;
 
-        void updateThreadFunction();
         void applyUpdate(const Update& update);
         void loadCells(int startRow, int endRow, int startColumn, int endColumn, int startAisle, int endAisle);
         float toInferiorWorldCoordinate(const int& gridCoordinate) const;
@@ -75,7 +69,6 @@ namespace norlab_icp_mapper
         int getMaxGridCoordinate() const;
         int toInferiorGridCoordinate(const float& worldCoordinate, const float& range) const;
         int toSuperiorGridCoordinate(const float& worldCoordinate, const float& range) const;
-        void scheduleUpdate(const Update& update);
         PM::DataPoints retrievePointsFurtherThanMinDistNewPoint(const PM::DataPoints& input, const PM::DataPoints& currentLocalPointCloud,
                                                                 const PM::TransformationParameters& pose) const;
         void computeProbabilityOfPointsBeingDynamic(const PM::DataPoints& input, PM::DataPoints& currentLocalPointCloud,
@@ -84,9 +77,8 @@ namespace norlab_icp_mapper
 
     public:
         Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle,
-            const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
+            const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D,
             const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp, std::mutex& icpMapLock);
-        ~Map();
         void updatePose(const PM::TransformationParameters& pose);
         PM::DataPoints getLocalPointCloud();
         void updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters);
@@ -94,6 +86,8 @@ namespace norlab_icp_mapper
         PM::DataPoints getGlobalPointCloud();
         void setGlobalPointCloud(const PM::DataPoints& newLocalPointCloud);
         bool isLocalPointCloudEmpty() const;
+        void setIcpMap(const PM::DataPoints& newIcpMap);
+        PM::DataPoints getIcpMap() const;
     };
 }
 

@@ -10,6 +10,8 @@ class Trajectory
 public:
     Trajectory(int dimension);
     void addPose(Eigen::MatrixXf pose, std::chrono::time_point<std::chrono::steady_clock> timeStamp);
+    Eigen::MatrixXf getPose(const size_t& index);
+    size_t getSize();
     void save(std::string filename) const;
     void clear();
 

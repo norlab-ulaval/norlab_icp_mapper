@@ -12,6 +12,16 @@ void Trajectory::addPose(Eigen::MatrixXf pose, std::chrono::time_point<std::chro
     timeStamps.push_back(timeStamp);
 }
 
+Eigen::MatrixXf Trajectory::getPose(const size_t& index)
+{
+    return poses[index];
+}
+
+size_t Trajectory::getSize()
+{
+    return poses.size();
+}
+
 void Trajectory::save(std::string filename) const
 {
     PointMatcher<float>::DataPoints::Labels featureLabels;

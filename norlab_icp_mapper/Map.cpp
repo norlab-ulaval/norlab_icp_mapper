@@ -6,7 +6,7 @@
 
 norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic,
                             const float& beamHalfAngle, const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D,
-                            const bool& isOnline, const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp,
+                            const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp,
                             std::mutex& icpMapLock):
         minDistNewPoint(minDistNewPoint),
         sensorMaxRange(sensorMaxRange),
@@ -18,15 +18,13 @@ norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMax
         alpha(alpha),
         beta(beta),
         is3D(is3D),
-        isOnline(isOnline),
         computeProbDynamic(computeProbDynamic),
         icp(icp),
         icpMapLock(icpMapLock),
         transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
         newLocalPointCloudAvailable(false),
         localPointCloudEmpty(true),
-        firstPoseUpdate(true),
-        updateThreadLooping(true)
+        firstPoseUpdate(true)
 {
     if(saveCellsOnHardDrive)
     {
@@ -35,35 +33,6 @@ norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMax
     else
     {
         cellManager = std::unique_ptr<CellManager>(new RAMCellManager());
-    }
-
-    if(isOnline)
-    {
-        updateThread = std::thread(&Map::updateThreadFunction, this);
-    }
-}
-
-void norlab_icp_mapper::Map::updateThreadFunction()
-{
-    while(updateThreadLooping.load())
-    {
-        updateListLock.lock();
-        bool isUpdateListEmpty = updateList.empty();
-        updateListLock.unlock();
-
-        if(!isUpdateListEmpty)
-        {
-            updateListLock.lock();
-            Update update = updateList.front();
-            updateList.pop_front();
-            updateListLock.unlock();
-
-            applyUpdate(update);
-        }
-        else
-        {
-            std::this_thread::sleep_for(std::chrono::duration<float>(0.01));
-        }
     }
 }
 
@@ -119,7 +88,7 @@ void norlab_icp_mapper::Map::loadCells(int startRow, int endRow, int startColumn
         localPointCloud.concatenate(newChunk);
 
         icpMapLock.lock();
-        icp.setMap(localPointCloud);
+        setIcpMap(localPointCloud);
         icpMapLock.unlock();
 
         localPointCloudEmpty.store(false);
@@ -186,7 +155,7 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
     localPointCloud.conservativeResize(localPointCloudNbPoints);
 
     icpMapLock.lock();
-    icp.setMap(localPointCloud);
+    setIcpMap(localPointCloud);
     icpMapLock.unlock();
 
     if(!loadedCellIds.empty())
@@ -245,15 +214,6 @@ int norlab_icp_mapper::Map::toGridCoordinate(const float& worldCoordinate) const
     return std::floor(worldCoordinate / CELL_SIZE);
 }
 
-norlab_icp_mapper::Map::~Map()
-{
-    if(isOnline)
-    {
-        updateThreadLooping.store(false);
-        updateThread.join();
-    }
-}
-
 void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose)
 {
     int positionColumn = is3D ? 3 : 2;
@@ -298,7 +258,7 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
                 int endColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE;
                 int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
                 int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
-                scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
+                applyUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
             }
             // move front
             if(toInferiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) > inferiorRowLastUpdateIndex)
@@ -310,7 +270,7 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
                 int endColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE;
                 int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
                 int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
-                scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
+                applyUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
             }
             inferiorRowLastUpdateIndex = toInferiorGridCoordinate(pose(0, positionColumn), sensorMaxRange);
         }
@@ -328,7 +288,7 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
                 int endColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE;
                 int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
                 int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
-                scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
+                applyUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
             }
             // move front
             if(toSuperiorGridCoordinate(pose(0, positionColumn), sensorMaxRange) > superiorRowLastUpdateIndex)
@@ -340,7 +300,7 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
                 int endColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE;
                 int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
                 int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
-                scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
+                applyUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
             }
             superiorRowLastUpdateIndex = toSuperiorGridCoordinate(pose(0, positionColumn), sensorMaxRange);
         }
@@ -358,7 +318,7 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
                 int endColumn = toInferiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) - BUFFER_SIZE + nbColumns - 1;
                 int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
                 int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
-                scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
+                applyUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
             }
             // move left
             if(toInferiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) > inferiorColumnLastUpdateIndex)
@@ -370,7 +330,7 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
                 int endColumn = inferiorColumnLastUpdateIndex - BUFFER_SIZE + nbColumns - 1;
                 int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
                 int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
-                scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
+                applyUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
             }
             inferiorColumnLastUpdateIndex = toInferiorGridCoordinate(pose(1, positionColumn), sensorMaxRange);
         }
@@ -388,7 +348,7 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
                 int endColumn = superiorColumnLastUpdateIndex + BUFFER_SIZE;
                 int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
                 int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
-                scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
+                applyUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
             }
             // move left
             if(toSuperiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) > superiorColumnLastUpdateIndex)
@@ -400,7 +360,7 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
                 int endColumn = toSuperiorGridCoordinate(pose(1, positionColumn), sensorMaxRange) + BUFFER_SIZE;
                 int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
                 int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
-                scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
+                applyUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
             }
             superiorColumnLastUpdateIndex = toSuperiorGridCoordinate(pose(1, positionColumn), sensorMaxRange);
         }
@@ -420,7 +380,7 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
                     int nbAisles = inferiorAisleLastUpdateIndex - toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange);
                     int startAisle = toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) - BUFFER_SIZE;
                     int endAisle = toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) - BUFFER_SIZE + nbAisles - 1;
-                    scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
+                    applyUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
                 }
                 // move up
                 if(toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) > inferiorAisleLastUpdateIndex)
@@ -432,7 +392,7 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
                     int nbAisles = toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) - inferiorAisleLastUpdateIndex;
                     int startAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE;
                     int endAisle = inferiorAisleLastUpdateIndex - BUFFER_SIZE + nbAisles - 1;
-                    scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
+                    applyUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
                 }
                 inferiorAisleLastUpdateIndex = toInferiorGridCoordinate(pose(2, positionColumn), sensorMaxRange);
             }
@@ -450,7 +410,7 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
                     int nbAisles = superiorAisleLastUpdateIndex - toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange);
                     int startAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE - nbAisles + 1;
                     int endAisle = superiorAisleLastUpdateIndex + BUFFER_SIZE;
-                    scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
+                    applyUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, false});
                 }
                 // move up
                 if(toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) > superiorAisleLastUpdateIndex)
@@ -462,7 +422,7 @@ void norlab_icp_mapper::Map::updatePose(const PM::TransformationParameters& pose
                     int nbAisles = toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) - superiorAisleLastUpdateIndex;
                     int startAisle = toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) + BUFFER_SIZE - nbAisles + 1;
                     int endAisle = toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange) + BUFFER_SIZE;
-                    scheduleUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
+                    applyUpdate(Update{startRow, endRow, startColumn, endColumn, startAisle, endAisle, true});
                 }
                 superiorAisleLastUpdateIndex = toSuperiorGridCoordinate(pose(2, positionColumn), sensorMaxRange);
             }
@@ -488,20 +448,6 @@ int norlab_icp_mapper::Map::toInferiorGridCoordinate(const float& worldCoordinat
 int norlab_icp_mapper::Map::toSuperiorGridCoordinate(const float& worldCoordinate, const float& range) const
 {
     return std::floor((worldCoordinate + range) / CELL_SIZE);
-}
-
-void norlab_icp_mapper::Map::scheduleUpdate(const Update& update)
-{
-    if(isOnline)
-    {
-        updateListLock.lock();
-        updateList.push_back(update);
-        updateListLock.unlock();
-    }
-    else
-    {
-        applyUpdate(update);
-    }
 }
 
 norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getLocalPointCloud()
@@ -538,7 +484,7 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
     localPointCloud = transformation->compute(localPointCloudInSensorFrame, pose);
 
     icpMapLock.lock();
-    icp.setMap(localPointCloud);
+    setIcpMap(localPointCloud);
     icpMapLock.unlock();
 
     localPointCloudEmpty.store(localPointCloud.getNbPoints() == 0);
@@ -748,7 +694,7 @@ void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalP
     localPointCloud = newLocalPointCloud;
 
     icpMapLock.lock();
-    icp.setMap(localPointCloud);
+    setIcpMap(localPointCloud);
     icpMapLock.unlock();
 
     localPointCloudEmpty.store(localPointCloud.getNbPoints() == 0);
@@ -760,4 +706,21 @@ void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalP
 bool norlab_icp_mapper::Map::isLocalPointCloudEmpty() const
 {
     return localPointCloudEmpty.load();
+}
+
+void norlab_icp_mapper::Map::setIcpMap(const PM::DataPoints& newIcpMap)
+{
+    if(newIcpMap.getNbPoints() > 0)
+    {
+        icp.inspector->addStat("MapPointCount", newIcpMap.features.cols());
+        icpMap = newIcpMap;
+        icp.referenceDataPointsFilters.init();
+        icp.referenceDataPointsFilters.apply(icpMap);
+        icp.matcher->init(icpMap);
+    }
+}
+
+norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getIcpMap() const
+{
+    return icpMap;
 }

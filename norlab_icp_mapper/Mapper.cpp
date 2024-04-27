@@ -1,22 +1,24 @@
 #include "Mapper.h"
 #include <fstream>
 #include <chrono>
+#include "FactorGraph.h"
+#include "utils.hpp"
 
 norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath, const std::string& icpConfigFilePath,
                                   const std::string& mapPostFiltersConfigFilePath, const std::string& mapUpdateCondition, const float& mapUpdateOverlap,
                                   const float& mapUpdateDelay, const float& mapUpdateDistance, const float& minDistNewPoint, const float& sensorMaxRange,
                                   const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle, const float& epsilonA,
-                                  const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
-                                  const bool& computeProbDynamic, const bool& isMapping, const bool& saveMapCellsOnHardDrive):
+                                  const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& computeProbDynamic, const bool& isMapping,
+                                  const bool& saveMapCellsOnHardDrive, const PM::TransformationParameters& imuToLidar):
         mapUpdateCondition(mapUpdateCondition),
         mapUpdateOverlap(mapUpdateOverlap),
         mapUpdateDelay(mapUpdateDelay),
         mapUpdateDistance(mapUpdateDistance),
         is3D(is3D),
-        isOnline(isOnline),
         isMapping(isMapping),
+        imuToLidar(imuToLidar),
         map(minDistNewPoint, sensorMaxRange, priorDynamic, thresholdDynamic, beamHalfAngle, epsilonA, epsilonD, alpha, beta, is3D,
-            isOnline, computeProbDynamic, saveMapCellsOnHardDrive, icp, icpMapLock),
+            computeProbDynamic, saveMapCellsOnHardDrive, icp, icpMapLock),
         trajectory(is3D ? 3 : 2),
         transformation(PM::get().TransformationRegistrar.create("RigidTransformation"))
 {
@@ -58,46 +60,78 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& inputFiltersCo
     }
 }
 
-void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,
-                                             const std::chrono::time_point<std::chrono::steady_clock>& timeStamp)
+void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& poseAtStartOfScan,
+                                             const Eigen::Matrix<float, 3, 1>& velocityAtStartOfScan, const std::vector<ImuMeasurement>& imuMeasurements,
+                                             const std::chrono::time_point<std::chrono::steady_clock>& timeStampAtStartOfScan,
+                                             const std::chrono::time_point<std::chrono::steady_clock>& timeStampAtEndOfScan)
 {
     PM::DataPoints filteredInputInSensorFrame = radiusFilter->filter(inputInSensorFrame);
     inputFilters.apply(filteredInputInSensorFrame);
-    PM::DataPoints input = transformation->compute(filteredInputInSensorFrame, estimatedPose);
 
-    PM::TransformationParameters correctedPose;
+    FactorGraph factorGraph(poseAtStartOfScan, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar);
+    std::vector<StampedState> optimizedStates = factorGraph.getPredictedStates();
+
     if(map.isLocalPointCloudEmpty())
     {
-        correctedPose = estimatedPose;
+        map.updatePose(poseAtStartOfScan);
 
-        map.updatePose(correctedPose);
-
-        updateMap(input, correctedPose, timeStamp);
+        updateMap(deskew(filteredInputInSensorFrame, timeStampAtStartOfScan, optimizedStates), poseAtStartOfScan, timeStampAtStartOfScan);
     }
     else
     {
-        PM::TransformationParameters correction;
+        icpMapLock.lock();
+        PM::DataPoints reference = map.getIcpMap();
+        icp.readingStepDataPointsFilters.init();
+        PM::TransformationParameters T_iter = PM::Matrix::Identity(4, 4);
+        bool iterate(true);
+        icp.transformationCheckers.init(T_iter, iterate);
+        size_t iterationCount(0);
+        while(iterate)
         {
-            std::lock_guard<std::mutex> icpMapLockGuard(icpMapLock);
-            correction = icp(input);
+            PM::DataPoints stepReading(deskew(filteredInputInSensorFrame, timeStampAtStartOfScan, optimizedStates));
+            icp.readingDataPointsFilters.init();
+            icp.readingDataPointsFilters.apply(stepReading);
+            icp.readingStepDataPointsFilters.apply(stepReading);
+            const PM::Matches matches(icp.matcher->findClosests(stepReading));
+            const PM::OutlierWeights outlierWeights(icp.outlierFilters.compute(stepReading, reference, matches));
+            icp.inspector->dumpIteration(iterationCount, T_iter, reference, stepReading, matches, outlierWeights, icp.transformationCheckers);
+            T_iter = icp.errorMinimizer->compute(stepReading, reference, outlierWeights, matches) * T_iter;
+            optimizedStates = factorGraph.optimize(T_iter);
+            try
+            {
+                icp.transformationCheckers.check(T_iter, iterate);
+            }
+            catch(...)
+            {
+                iterate = false;
+            }
+            ++iterationCount;
         }
-        correctedPose = correction * estimatedPose;
+        icpMapLock.unlock();
 
-        map.updatePose(correctedPose);
+        map.updatePose(poseAtStartOfScan);
 
-        if(shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
+        if(shouldUpdateMap(timeStampAtStartOfScan, poseAtStartOfScan, icp.errorMinimizer->getOverlap()))
         {
-            updateMap(transformation->compute(input, correction), correctedPose, timeStamp);
+            updateMap(deskew(filteredInputInSensorFrame, timeStampAtStartOfScan, optimizedStates), poseAtStartOfScan, timeStampAtStartOfScan);
         }
     }
+    StampedState stateAtEndOfScan = optimizedStates[optimizedStates.size() - 1];
 
     poseLock.lock();
-    pose = correctedPose;
+    pose = stateAtEndOfScan.pose;
     poseLock.unlock();
 
-    int euclideanDim = is3D ? 3 : 2;
+    velocityLock.lock();
+    velocity = stateAtEndOfScan.velocity;
+    velocityLock.unlock();
+
     trajectoryLock.lock();
-    trajectory.addPose(correctedPose, timeStamp);
+    if(trajectory.getSize() == 0)
+    {
+        trajectory.addPose(poseAtStartOfScan, timeStampAtStartOfScan);
+    }
+    trajectory.addPose(stateAtEndOfScan.pose, stateAtEndOfScan.timeStamp);
     trajectoryLock.unlock();
 }
 
@@ -107,15 +141,6 @@ bool norlab_icp_mapper::Mapper::shouldUpdateMap(const std::chrono::time_point<st
     if(!isMapping.load())
     {
         return false;
-    }
-
-    if(isOnline)
-    {
-        // if previous update is not over
-        if(mapUpdateFuture.valid() && mapUpdateFuture.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready)
-        {
-            return false;
-        }
     }
 
     if(mapUpdateCondition == "overlap")
@@ -135,20 +160,13 @@ bool norlab_icp_mapper::Mapper::shouldUpdateMap(const std::chrono::time_point<st
     }
 }
 
-void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& currentInput, const PM::TransformationParameters& currentPose,
-                                          const std::chrono::time_point<std::chrono::steady_clock>& currentTimeStamp)
+void norlab_icp_mapper::Mapper::updateMap(const PM::DataPoints& input, const PM::TransformationParameters& pose,
+                                          const std::chrono::time_point<std::chrono::steady_clock>& timeStamp)
 {
-    lastTimeMapWasUpdated = currentTimeStamp;
-    lastPoseWhereMapWasUpdated = currentPose;
+    lastTimeMapWasUpdated = timeStamp;
+    lastPoseWhereMapWasUpdated = pose;
 
-    if(isOnline && !map.isLocalPointCloudEmpty())
-    {
-        mapUpdateFuture = std::async(std::launch::async, &Map::updateLocalPointCloud, &map, currentInput, currentPose, mapPostFilters);
-    }
-    else
-    {
-        map.updateLocalPointCloud(currentInput, currentPose, mapPostFilters);
-    }
+    map.updateLocalPointCloud(input, pose, mapPostFilters);
 }
 
 norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getMap()
@@ -173,6 +191,12 @@ norlab_icp_mapper::Mapper::PM::TransformationParameters norlab_icp_mapper::Mappe
 {
     std::lock_guard<std::mutex> lock(poseLock);
     return pose;
+}
+
+Eigen::Matrix<float, 3, 1> norlab_icp_mapper::Mapper::getVelocity()
+{
+    std::lock_guard<std::mutex> lock(velocityLock);
+    return velocity;
 }
 
 bool norlab_icp_mapper::Mapper::getIsMapping() const
