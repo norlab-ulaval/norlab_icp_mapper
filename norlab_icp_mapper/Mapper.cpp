@@ -64,13 +64,25 @@ norlab_icp_mapper::DiagnosticInformation norlab_icp_mapper::Mapper::processInput
                                                                                  const PM::TransformationParameters& estimatedPose,
                                                                                  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp)
 {
-	return norlab_icp_mapper::Mapper::processInput(inputInSensorFrame, estimatedPose, timeStamp, false);
+	PM::DataPoints filteredInputInSensorFrameCopy;
+	processInput(inputInSensorFrame, estimatedPose, timeStamp,false, filteredInputInSensorFrameCopy);
+
 }
 
 norlab_icp_mapper::DiagnosticInformation norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame,
-                                                                                 const PM::TransformationParameters& estimatedPose,
-                                                                                 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp,
-                                                                                 bool skip_icp)
+																																								 const PM::TransformationParameters& estimatedPose,
+																																								 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp,
+																																								 bool skip_icp)
+{
+	PM::DataPoints filteredInputInSensorFrameCopy;
+	processInput(inputInSensorFrame, estimatedPose, timeStamp,skip_icp, filteredInputInSensorFrameCopy);
+}
+
+norlab_icp_mapper::DiagnosticInformation norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame,
+																																								 const PM::TransformationParameters& estimatedPose,
+																																								 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp,
+																																								 bool skip_icp,
+																																								 PM::DataPoints& filteredInputInSensorFrameCopy)
 {
 	std::chrono::time_point<std::chrono::steady_clock> processingStartTime = std::chrono::steady_clock::now();
 	DiagnosticInformation info;
@@ -78,6 +90,7 @@ norlab_icp_mapper::DiagnosticInformation norlab_icp_mapper::Mapper::processInput
 
 	PM::DataPoints filteredInputInSensorFrame = radiusFilter->filter(inputInSensorFrame);
 	inputFilters.apply(filteredInputInSensorFrame);
+	filteredInputInSensorFrameCopy = filteredInputInSensorFrame;
 
 	info.inputFilteringTime = std::chrono::duration<float>(std::chrono::steady_clock::now() - processingStartTime).count();
 	info.nbPointsInputAfterFiltering = filteredInputInSensorFrame.getNbPoints();
