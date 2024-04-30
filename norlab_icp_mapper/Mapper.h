@@ -51,6 +51,8 @@ namespace norlab_icp_mapper
 							const std::string& mapPostFiltersConfigFilePath);
 		void processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,
 						  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp);
+		void processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,
+											const std::chrono::time_point<std::chrono::steady_clock>& timeStamp, PM::DataPoints& filteredInputInSensorFrameCopy);
 		PM::DataPoints getMap();
 		void setMap(const PM::DataPoints& newMap);
 		bool getNewLocalMap(PM::DataPoints& mapOut);
