@@ -3,7 +3,6 @@
 //
 
 #include "trajectory.h"
-#include "Trajectory.h"
 
 namespace python
 {
@@ -14,9 +13,9 @@ namespace python
 		//  for private members
 		void pybindTrajectoryModule(py::module& p_module) {
 			py::class_<Trajectory>(p_module, "Trajectory")
-				.def("addPoint", &Trajectory::addPoint, py::arg("point"))
+				.def("addPose", &Trajectory::addPose, py::arg("pose"), py::arg("timeStamp"))
 				.def("save", &Trajectory::save, py::arg("filename"))
-				.def("clearPoints", &Trajectory::clearPoints)
+				.def("clear", &Trajectory::clear)
 				.def(py::init<int>(), py::arg("dimension"), "Constructor");
 		}
 	}

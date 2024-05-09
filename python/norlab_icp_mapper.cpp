@@ -9,7 +9,7 @@
 #include "mapper.h"
 #include "trajectory.h"
 
-PYBIND11_MODULE(pynorlabicpmapper, module)
+PYBIND11_MODULE(_core, module)
 {
 	module.doc() = "Python bindings of norlab_icp_mapper";
 

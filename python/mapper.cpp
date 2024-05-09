@@ -3,7 +3,6 @@
 //
 
 #include "mapper.h"
-#include "Mapper.h"
 
 namespace python
 {

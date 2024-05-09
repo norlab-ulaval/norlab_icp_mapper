@@ -3,7 +3,6 @@
 //
 
 #include "map.h"
-#include "Map.h"
 
 namespace python
 {

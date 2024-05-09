@@ -1,12 +1,13 @@
-cmake_minimum_required(VERSION 2.8.3)
+# 3.15 is the minimum version for scikit-build-core
+cmake_minimum_required(VERSION 3.15)
 project(norlab_icp_mapper)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 set(EXTERNAL_INCLUDE_DIRS "")
 set(EXTERNAL_LIBS "")
 
-set(CMAKE_CXX_FLAGS                " ${CMAKE_CXX_FLAGS_INIT} -std=c++11 -fPIC")
+set(CMAKE_CXX_FLAGS                " ${CMAKE_CXX_FLAGS_INIT} -std=c++17 -fPIC")
 set(CMAKE_CXX_FLAGS_DEBUG          "-g -DDEBUG")
 set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE        "-O4 -DNDEBUG")
