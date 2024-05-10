@@ -1,5 +1,5 @@
 numpy
-scipy
+pyquaternion
 pypointmatcher
 pynorlab_icp_mapper
 tqdm

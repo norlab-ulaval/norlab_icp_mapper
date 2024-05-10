@@ -2,7 +2,7 @@ import datetime
 import os
 import csv
 import numpy as np
-from scipy.spatial.transform import Rotation as R
+from pyquaternion import Quaternion
 from pathlib import Path
 from pypointmatcher import pointmatcher as pm
 from pynorlab_icp_mapper import Mapper
@@ -103,7 +103,8 @@ def get_stamped_transformations(filepath):
                 elif i == nsec_index:
                     timestamp += datetime.timedelta(microseconds=int(value/1000))
 
-        rotation = R.from_quat(quaternion).as_matrix()
+        q = Quaternion(quaternion[3], quaternion[0], quaternion[1], quaternion[2])  # wxyz
+        rotation = q.rotation_matrix
         stamped_transformations.append((position, rotation, timestamp))
 
     return stamped_transformations
