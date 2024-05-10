@@ -6,6 +6,7 @@ from scipy.spatial.transform import Rotation as R
 from pathlib import Path
 from pypointmatcher import pointmatcher as pm
 from pynorlab_icp_mapper import Mapper
+from tqdm import tqdm
 
 PM = pm.PointMatcher
 DP = PM.DataPoints
@@ -159,7 +160,7 @@ if __name__ == "__main__":
                     epsilonA, epsilonD, alpha, beta, is3D, isOnline, computeProbDynamic,
                     isMapping, saveMapCellsOnHardDrive)
 
-    for i in range(len(stamped_transformations)):
+    for i in tqdm(range(len(stamped_transformations))):
         timestamp = stamped_transformations[i][2]
         T = np.identity(4, dtype=np.float32)
         T[0:3, 0:3] = stamped_transformations[i][1]
@@ -168,7 +169,6 @@ if __name__ == "__main__":
         inputCloud = DP.load(inputPath)
 
         mapper.processInput(inputCloud, T, timestamp)
-        print(i)
 
     mapper.getMap().save(os.path.join(dataPath, "output.vtk"))
 
