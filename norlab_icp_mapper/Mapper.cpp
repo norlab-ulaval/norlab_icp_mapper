@@ -95,7 +95,6 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
     if (node["mapper"])
     {
         YAML::Node mapperNode = node["mapper"];
-        std::cout << mapperNode << std::endl;
         
         if(mapperNode["updateCondition"])
         {

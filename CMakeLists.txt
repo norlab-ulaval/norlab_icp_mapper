@@ -83,3 +83,10 @@ if (NOT TARGET uninstall)
             COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 endif ()
 
+
+set(BUILD_EXAMPLE false CACHE BOOL "Set to true to build an example program")
+if(BUILD_EXAMPLE)
+	message(STATUS "Building example")
+    add_executable(build_map_from_scans_and_trajectories examples/build_map_from_scans_and_trajectories.cpp)
+    target_link_libraries(build_map_from_scans_and_trajectories norlab_icp_mapper)
+endif()
