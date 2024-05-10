@@ -1,14 +1,21 @@
 # norlab_icp_mapper
 A 2-D/3-D mapping library relying on the "Iterative Closest Point" algorithm.
 
-### Python bindings
-Assuming that you have `libpointmatcher` [Python bindings](https://libpointmatcher.readthedocs.io/en/latest/CompilationPython/) installed, run the following commands to install Python bindings into your current python environment:
+### Build and Installation guide
 ```bash
 mkdir build && cd build
 cmake ..
-make install
-pip install ..
+sudo make install
 ```
+
+
+### Python bindings
+Assuming that you have `libpointmatcher` [Python bindings](https://libpointmatcher.readthedocs.io/en/latest/CompilationPython/) installed, run the following commands to install Python bindings into your current python environment:
+```bash
+cd python
+pip install .
+```
+Note that you need the mapper installed on your device, otherwise the Python binding will not find the library.
 
 Now test your installation with
 ```bash

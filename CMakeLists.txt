@@ -62,9 +62,3 @@ if (NOT TARGET uninstall)
     add_custom_target(uninstall
             COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 endif ()
-
-option(BUILD_PYTHON_MODULE "Build the python module" ON)
-
-if (BUILD_PYTHON_MODULE)
-    add_subdirectory(python)
-endif()
