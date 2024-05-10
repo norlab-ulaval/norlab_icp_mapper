@@ -125,7 +125,7 @@ def get_scans_paths(directory_path):
 
 
 if __name__ == "__main__":
-    dataPath = os.path.relpath(input("Please provide a dataPath: "))
+    dataPath = os.path.relpath(input("Please provide a data path: "))
     stamped_transformations = get_stamped_transformations(os.path.join(dataPath, "icp_odom.csv"))
     vtk_files_paths = get_scans_paths(os.path.join(dataPath, "scans"))
 
@@ -170,5 +170,7 @@ if __name__ == "__main__":
 
         mapper.processInput(inputCloud, T, timestamp)
 
-    mapper.getMap().save(os.path.join(dataPath, "output.vtk"))
+    output_path = os.path.join(dataPath, "output.vtk")
+    print(f"Success! Map saved to {output_path}")
+    mapper.getMap().save(output_path)
 
