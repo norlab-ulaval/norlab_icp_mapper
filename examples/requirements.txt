@@ -1,0 +1,4 @@
+numpy
+scipy
+pypointmatcher
+pynorlab_icp_mapper
