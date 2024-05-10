@@ -10,6 +10,11 @@ make install
 pip install ..
 ```
 
+Now test your installation with
+```bash
+python -c "from pynorlab_icp_mapper import *"
+```
+
 You can then test an example that builds a map from consecutive scans.
 ```bash
 cd examples
