@@ -3,7 +3,7 @@
 //
 
 #include "ram_cell_manager.h"
-#include "RAMCellManager.h"
+#include "norlab_icp_mapper/RAMCellManager.h"
 
 namespace python
 {

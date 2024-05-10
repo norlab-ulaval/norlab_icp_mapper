@@ -3,7 +3,7 @@
 //
 
 #include "hard_drive_cell_manager.h"
-#include "HardDriveCellManager.h"
+#include "norlab_icp_mapper/HardDriveCellManager.h"
 
 namespace python
 {

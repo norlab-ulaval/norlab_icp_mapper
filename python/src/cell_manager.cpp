@@ -3,7 +3,7 @@
 //
 
 #include "cell_manager.h"
-#include "CellManager.h"
+#include "norlab_icp_mapper/CellManager.h"
 
 namespace python
 {

@@ -3,6 +3,7 @@
 //
 
 #include "trajectory.h"
+#include "norlab_icp_mapper/Trajectory.h"
 
 namespace python
 {

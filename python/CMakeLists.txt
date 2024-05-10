@@ -1,17 +1,17 @@
 cmake_minimum_required(VERSION 3.15)
-project(norlab_icp_mapper_python)
+project(src/pynorlab_icp_mapper)
 set(PYBIND11_SOURCES
         #main module
-        norlab_icp_mapper.cpp
-        cell_manager.cpp
-        hard_drive_cell_manager.cpp
-        ram_cell_manager.cpp
-        map.cpp
-        mapper.cpp
-        trajectory.cpp
+        src/norlab_icp_mapper.cpp
+        src/cell_manager.cpp
+        src/hard_drive_cell_manager.cpp
+        src/ram_cell_manager.cpp
+        src/map.cpp
+        src/mapper.cpp
+        src/trajectory.cpp
 )
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(.)
 
 if (DEFINED SKBUILD_PROJECT_NAME)
 

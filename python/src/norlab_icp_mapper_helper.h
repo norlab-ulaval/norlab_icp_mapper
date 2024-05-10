@@ -10,11 +10,6 @@
 #include <pybind11/chrono.h>
 #include "pointmatcher/PointMatcher.h"
 
-#include "norlab_icp_mapper/Map.h"
-#include "norlab_icp_mapper/CellManager.h"
-#include "norlab_icp_mapper/Mapper.h"
-#include "norlab_icp_mapper/Trajectory.h"
-
 namespace py = pybind11;
 
 // PointMatcher aliases

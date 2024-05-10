@@ -3,6 +3,7 @@
 //
 
 #include "map.h"
+#include "norlab_icp_mapper/Map.h"
 
 namespace python
 {
