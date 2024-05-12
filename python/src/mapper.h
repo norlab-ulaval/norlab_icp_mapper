@@ -1,7 +1,3 @@
-//
-// Created by mbo on 19/05/22.
-//
-
 #ifndef NORLAB_ICP_MAPPER_MAPPER_H
 #define NORLAB_ICP_MAPPER_MAPPER_H
 
@@ -9,10 +5,10 @@
 
 namespace python
 {
-	namespace module
-	{
-		void pybindMapperModule(py::module& p_module);
-	}
+    namespace module
+    {
+        void pybindMapperModule(py::module& p_module);
+    }
 }
 
 #endif //NORLAB_ICP_MAPPER_MAPPER_H
