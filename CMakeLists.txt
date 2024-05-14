@@ -1,10 +1,17 @@
-cmake_minimum_required(VERSION 2.8.3)
+# 3.15 is the minimum version for scikit-build-core
+cmake_minimum_required(VERSION 3.15)
 project(norlab_icp_mapper)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 set(EXTERNAL_INCLUDE_DIRS "")
 set(EXTERNAL_LIBS "")
+
+set(CMAKE_CXX_FLAGS                " ${CMAKE_CXX_FLAGS_INIT} -std=c++17 -fPIC")
+set(CMAKE_CXX_FLAGS_DEBUG          "-g -DDEBUG")
+set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE        "-O4 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -DDEBUG")
 
 find_package(libpointmatcher CONFIG)
 set(EXTERNAL_INCLUDE_DIRS ${EXTERNAL_INCLUDE_DIRS} ${libpointmatcher_INCLUDE_DIRS})
@@ -12,7 +19,13 @@ set(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${libpointmatcher_LIBRARIES})
 
 # norlab_icp_mapper target
 include_directories(norlab_icp_mapper ${libpointmatcher_INCLUDE_DIRS})
-add_library(norlab_icp_mapper norlab_icp_mapper/Mapper.cpp norlab_icp_mapper/Map.cpp norlab_icp_mapper/Trajectory.cpp norlab_icp_mapper/RAMCellManager.cpp norlab_icp_mapper/HardDriveCellManager.cpp)
+add_library(norlab_icp_mapper
+        norlab_icp_mapper/Mapper.cpp
+        norlab_icp_mapper/Map.cpp
+        norlab_icp_mapper/Trajectory.cpp
+        norlab_icp_mapper/RAMCellManager.cpp
+        norlab_icp_mapper/HardDriveCellManager.cpp
+)
 target_link_libraries(norlab_icp_mapper ${libpointmatcher_LIBRARIES})
 
 # install target
@@ -22,7 +35,12 @@ set(DEF_INSTALL_CMAKE_DIR lib/cmake/norlab_icp_mapper CACHE PATH "Installation d
 
 install(TARGETS norlab_icp_mapper DESTINATION ${INSTALL_LIB_DIR})
 
-install(FILES norlab_icp_mapper/Mapper.h norlab_icp_mapper/Map.h  norlab_icp_mapper/Trajectory.h norlab_icp_mapper/CellManager.h
+install(FILES norlab_icp_mapper/Mapper.h
+        norlab_icp_mapper/Map.h
+        norlab_icp_mapper/Trajectory.h
+        norlab_icp_mapper/CellManager.h
+        norlab_icp_mapper/RAMCellManager.h
+        norlab_icp_mapper/HardDriveCellManager.h
         DESTINATION ${INSTALL_INCLUDE_DIR}/norlab_icp_mapper
         )
 
@@ -44,4 +62,3 @@ if (NOT TARGET uninstall)
     add_custom_target(uninstall
             COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 endif ()
-
