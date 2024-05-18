@@ -204,8 +204,14 @@ int main(int argc, char* argv[])
         std::cerr << "Please provide a dataPath as an argument." << std::endl;
         return -1;
     }
+    if(argc < 3)
+    {
+        std::cerr << "Please provide a yaml config as an argument." << std::endl;
+        return -1;
+    }
 
     fs::path dataPath = argv[1];
+    fs::path configYaml = argv[2];
     auto stampedTransformations = getStampedTransformations(dataPath / "trajectory.csv");
     auto vtk_files_paths = getScansPaths(dataPath / "scans/");
 
@@ -213,7 +219,7 @@ int main(int argc, char* argv[])
 
     using namespace norlab_icp_mapper;
 
-    auto mapper = std::make_unique<Mapper>(dataPath / "config.yaml",
+    auto mapper = std::make_unique<Mapper>(configYaml,
                                            true, false,
                                            true, false);
 
