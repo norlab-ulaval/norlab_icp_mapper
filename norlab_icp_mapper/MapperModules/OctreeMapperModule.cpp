@@ -7,7 +7,7 @@
 OctreeMapperModule::OctreeMapperModule(const PM::Parameters& params):
 	MapperModule("OctreeMapperModule",OctreeMapperModule::availableParameters(), params)
     {
-        octreeFilter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", params);
+        octreeFilter = PM::get().DataPointsFilterRegistrar.create(name, params);
     }
 
 PointMatcher<float>::DataPoints OctreeMapperModule::createMap(const PM::DataPoints& input, const PM::TransformationParameters& pose)

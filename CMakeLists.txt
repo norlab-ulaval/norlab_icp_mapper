@@ -38,6 +38,8 @@ add_library(norlab_icp_mapper
 target_include_directories(norlab_icp_mapper PUBLIC
         ${libpointmatcher_INCLUDE_DIRS}
         ${YAML_CPP_INCLUDE_DIR}
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/norlab_icp_mapper>
         )
 target_link_libraries(norlab_icp_mapper
         ${libpointmatcher_LIBRARIES}
