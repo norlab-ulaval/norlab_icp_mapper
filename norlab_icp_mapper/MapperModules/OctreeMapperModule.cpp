@@ -5,10 +5,7 @@
 #include "OctreeMapperModule.h"
 
 OctreeMapperModule::OctreeMapperModule(const PM::Parameters& params):
-	MapperModule("OctreeMapperModule",OctreeMapperModule::availableParameters(), params),
-	    buildParallel(PM::Parametrizable::get<bool>("buildParallel")),
-	    maxSizeByNode(PM::Parametrizable::get<float>("maxSizeByNode")),
-	    samplingMethod(PM::Parametrizable::get<int>("samplingMethod"))
+	MapperModule("OctreeMapperModule",OctreeMapperModule::availableParameters(), params)
     {
         octreeFilter = PM::get().DataPointsFilterRegistrar.create("OctreeGridDataPointsFilter", params);
     }
