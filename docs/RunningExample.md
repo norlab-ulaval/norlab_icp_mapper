@@ -7,7 +7,7 @@ The example is located in `examples/build_map_from_scans_and_trajectories.cpp` a
 After building the library, you can execute it on the provided data:
 ```shell
 cd build
-build_map_from_scans_and_trajectories ../examples/data ../examples/data/config.yaml
+build_map_from_scans_and_trajectories ../examples/data ../examples/config.yaml
 ```
 The script will process the data in the given directory and generate a file `examples/data/map.vtk`.
 Use [ParaView](https://www.paraview.org/) or other point cloud viewer to inspect it.
