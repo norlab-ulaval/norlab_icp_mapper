@@ -1,10 +1,17 @@
-cmake_minimum_required(VERSION 3.10.2)
+# 3.15 is the minimum version for scikit-build-core
+cmake_minimum_required(VERSION 3.15)
 project(norlab_icp_mapper)
 
 set(CMAKE_CXX_STANDARD 17)
 
 set(EXTERNAL_INCLUDE_DIRS "")
 set(EXTERNAL_LIBS "")
+
+set(CMAKE_CXX_FLAGS                " ${CMAKE_CXX_FLAGS_INIT} -std=c++17 -fPIC")
+set(CMAKE_CXX_FLAGS_DEBUG          "-g -DDEBUG")
+set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE        "-O4 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -DDEBUG")
 
 message(STATUS "Looking for libpointmatcher on system...")
 find_package(libpointmatcher CONFIG REQUIRED)
@@ -29,7 +36,7 @@ add_library(norlab_icp_mapper
         norlab_icp_mapper/RAMCellManager.cpp
         norlab_icp_mapper/HardDriveCellManager.cpp
 
-#        MapperModules
+#       MapperModules
         norlab_icp_mapper/MapperModules/PointDistanceMapperModule.cpp
         norlab_icp_mapper/MapperModules/ComputeDynamicsMapperModule.cpp
         norlab_icp_mapper/MapperModules/OctreeMapperModule.cpp
@@ -53,11 +60,12 @@ set(DEF_INSTALL_CMAKE_DIR lib/cmake/norlab_icp_mapper CACHE PATH "Installation d
 
 install(TARGETS norlab_icp_mapper DESTINATION ${INSTALL_LIB_DIR})
 
-install(FILES
-        norlab_icp_mapper/Mapper.h
+install(FILES norlab_icp_mapper/Mapper.h
         norlab_icp_mapper/Map.h
         norlab_icp_mapper/Trajectory.h
         norlab_icp_mapper/CellManager.h
+        norlab_icp_mapper/RAMCellManager.h
+        norlab_icp_mapper/HardDriveCellManager.h
         DESTINATION ${INSTALL_INCLUDE_DIR}/norlab_icp_mapper
         )
 install(FILES
@@ -72,8 +80,6 @@ install(FILES
         DESTINATION ${DEF_INSTALL_CMAKE_DIR}
         COMPONENT dev
         )
-
-#=============== trigger other makefile ======================
 
 # uninstall target
 if (NOT TARGET uninstall)
