@@ -7,6 +7,9 @@
 
 #include "MapperModule.h"
 
+/**
+ * Implements Dynamic points removal from Pomerleau 2014
+ */
 class ComputeDynamicsMapperModule : public MapperModule {
 
     typedef PointMatcher<float> PM;
@@ -26,20 +29,20 @@ class ComputeDynamicsMapperModule : public MapperModule {
 public:
     inline static const std::string description()
     {
-        return "TODO";
+        return "Remove points that are identified as dynamic.";
     }
 
     inline static const PM::ParametersDoc availableParameters()
     {
         return {
-                {"priorDynamic", "TODO", "0.6"},
-                {"thresholdDynamic", "TODO", "0.6"},
-                {"alpha", "TODO", "0.8"},
-                {"beta", "TODO", "0.99"},
-                {"beamHalfAngle", "TODO", "0.01"},
-                {"epsilonA", "TODO", "0.01"},
-                {"espilonD", "TODO", "0.01"},
-                {"sensorMaxRange", "TODO", "200"},
+                {"priorDynamic", "A priori probability of points being dynamic.", "0.6"},
+                {"thresholdDynamic", "Probability at which a point is considered permanently dynamic.", "0.6"},
+                {"alpha", "Probability of staying static given that the point was static.", "0.8"},
+                {"beta", "Probability of staying dynamic given that the point was dynamic.", "0.99"},
+                {"beamHalfAngle", "Half angle of the cones formed by the sensor laser beams (in rad).", "0.01"},
+                {"epsilonA", "Error proportional to the sensor distance.", "0.01"},
+                {"espilonD", "Fix error on the sensor distance (in meters).", "0.01"},
+                {"sensorMaxRange", "Maximum reading distance of the laser (in meters).", "200"},
         };
     }
 
