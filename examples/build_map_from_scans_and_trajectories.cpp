@@ -206,7 +206,7 @@ int main(int argc, char* argv[])
     }
 
     fs::path dataPath = argv[1];
-    auto stampedTransformations = getStampedTransformations(dataPath / "icp_odom.csv");
+    auto stampedTransformations = getStampedTransformations(dataPath / "trajectory.csv");
     auto vtk_files_paths = getScansPaths(dataPath / "scans/");
 
     assert(stampedTransformations.size() == vtk_files_paths.size());
