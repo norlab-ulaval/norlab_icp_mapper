@@ -14,6 +14,10 @@ Use [ParaView](https://www.paraview.org/) or other point cloud viewer to inspect
 
 The `config.yaml` file contains configuration for the mapper, as well as for the registration algorithm handled by `libpointmatcher`.
 Check the [MapperConfiguration](MapperConfiguration.md) tutorial for more details.
+
+The default final map looks something like this:
+![alt tag](images/example_map_light.png#only-light)
+![alt tag](images/example_map_dark.png#only-dark)
 ### Input data format
 In case you want to run the mapper offline on your data, you can have a look in the `examples/data` folder for the required format.
 
