@@ -37,7 +37,7 @@ void norlab_icp_mapper::Mapper::validateYamlKeys(const YAML::Node& node, const s
     std::unordered_set<std::string> encounteredKeys;
     if (!node.IsMap())
     {
-        throw YAML::Exception(YAML::Mark::null_mark(), "Expected a map node."); // TODO add yaml mark
+        throw YAML::Exception(node.Mark(), "Expected a YAML Map node.");
     }
 
     // Iterate over the map and check if each key is unique
@@ -46,11 +46,11 @@ void norlab_icp_mapper::Mapper::validateYamlKeys(const YAML::Node& node, const s
 
         if (encounteredKeys.count(key) > 0)
         {
-            throw YAML::Exception(YAML::Mark::null_mark(), "Duplicated key: " + key); // TODO add yaml mark
+            throw YAML::Exception(kv.second.Mark(), "Duplicated key: " + key);
         }
         if (std::find(validKeys.begin(), validKeys.end(), key) == validKeys.end())
         {
-            throw YAML::Exception(YAML::Mark::null_mark(), "Invalid key: " + key); // TODO add yaml mark
+            throw YAML::Exception(kv.second.Mark(), "Invalid key: " + key);
         }
         encounteredKeys.insert(key);
     }
