@@ -59,6 +59,11 @@ void norlab_icp_mapper::Mapper::validateYamlKeys(const YAML::Node& node, const s
 void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath)
 {
     std::ifstream ifs(configFilePath.c_str());
+    if (ifs.fail())
+    {
+        throw std::runtime_error("The input config file " + configFilePath + " does not exist");
+    }
+
     YAML::Node node = YAML::Load(ifs);
 
     validateYamlKeys(node, std::vector<std::string>{"icp", "input", "post", "mapper"});
