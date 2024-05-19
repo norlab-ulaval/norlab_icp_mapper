@@ -1,10 +1,11 @@
 # - Config file for the libpointmatcher package
 # It defines the following variables
-#  norlab_icp_mapper_INCLUDE_DIRS - include directories for pointmatcher
+#  norlab_icp_mapper_INCLUDE_DIRS - include directories for norlab_icp_mapper
 #  norlab_icp_mapper_LIBRARIES    - libraries to link against
 
 include(CMakeFindDependencyMacro)
 find_dependency(libpointmatcher REQUIRED)
+find_dependency(yaml-cpp REQUIRED)
 
 # Compute paths
 get_filename_component(NORLAB_ICP_MAPPER_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)

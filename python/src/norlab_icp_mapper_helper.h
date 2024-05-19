@@ -11,5 +11,6 @@ namespace py = pybind11;
 // PointMatcher aliases
 using PM = PointMatcher<float>;
 using DataPoints = PM::DataPoints;
+using Parameters = PM::Parametrizable::Parameters;
 
 #endif //NORLAB_ICP_MAPPER_NORLAB_ICP_MATCHER_HELPER_H

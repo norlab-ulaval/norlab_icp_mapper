@@ -70,6 +70,9 @@ install(FILES norlab_icp_mapper/Mapper.h
         )
 install(FILES
         norlab_icp_mapper/MapperModules/MapperModule.h
+        norlab_icp_mapper/MapperModules/ComputeDynamicsMapperModule.h
+        norlab_icp_mapper/MapperModules/OctreeMapperModule.h
+        norlab_icp_mapper/MapperModules/PointDistanceMapperModule.h
         DESTINATION ${INSTALL_INCLUDE_DIR}/norlab_icp_mapper/MapperModules/)
 
 configure_file(norlab_icp_mapperConfig.cmake.in
