@@ -208,6 +208,4 @@ You can save the map by calling the `/save_map` service. Similarly, use the `/sa
 
 ### Final Result
 You can visualize the final result in [ParaView](https://www.paraview.org/) or other point cloud viewer of your choice.
-<p align="center">
-   <img src="https://github.com/norlab-ulaval/Norlab_wiki/blob/main/Tutorials/3D_mapping/images/result.png" alt="drawing" width="600" height="400"/>
-</p>
+![Final map](images/ros_map.png)
