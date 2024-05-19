@@ -20,6 +20,8 @@ class ComputeDynamicsMapperModule : public MapperModule {
     const float epsilonD;
     const float sensorMaxRange;
 
+    // A function that transforms points and their descriptors between sensor and map frame.
+    // Used in the inPlaceUpdateMap method
     std::shared_ptr<PM::Transformation> transformation;
 
 public:

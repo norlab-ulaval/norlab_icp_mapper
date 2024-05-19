@@ -16,14 +16,13 @@ namespace python
                     .def("getGlobalPointCloud", &Map::getGlobalPointCloud)
                     .def("setGlobalPointCloud", &Map::setGlobalPointCloud, py::arg("newLocalPointCloud"))
                     .def("isLocalPointCloudEmpty", &Map::isLocalPointCloudEmpty)
-                    .def(py::init<const float&, const float&, const float&, const float&, const float&,
-                                 const float&, const float&, const float&, const float&, const bool&, const bool&,
-                                 const bool&, const bool&, PM::ICPSequence&, std::mutex&>(),
-                         py::arg("minDistNewPoint"), py::arg("sensorMaxRange"), py::arg("priorDynamic"),
-                         py::arg("thresholdDynamic"), py::arg("beamHalfAngle"),
-                         py::arg("epsilonA"), py::arg("epsilonD"), py::arg("alpha"), py::arg("beta"), py::arg("is3D"),
-                         py::arg("isOnline"), py::arg("computeProbDynamic"), py::arg("saveCellsOnHardDrive"), py::arg("icp"),
-                         py::arg("icpMapLock"), "Constuctor");
+                    .def("addMapperMOdule", &Map::addMapperModule, py::arg("mapperModule"))
+                    .def("computeDynamicPoints", &Map::computesDynamicPoints)
+                    .def_property("sensorMaxRange", &Map::getSensorMaxRange, &Map::setSensorMaxRange)
+                    .def(py::init<const bool&, const bool&, const bool&,
+                            PM::ICPSequence&, std::mutex&>(),
+                         py::arg("is3D"), py::arg("isOnline"), py::arg("saveCellsOnHardDrive"),
+                         py::arg("icp"), py::arg("icpMapLock"), "Constuctor");
         }
     }
 }
