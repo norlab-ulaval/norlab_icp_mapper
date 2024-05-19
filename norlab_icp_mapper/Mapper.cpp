@@ -83,7 +83,7 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
     }
     else
     {
-        std::cout << "input config not found, using default" << std::endl;
+        std::cout << "Input config not found, using empty configuration." << std::endl;
         // FIXME add default input filters that "just work"
     }
 
@@ -93,7 +93,7 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
     }
     else
     {
-        std::cout << "post config not found, using default" << std::endl;
+        std::cout << "Post config not found, using empty configuration." << std::endl;
         // FIXME add default post filters that "just work"
     }
 
@@ -130,7 +130,7 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
         }
         else
         {
-            std::cout << "mapper update condition not found, using default" << std::endl;
+            std::cout << "Mapper update condition not found, using default configuration." << std::endl;
             setDefaultMapUpdateConfig();
         }
 
