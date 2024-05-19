@@ -43,6 +43,8 @@ namespace norlab_icp_mapper
         void validateYamlKeys(const YAML::Node& node, const std::vector<std::string>& validKeys);
         void setDefaultMapUpdateConfig();
         void setDefaultMapperConfig();
+        bool shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime, const PM::TransformationParameters& currentPose,
+                             const float& currentOverlap) const;
 
 	public:
 		Mapper(const std::string& configFilePath, const bool& is3D, const bool& isOnline,
@@ -59,8 +61,6 @@ namespace norlab_icp_mapper
         void setDefaultMapperModule();
 		void loadYamlConfig(const std::string& configFilePath);
 
-        bool shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime, const PM::TransformationParameters& currentPose,
-                             const float& currentOverlap) const;
     private:
         DEF_REGISTRAR(MapperModule)
         void fillRegistrar();

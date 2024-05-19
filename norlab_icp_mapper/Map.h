@@ -95,8 +95,8 @@ namespace norlab_icp_mapper
             });
         }
 
-        void setSensorMaxRange(float sensorMaxRange) {
-            this->sensorMaxRange = sensorMaxRange;
+        void setSensorMaxRange(float inputSensorMaxRange) {
+            this->sensorMaxRange = inputSensorMaxRange;
         }
 
         float getSensorMaxRange() {

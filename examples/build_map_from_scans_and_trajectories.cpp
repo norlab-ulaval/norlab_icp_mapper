@@ -224,13 +224,10 @@ int main(int argc, char* argv[])
         auto timestamp = std::chrono::time_point<std::chrono::steady_clock>(
                 std::chrono::nanoseconds(stampedTransformations[i].second));
         PM::TransformationParameters transformationParameters(stampedTransformations[i].first.matrix().cast<float>());
-        if(i == 0 || mapper->shouldUpdateMap(timestamp, transformationParameters, 0.0))
-        {
-            std::string inputPath = vtk_files_paths[i];
-            DP inputCloud(DP::load(inputPath));
+        std::string inputPath = vtk_files_paths[i];
+        DP inputCloud(DP::load(inputPath));
 
-            mapper->processInput(inputCloud, transformationParameters, timestamp);
-        }
+        mapper->processInput(inputCloud, transformationParameters, timestamp);
     }
 
     fs::path output_path = dataPath / "map.vtk";
