@@ -9,7 +9,7 @@ namespace python
         {
             using CellManager = norlab_icp_mapper::CellManager;
             py::class_<CellManager>(p_module, "CellManager")
-                    .def("addPoint", &CellManager::getAllCellIds)
+                    .def("getAllCellIds", &CellManager::getAllCellIds)
                     .def("saveCell", &CellManager::saveCell, py::arg("cellId"), py::arg("cell"))
                     .def("retrieveCell", &CellManager::retrieveCell, py::arg("cellId"))
                     .def("clearAllCells", &CellManager::clearAllCells);
