@@ -1,7 +1,3 @@
-//
-// Created by Matěj Boxan on 2024-03-10.
-//
-
 #include <nabo/nabo.h>
 #include "ComputeDynamicsMapperModule.h"
 

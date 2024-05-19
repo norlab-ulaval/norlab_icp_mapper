@@ -1,7 +1,3 @@
-//
-// Created by Matěj Boxan on 2023-11-10.
-//
-
 #include "norlab_icp_mapper/Mapper.h"
 #include <iostream>
 #include <fstream>

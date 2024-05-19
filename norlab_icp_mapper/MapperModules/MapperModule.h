@@ -1,7 +1,3 @@
-//
-// Created by Matěj Boxan on 2023-11-15.
-//
-
 #ifndef NORLAB_ICP_MAPPER_MAPPERMODULE_H
 #define NORLAB_ICP_MAPPER_MAPPERMODULE_H
 

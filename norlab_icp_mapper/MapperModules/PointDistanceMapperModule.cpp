@@ -1,7 +1,3 @@
-//
-// Created by Matěj Boxan on 2023-11-15.
-//
-
 #include <nabo/nabo.h>
 #include "PointDistanceMapperModule.h"
 
