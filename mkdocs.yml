@@ -2,7 +2,7 @@
 
 site_name: norlab_icp_mapper
 repo_url: https://github.com/norlab-ulaval/norlab_icp_mapper
-edit_uri: edit/master/doc
+edit_uri: edit/master/docs
 site_description: "A 2-D/3-D mapping library relying on the 'Iterative Closest Point' algorithm."
 docs_dir: 'docs'
 theme:
