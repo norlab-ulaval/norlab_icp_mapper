@@ -13,7 +13,8 @@ class PointDistanceMapperModule : public MapperModule
 public:
     inline static const std::string description()
     {
-        return "TODO";
+        return "Create a new map from the first scan."
+               "Update the map by iterating over each scan, removing points that are too close to existing points in the map.";
     }
 
     inline static const PM::ParametersDoc availableParameters()
