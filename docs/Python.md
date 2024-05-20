@@ -22,3 +22,5 @@ python build_map_from_scans_and_trajectory.py
 When prompted for a datapath, input `data`.
 The default configuration file is located in `config.yaml`.
 The final map will be saved in `data/map_python.vtk`.
+![Final map light](images/example_map_light.png#only-light)
+![Final map dark](images/example_map_dark.png#only-dark)
