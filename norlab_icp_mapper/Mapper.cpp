@@ -139,9 +139,9 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
             map.setSensorMaxRange(mapperNode["sensorMaxRange"].as<float>());
         }
 
-        if(mapperNode["mapperModuleVec"])
+        if(mapperNode["mapperModule"])
         {
-	        YAML::Node mapperModule = mapperNode["mapperModuleVec"];
+	        YAML::Node mapperModule = mapperNode["mapperModule"];
 
             for(YAML::const_iterator moduleIt = mapperModule.begin(); moduleIt != mapperModule.end(); ++moduleIt)
             {
