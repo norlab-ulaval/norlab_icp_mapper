@@ -68,6 +68,7 @@ install(FILES norlab_icp_mapper/Mapper.h
         norlab_icp_mapper/HardDriveCellManager.h
         DESTINATION ${INSTALL_INCLUDE_DIR}/norlab_icp_mapper
         )
+# Install Mapper Modules
 install(FILES
         norlab_icp_mapper/MapperModules/MapperModule.h
         norlab_icp_mapper/MapperModules/ComputeDynamicsMapperModule.h

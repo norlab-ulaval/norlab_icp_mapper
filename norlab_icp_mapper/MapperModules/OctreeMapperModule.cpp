@@ -3,6 +3,12 @@
 OctreeMapperModule::OctreeMapperModule(const PM::Parameters& params):
 	MapperModule("OctreeMapperModule",OctreeMapperModule::availableParameters(), params)
     {
+        // This is necessary otherwise an InvalidParameter is thrown from libpointmatcher
+        // as it detects that a set parameter was not accessed.
+        PM::Parametrizable::get<bool>("buildParallel");
+        PM::Parametrizable::get<std::size_t>("samplingMethod");
+        PM::Parametrizable::get<std::size_t>("maxPointByNode");
+        PM::Parametrizable::get<float>("maxSizeByNode");
         octreeFilter = PM::get().DataPointsFilterRegistrar.create(name, params);
     }
 
