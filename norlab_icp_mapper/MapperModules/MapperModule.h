@@ -27,9 +27,9 @@ public:
 
 		//! Update the map, adding points from the input without copying. The input is in the map frame.
 		virtual void inPlaceUpdateMap(const PM::DataPoints& input, PM::DataPoints& map, const PM::TransformationParameters& pose) = 0;
+        ~MapperModule() override;
     protected:
         MapperModule(const std::string& className, const PM::ParametersDoc paramsDoc, const PM::Parameters& params);
-        ~MapperModule() override;
     };
 
 #endif //NORLAB_ICP_MAPPER_MAPPERMODULE_H
