@@ -17,7 +17,7 @@ post:
   ...
 ```
 The four keys correspond to different stages of the mapping pipeline.
-If either of them is not specified, default values, that work reasonably well in more cases, will be used instead.
+If either of them is not specified, default values that work reasonably well in more cases will be used instead.
 In the next sections, we will describe the keys with their possible values one by one.
 
 ## Configuring the Mapper

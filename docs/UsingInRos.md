@@ -7,7 +7,7 @@ If you want to use norlab_icp_mapper in [ROS](http://www.ros.org/) or [ROS 2](ht
 
 ## Tutorial
 
-This tutorial is an update of a [3D Mapping tutorial](https://github.com/norlab-ulaval/Norlab_wiki/wiki/Tutorials:-3D-Mapping), created by [Simon-Pierre Deschênes](https://norlab.ulaval.ca/people/sp_deschenes/) (Thanks :tada:).
+This tutorial is based on a 3D Mapping tutorial created by [Simon-Pierre Deschênes](https://norlab.ulaval.ca/people/sp_deschenes/) (Thanks 🎉).
 
 ### Copying the demonstration data
 
@@ -128,9 +128,7 @@ Finally, the ROS launch file is located in `launch/mapper.launch` for ROS and `l
     ros2 bag play ~/demo/demo --clock
     ```
 
-<p align="center">
-   <img src="https://github.com/norlab-ulaval/Norlab_wiki/blob/main/Tutorials/3D_mapping/images/trajectory.png" alt="drawing" width="900" height="600"/>
-</p>
+![Final map](images/ros_trajectory.png)
 
 ### Adjusting mapping parameters
 
