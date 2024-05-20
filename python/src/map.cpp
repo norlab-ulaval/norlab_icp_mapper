@@ -16,7 +16,7 @@ namespace python
                     .def("getGlobalPointCloud", &Map::getGlobalPointCloud)
                     .def("setGlobalPointCloud", &Map::setGlobalPointCloud, py::arg("newLocalPointCloud"))
                     .def("isLocalPointCloudEmpty", &Map::isLocalPointCloudEmpty)
-                    .def("addMapperMOdule", &Map::addMapperModule, py::arg("mapperModule"))
+                    .def("addMapperModule", &Map::addMapperModule, py::arg("mapperModule"))
                     .def("computeDynamicPoints", &Map::computesDynamicPoints)
                     .def_property("sensorMaxRange", &Map::getSensorMaxRange, &Map::setSensorMaxRange)
                     .def(py::init<const bool&, const bool&, const bool&,
