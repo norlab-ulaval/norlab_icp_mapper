@@ -37,19 +37,19 @@ mapper:
     value: 1.0
 
   mapperModule:
-    ComputeDynamicsMapperModule:
-      priorDynamic: 0.6
-      thresholdDynamic: 0.9
-      alpha: 0.8
-      beta: 0.99
-      beamHalfAngle: 0.01
-      epsilonA: 0.01
-      epsilonD: 0.01
+    - ComputeDynamicsMapperModule:
+        priorDynamic: 0.6
+        thresholdDynamic: 0.9
+        alpha: 0.8
+        beta: 0.99
+        beamHalfAngle: 0.01
+        epsilonA: 0.01
+        epsilonD: 0.01
 
-    OctreeMapperModule:
-      buildParallel: 1
-      maxSizeByNode: 0.15
-      samplingMethod: 1
+    - OctreeMapperModule:
+        buildParallel: 1
+        maxSizeByNode: 0.15
+        samplingMethod: 1
 
   sensorMaxRange: 200
 
