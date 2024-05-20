@@ -3,11 +3,11 @@
 The library comes with an example that builds a map from individual scans and a trajectory.
 Use this toy example to get familiar with the mapper's configuration before jumping to integrating the mapper with ROS.
 
-The example is located in `examples/build_map_from_scans_and_trajectories.cpp` and is build with the `-D BUILD_EXAMPLE=TRUE` flag.
+The example is located in `examples/build_map_from_scans_and_trajectory.cpp` and is build with the `-D BUILD_EXAMPLE=TRUE` flag.
 After building the library, you can execute it on the provided data:
 ```shell
 cd build
-build_map_from_scans_and_trajectories ../examples/data ../examples/config.yaml
+build_map_from_scans_and_trajectory ../examples/data ../examples/config.yaml
 ```
 The script will process the data in the given directory and generate a file `examples/data/map.vtk`.
 Use [ParaView](https://www.paraview.org/) or other point cloud viewer to inspect it.
