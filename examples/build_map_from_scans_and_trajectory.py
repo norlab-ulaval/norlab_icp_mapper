@@ -127,39 +127,20 @@ def get_scans_paths(directory_path):
 
 if __name__ == "__main__":
     dataPath = os.path.relpath(input("Please provide a data path: "))
+    configPath = os.path.relpath(input("Please provide a config path: "))
     stamped_transformations = get_stamped_transformations(os.path.join(dataPath, "icp_odom.csv"))
     vtk_files_paths = get_scans_paths(os.path.join(dataPath, "scans"))
 
     assert len(stamped_transformations) == len(vtk_files_paths)
 
     # Mapper configuration
-    inputFiltersConfigFilePath = ""
-    icpConfigFilePath = ""
-    mapPostFiltersConfigFilePath = ""
-    mapUpdateCondition = "distance"
-    mapUpdateOverlap = 0.9
-    mapUpdateDelay = 1.0
-    mapUpdateDistance = 0.0
-    minDistNewPoint = 0.0
-    sensorMaxRange = 100.0
-    priorDynamic = 0.6
-    thresholdDynamic = 0.9
-    beamHalfAngle = 0.01
-    epsilonA = 0.01
-    epsilonD = 0.01
-    alpha = 0.8
-    beta = 0.99
     is3D = True
     isOnline = False
     computeProbDynamic = False
     isMapping = True
     saveMapCellsOnHardDrive = False
 
-    mapper = Mapper(inputFiltersConfigFilePath, icpConfigFilePath, mapPostFiltersConfigFilePath,
-                    mapUpdateCondition, mapUpdateOverlap, mapUpdateDelay, mapUpdateDistance,
-                    minDistNewPoint, sensorMaxRange, priorDynamic, thresholdDynamic, beamHalfAngle,
-                    epsilonA, epsilonD, alpha, beta, is3D, isOnline, computeProbDynamic,
-                    isMapping, saveMapCellsOnHardDrive)
+    mapper = Mapper(configPath, is3D, isOnline, isMapping, saveMapCellsOnHardDrive)
 
     for i in tqdm(range(len(stamped_transformations))):
         timestamp = stamped_transformations[i][2]
@@ -171,7 +152,7 @@ if __name__ == "__main__":
 
         mapper.processInput(inputCloud, T, timestamp)
 
-    output_path = os.path.join(dataPath, "output.vtk")
+    output_path = os.path.join(dataPath, "map_python.vtk")
     print(f"Success! Map saved to {output_path}")
     mapper.getMap().save(output_path)
 
