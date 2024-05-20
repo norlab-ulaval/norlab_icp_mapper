@@ -5,9 +5,9 @@
 
 namespace python
 {
-    namespace module
+    namespace mappermodules
     {
-        void pybindMapperModulesModule(py::module& p_module);
+        void pybindMapperModule(py::module& p_module);
     }
 }
 

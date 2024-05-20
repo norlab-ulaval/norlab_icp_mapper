@@ -5,6 +5,9 @@
 #include "mapper.h"
 #include "trajectory.h"
 #include "mappermodules/mapper_module.h"
+#include "mappermodules/compute_dynamics.h"
+#include "mappermodules/octree.h"
+#include "mappermodules/point_distance.h"
 
 PYBIND11_MODULE(_core, module)
 {
@@ -16,5 +19,10 @@ PYBIND11_MODULE(_core, module)
     python::module::pybindMapModule(module);
     python::module::pybindMapperModule(module);
     python::module::pybindTrajectoryModule(module);
-    python::module::pybindMapperModulesModule(module);
+
+    py::module mapperModulesModule = module.def_submodule("mappermodules");
+    python::mappermodules::pybindMapperModule(mapperModulesModule);
+    python::mappermodules::pybindComputeDynamics(mapperModulesModule);
+    python::mappermodules::pybindOctree(mapperModulesModule);
+    python::mappermodules::pybindPointDistance(mapperModulesModule);
 }
