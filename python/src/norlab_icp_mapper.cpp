@@ -11,6 +11,8 @@
 
 PYBIND11_MODULE(_core, module)
 {
+    py::module::import("pypointmatcher");
+
     module.doc() = "Python bindings of norlab_icp_mapper";
 
     python::module::pybindCellManagerModule(module);
