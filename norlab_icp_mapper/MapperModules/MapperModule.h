@@ -22,10 +22,10 @@ public:
 		//! Create a map from input point cloud without copying, modifying the input.
         virtual void inPlaceCreateMap(PM::DataPoints& input, const PM::TransformationParameters& pose) = 0;
 
-		//! Update the map, adding points from the input. This is the non-destructive version and returns a copy.
+		//! Update the map, adding points from the input. This is the non-destructive version and returns a copy. The input is in the map frame.
 		virtual PM::DataPoints updateMap(const PM::DataPoints& input, const PM::DataPoints& map, const PM::TransformationParameters& pose) = 0;
 
-		//! Update the map, adding points from the input without copying.
+		//! Update the map, adding points from the input without copying. The input is in the map frame.
 		virtual void inPlaceUpdateMap(const PM::DataPoints& input, PM::DataPoints& map, const PM::TransformationParameters& pose) = 0;
     protected:
         MapperModule(const std::string& className, const PM::ParametersDoc paramsDoc, const PM::Parameters& params);
