@@ -14,9 +14,8 @@ class MapperModule: public PointMatcher<float>::Parametrizable
         typedef PointMatcher<float> PM;
 
 		MapperModule();
-        virtual void init();
 
-    public:
+public:
 		//! Create a map from input point cloud.  This is the non-destructive version and returns a copy.
         virtual PM::DataPoints createMap(const PM::DataPoints& input, const PM::TransformationParameters& pose) = 0;
 

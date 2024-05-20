@@ -16,6 +16,3 @@ MapperModule::MapperModule(const std::string& className, const PM::ParametersDoc
 MapperModule::~MapperModule()
 {}
 
-//! Init this filter
-void MapperModule::init()
-{}
