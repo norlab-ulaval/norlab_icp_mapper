@@ -2,7 +2,7 @@
 
 ## Overview
 
-The mapper is configured with yaml files and offers good modularity.
+The mapper is configured with yaml files which provide excellent modularity.
 The implementation is based on [libpointmatcher](https://github.com/norlab-ulaval/libpointmatcher) and relies on the [yaml-cpp](https://github.com/jbeder/yaml-cpp/) library.
 A basic structure of a configuration file looks like this:
 
@@ -31,19 +31,19 @@ mapper:
   sensorMaxRange: 200
 
   mapperModule:
-    ComputeDynamicsMapperModule:
-      priorDynamic: 0.6
-      thresholdDynamic: 0.9
-      alpha: 0.8
-      beta: 0.99
-      beamHalfAngle: 0.01
-      epsilonA: 0.01
-      epsilonD: 0.01
+    - ComputeDynamicsMapperModule:
+        priorDynamic: 0.6
+        thresholdDynamic: 0.9
+        alpha: 0.8
+        beta: 0.99
+        beamHalfAngle: 0.01
+        epsilonA: 0.01
+        epsilonD: 0.01
 
-    OctreeMapperModule:
-      buildParallel: 1
-      maxSizeByNode: 0.15
-      samplingMethod: 1
+    - OctreeMapperModule:
+        buildParallel: 1
+        maxSizeByNode: 0.15
+        samplingMethod: 1
 ```
 The `mapper` key contain the following values:
 
@@ -85,8 +85,9 @@ The local map dimensions are defined as twice the `sensorMaxRange` plus a margin
 A single cell size is currently hard-coded to 20 meters.
 As an example, setting the `sensorMaxRange` to 100 meters, the local map stored on the RAM will be a cube with a side of
 $$
-2 \times 100 + 2 \times (2 \times 20)~m = 280~m.
+2 \times 100 + 2 \times (2 \times 20)~m = 280~m
 $$
+with the robot located at its center.
 For more details on the long-term map storage, check the [Kilometer-scale autonomous navigation in subarctic forests: challenges and lessons learned](https://norlab.ulaval.ca/publications/field-report-ltr/) paper.
 
 ### Mapper Modules

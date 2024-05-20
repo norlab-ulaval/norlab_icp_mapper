@@ -11,14 +11,14 @@ The mapper can possibly be deployed on other platforms, but the primary target i
    
 !!! note
 
-    we only support 64-bit systems because of some issues with Eigen. Other versions will most probably work but you'll have to try yourself to know for sure.
+    We only support 64-bit systems because of some issues with Eigen. Other versions will most probably work but you'll have to try yourself to know for sure.
 
 ### Dependencies
 norlab_icp_mapper relies principally on `libpointmatcher` and its dependencies. 
 
-| Library name | cmake  | yaml-cpp | libpointmatcher |
-|:-------------|:------:|:--------:|:---------------:|
-| **Version**  | 3.10.2 |   0.5    |      1.4.2      |
+| Library name |  cmake   | yaml-cpp | libpointmatcher |
+|:-------------|:--------:|:--------:|:---------------:|
+| **Version**  | >=3.10.2 |  >=0.5   |     >=1.4.2     |
 
 ### Installing norlab_icp_mapper
 

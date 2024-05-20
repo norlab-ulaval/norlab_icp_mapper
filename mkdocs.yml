@@ -30,7 +30,7 @@ theme:
     - navigation.footer
     - navigation.tabs.sticky
     - navigation.top
-    - content.tabs
+    - content.tabs.link
     - content.code.copy
 extra:
   social:

@@ -11,7 +11,7 @@ The library is developed by [norlab](https://norlab.ulaval.ca/), who also develo
 + [norlab_controllers_ros](https://github.com/norlab-ulaval/norlab_controllers_ros) is a ROS wrapper for the controller library.
 
 Use the left menu to navigate the documentation.
-To report bugs, please use our [github's issue tracker](http://github.com/norlab-ulaval/norlab_icp_mapper/issues).
+To report bugs, please use our [github issue tracker](http://github.com/norlab-ulaval/norlab_icp_mapper/issues).
 
 ![Tunnel light](images/index_tunnel_light.png#only-light)
 ![Tunnel dark](images/index_tunnel_dark.png#only-dark)
