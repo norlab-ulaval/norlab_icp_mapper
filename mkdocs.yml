@@ -53,3 +53,4 @@ nav:
 - 'How to configure the Mapper': 'MapperConfiguration.md'
 - 'Creating a MapperModule': 'MapperModuleDev.md'
 - 'How to use norlab_icp_mapper in ROS?': 'UsingInRos.md'
+- 'How to use norlab_icp_mapper in Python?': 'Python.md'
