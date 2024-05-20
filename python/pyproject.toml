@@ -5,13 +5,12 @@ build-backend = "scikit_build_core.build"
 [tool.scikit-build]
 sdist.cmake = true
 cmake.verbose = true
-cmake.args = ["-D BUILD_PYTHON_MODULE=ON"]
 
 [project]
 #dynamic = ["version"]
 version = "0.1"
 name = "pynorlab_icp_mapper"
-dependencies = ["numpy>=1.20"]
+dependencies = ["numpy>=1.20", "pypointmatcher>=1.4.2"]
 classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
