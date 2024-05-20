@@ -39,7 +39,7 @@ public:
                 {"beta", "Probability of staying dynamic given that the point was dynamic.", "0.99"},
                 {"beamHalfAngle", "Half angle of the cones formed by the sensor laser beams (in rad).", "0.01"},
                 {"epsilonA", "Error proportional to the sensor distance.", "0.01"},
-                {"espilonD", "Fix error on the sensor distance (in meters).", "0.01"},
+                {"epsilonD", "Fix error on the sensor distance (in meters).", "0.01"},
                 {"sensorMaxRange", "Maximum reading distance of the laser (in meters).", "200"},
         };
     }
