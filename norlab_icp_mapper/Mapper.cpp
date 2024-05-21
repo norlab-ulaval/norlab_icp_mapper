@@ -107,11 +107,11 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
             validateYamlKeys(updateConditionNode, std::vector<std::string>{"type", "value"});
             if(! updateConditionNode["type"])
             {
-                throw YAML::Exception(YAML::Mark::null_mark(), "Missing key: type"); // TODO add yaml mark
+                throw YAML::Exception(updateConditionNode.Mark(), "Missing key: type");
             }
             if(! updateConditionNode["value"])
             {
-                throw YAML::Exception(YAML::Mark::null_mark(), "Missing key: value"); // TODO add yaml mark
+                throw YAML::Exception(updateConditionNode.Mark(), "Missing key: value");
             }
 
             mapUpdateCondition = updateConditionNode["type"].as<std::string>();
