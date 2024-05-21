@@ -117,15 +117,30 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
             mapUpdateCondition = updateConditionNode["type"].as<std::string>();
             if(mapUpdateCondition == "distance")
             {
-                mapUpdateDistance = updateConditionNode["value"].as<float>();
+                mapUpdateDistance = updateConditionNode["value"].as<float>();if(mapUpdateDistance < 0)
+                {
+                    throw YAML::Exception(updateConditionNode.Mark(), "Invalid map update distance: " + std::to_string(mapUpdateDistance));
+                }
             }
-            if(mapUpdateCondition == "overlap")
+            else if(mapUpdateCondition == "overlap")
             {
                 mapUpdateOverlap = updateConditionNode["value"].as<float>();
+                if(mapUpdateOverlap < 0 || mapUpdateOverlap > 1)
+                {
+                    throw YAML::Exception(updateConditionNode.Mark(), "Invalid map update overlap: " + std::to_string(mapUpdateOverlap));
+                }
             }
-            if(mapUpdateCondition == "delay")
+            else if(mapUpdateCondition == "delay")
             {
                 mapUpdateDelay = updateConditionNode["value"].as<float>();
+                if(mapUpdateDelay < 0)
+                {
+                    throw YAML::Exception(updateConditionNode.Mark(), "Invalid map update delay: " + std::to_string(mapUpdateDelay));
+                }
+            }
+            else
+            {
+                throw YAML::Exception(updateConditionNode.Mark(), "Invalid map update condition: " + mapUpdateCondition);
             }
         }
         else
