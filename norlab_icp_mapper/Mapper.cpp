@@ -151,7 +151,12 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
 
         if(mapperNode["sensorMaxRange"])
         {
-            map.setSensorMaxRange(mapperNode["sensorMaxRange"].as<float>());
+            float sensorMaxRange = mapperNode["sensorMaxRange"].as<float>();
+            if(sensorMaxRange < 0)
+            {
+                throw YAML::Exception(mapperNode["sensorMaxRange"].Mark(), "Invalid sensor max range: " + std::to_string(sensorMaxRange));
+            }
+            map.setSensorMaxRange(sensorMaxRange);
         }
 
         if(mapperNode["mapperModule"])
