@@ -9,6 +9,7 @@
 class ComputeDynamicsMapperModule : public MapperModule {
 
     typedef PointMatcher<float> PM;
+	typedef PM::Parametrizable P;
     typedef typename PM::DataPoints DataPoints;
 
     const float priorDynamic;
@@ -33,14 +34,14 @@ public:
     inline static const PM::ParametersDoc availableParameters()
     {
         return {
-                {"priorDynamic", "A priori probability of points being dynamic.", "0.6"},
-                {"thresholdDynamic", "Probability at which a point is considered permanently dynamic.", "0.6"},
-                {"alpha", "Probability of staying static given that the point was static.", "0.8"},
-                {"beta", "Probability of staying dynamic given that the point was dynamic.", "0.99"},
-                {"beamHalfAngle", "Half angle of the cones formed by the sensor laser beams (in rad).", "0.01"},
-                {"epsilonA", "Error proportional to the sensor distance.", "0.01"},
-                {"epsilonD", "Fix error on the sensor distance (in meters).", "0.01"},
-                {"sensorMaxRange", "Maximum reading distance of the laser (in meters).", "200"},
+                {"priorDynamic", "A priori probability of points being dynamic.", "0.6", "0.0", "1.0", P::Comp<float>},
+                {"thresholdDynamic", "Probability at which a point is considered permanently dynamic.", "0.6", "0.0", "1.0", P::Comp<float>},
+                {"alpha", "Probability of staying static given that the point was static.", "0.8", "0.0", "1.0", P::Comp<float>},
+                {"beta", "Probability of staying dynamic given that the point was dynamic.", "0.99", "0.0", "1.0", P::Comp<float>},
+                {"beamHalfAngle", "Half angle of the cones formed by the sensor laser beams (in rad).", "0.01", "0.0", "1.57079632679489661923132169163975144", P::Comp<float>},
+                {"epsilonA", "Error proportional to the sensor distance.", "0.01", "0.0", "inf", P::Comp<float>},
+                {"epsilonD", "Fix error on the sensor distance (in meters).", "0.01", "0.0", "inf", P::Comp<float>},
+                {"sensorMaxRange", "Maximum reading distance of the laser (in meters).", "200", "0.0", "inf", P::Comp<float>},
         };
     }
 
