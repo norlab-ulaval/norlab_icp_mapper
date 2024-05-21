@@ -7,6 +7,7 @@ class PointDistanceMapperModule : public MapperModule
 {
     typedef PointMatcher<float> PM;
     typedef typename PM::DataPoints DataPoints;
+	typedef PM::Parametrizable P;
 
     const float minDistNewPoint;
 
@@ -20,7 +21,7 @@ public:
     inline static const PM::ParametersDoc availableParameters()
     {
         return {
-                {"minDistNewPoint", "Distance from current map points under which a new point is not added to the map (in meters).", "0.03"}
+                {"minDistNewPoint", "Distance from current map points under which a new point is not added to the map (in meters).", "0.03", "0.0", "inf", P::Comp<float>}
         };
     }
 
