@@ -23,7 +23,6 @@ PointMatcher<float>::DataPoints ComputeDynamicsMapperModule::createMap(const PM:
 
 void ComputeDynamicsMapperModule::inPlaceCreateMap(PM::DataPoints& input, const PM::TransformationParameters& pose)
 {
-    input.addDescriptor("probabilityDynamic", PM::Matrix::Constant(1, input.features.cols(), priorDynamic));
 }
 
 PointMatcher<float>::DataPoints ComputeDynamicsMapperModule::updateMap(const PM::DataPoints& input, const PM::DataPoints& map, const PM::TransformationParameters& pose)
