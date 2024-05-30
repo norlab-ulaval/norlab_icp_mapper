@@ -8,7 +8,7 @@
 
 norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic,
 							const float& beamHalfAngle, const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D,
-							const bool& isOnline, const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp,
+							const bool& isOnline, const bool& computeProbDynamic, const char& saveCellsOnHardDrive, PM::ICPSequence& icp,
 							std::mutex& icpMapLock):
 		minDistNewPoint(minDistNewPoint),
 		sensorMaxRange(sensorMaxRange),
@@ -30,13 +30,22 @@ norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMax
 		firstPoseUpdate(true),
 		updateThreadLooping(true)
 {
-	if(saveCellsOnHardDrive)
+	switch(saveCellsOnHardDrive)
 	{
-		cellManager = std::unique_ptr<CellManager>(new HardDriveCellManager());
-	}
-	else
-	{
-		cellManager = std::unique_ptr<CellManager>(new RAMCellManager());
+		case 1:
+			cellManager = std::unique_ptr<CellManager>(new HardDriveCellManager());
+			forgetUnloadedCells = false;
+			break;
+		case 0:
+			cellManager = std::unique_ptr<CellManager>(new RAMCellManager());
+			forgetUnloadedCells = false;
+			break;
+		case -1:
+			cellManager = std::unique_ptr<CellManager>(new RAMCellManager());
+			forgetUnloadedCells = true;
+			break;
+		default:
+			throw std::runtime_error("Invalid saveCellsOnHardDrive value!");
 	}
 
 	if(isOnline)
@@ -209,6 +218,9 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
 	newLocalPointCloudAvailable = true;
 
 	localPointCloudLock.unlock();
+
+	if(forgetUnloadedCells)
+		return;
 
 	oldChunk.conservativeResize(oldChunkNbPoints);
 

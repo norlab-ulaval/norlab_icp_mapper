@@ -62,7 +62,7 @@ namespace norlab_icp_mapper
 			   const std::string& mapUpdateCondition, const float& mapUpdateOverlap, const float& mapUpdateDelay, const float& mapUpdateDistance,
 			   const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle,
 			   const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
-			   const bool& computeProbDynamic, const bool& isMapping, const bool& saveMapCellsOnHardDrive);
+			   const bool& computeProbDynamic, const bool& isMapping, const char& saveMapCellsOnHardDrive);
 		void loadYamlConfig(const std::string& inputFiltersConfigFilePath, const std::string& icpConfigFilePath,
 							const std::string& mapPostFiltersConfigFilePath);
 		DiagnosticInformation processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,

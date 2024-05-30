@@ -7,7 +7,7 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
 								  const float& mapUpdateDelay, const float& mapUpdateDistance, const float& minDistNewPoint, const float& sensorMaxRange,
 								  const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle, const float& epsilonA,
 								  const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
-								  const bool& computeProbDynamic, const bool& isMapping, const bool& saveMapCellsOnHardDrive):
+								  const bool& computeProbDynamic, const bool& isMapping, const char& saveMapCellsOnHardDrive):
 		mapUpdateCondition(mapUpdateCondition),
 		mapUpdateOverlap(mapUpdateOverlap),
 		mapUpdateDelay(mapUpdateDelay),

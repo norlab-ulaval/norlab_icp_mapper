@@ -41,6 +41,8 @@ namespace norlab_icp_mapper
 		bool is3D;
 		bool isOnline;
 		bool computeProbDynamic;
+		bool forgetUnloadedCells;
+
 		PM::ICPSequence& icp;
 		std::mutex& icpMapLock;
 		PM::DataPoints localPointCloud;
@@ -84,7 +86,7 @@ namespace norlab_icp_mapper
 	public:
 		Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle,
 			const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& isOnline,
-			const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp, std::mutex& icpMapLock);
+			const bool& computeProbDynamic, const char& saveCellsOnHardDrive, PM::ICPSequence& icp, std::mutex& icpMapLock);
 		~Map();
 		void updatePose(const PM::TransformationParameters& pose);
 		PM::DataPoints getLocalPointCloud();
