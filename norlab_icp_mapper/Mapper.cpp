@@ -210,7 +210,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
 		map.updatePose(correctedPose);
 
-		if(shouldUpdateMap(timeStamp, correctedPose, 0.0))
+		if(shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
 		{
 			updateMap(transformation->compute(input, correction), correctedPose, timeStamp);
 		}

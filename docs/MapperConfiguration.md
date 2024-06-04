@@ -121,14 +121,23 @@ If an incoming scan point is located behind a map point, the probability of this
 If this probability surpasses the predefined threshold, it is effectively removed from the map.
 To limit computation time for this filter, map points located further than `sensorMaxRange` do not enter the filtering process.
 
+
 - **Required descriptors:**  probabilityDynamic, normals
-- **Output descriptor:** probabilityDynamic
+- **Modified descriptor:** probabilityDynamic
 - **Sensor assumed to be at the origin:** no  
-- **Impact on the number of points:** reduces number of points  
+- **Impact on the number of points:** reduces number of points
+
+The probabilityDynamic descriptor should be added to the input point cloud like this:
+```yaml
+input:
+  - AddDescriptorDataPointsFilter:
+      descriptorName: probabilityDynamic 
+      descriptorDimension: 1
+      descriptorValues: [0.6] # This value is the initial probability of each point being dynamic
+```
 
 | Parameter        | Description                                                        | Default value | Allowable range |
 |------------------|:-------------------------------------------------------------------|:--------------|:----------------|
-| priorDynamic     | A priori probability of points being dynamic.                      | 0.6           | [0.0, inf)      |
 | thresholdDynamic | Probability at which a point is considered permanently dynamic.    | 0.6           | [0.0, 1.0]      |
 | alpha            | Probability of staying static given that the point was static.     | 0.8           | [0.0, 1.0]      |
 | beta             | Probability of staying dynamic given that the point was dynamic.   | 0.99          | [0.0, 1.0]      |
