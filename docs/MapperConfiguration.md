@@ -32,9 +32,8 @@ mapper:
 
   mapperModule:
     - ComputeDynamicsMapperModule:
-        priorDynamic: 0.6
-        thresholdDynamic: 0.9
-        alpha: 0.8
+        thresholdDynamic: 0.65
+        alpha: 0.2
         beta: 0.99
         beamHalfAngle: 0.01
         epsilonA: 0.01
@@ -182,11 +181,11 @@ Here we use it to remove dynamic points that were previously calculated with the
 ```yaml
 post:
     - SurfaceNormalDataPointsFilter:
-        knn: 15
+        knn: 10
     
     - CutAtDescriptorThresholdDataPointsFilter:
         descName: probabilityDynamic
         useLargerThan: 1
-        threshold: 0.8
+        threshold: 0.65
 ```
 Similarly to the input filters, a full list of all possible filters can be found [here](https://libpointmatcher.readthedocs.io/en/latest/DataFilters/).
