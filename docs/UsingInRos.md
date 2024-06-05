@@ -137,7 +137,7 @@ Finally, the ROS launch file is located in `launch/mapper.launch` for ROS and `l
 Open the file `mapper.config` and change the following parameter:
 ```yaml
    PointDistanceMapperModule:
-      minDistNewPoint: 0.5 -> 1.0
+      minDistNewPoint: 0.1 -> 1.0
 ```
 
 #### Changing the map update condition
@@ -147,7 +147,7 @@ Open the file `mapper.config` and change the following parameters:
 ```yaml
    updateCondition:
     type: overlap -> distance
-    value: 0.5 -> 5.0
+    value: 0.5 -> 1.0
 ```
 
 #### Removing points reflected from the robot's chassis
@@ -165,26 +165,40 @@ Open the file `mapper.config` and add the following lines in the `input` section
     removeInside: 1
 ```
 
+#### Removing pedestrian following the robot closely behind
+
+Open the file `mapper.config` and add the following lines in the `input` section:
+
+```yaml
+- BoundingBoxDataPointsFilter:
+      xMin: -6
+      xMax: -1.5
+      yMin: -2.5
+      yMax: 2.5
+      zMin: -1
+      zMax: 1
+      removeInside: 1
+```
+
 #### Removing dynamic points
 
 Open the file `mapper.config` and add the following lines in the `post` section:
 
 ```yaml
 - SurfaceNormalDataPointsFilter:
-    knn: 15
+    knn: 10
 
 - CutAtDescriptorThresholdDataPointsFilter:
     descName: probabilityDynamic
     useLargerThan: 1
-    threshold: 0.8
+    threshold: 0.65
 ```
 
 Then change the following MapperModule in the `mapperModule` portion of the `mapper` section:
 ```yaml
     ComputeDynamicsMapperModule:
-      priorDynamic: 0.6
-      thresholdDynamic: 0.9
-      alpha: 0.8
+      thresholdDynamic: 0.65
+      alpha: 0.2
       beta: 0.99
       beamHalfAngle: 0.01
       epsilonA: 0.01
