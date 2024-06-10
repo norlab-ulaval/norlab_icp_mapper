@@ -118,14 +118,14 @@ Computes a per-point value defining the probability that the points are dynamic,
 The dynamic filter allows longer operations as dynamic points are not accumulating in the map.
 To identify the dynamic points, ray tracing is used.
 If an incoming scan point is located behind a map point, the probability of this map point being dynamic is increased.
-If this probability surpasses the predefined threshold, it is effectively removed from the map.
+This filter is usually coupled with the [CutAtDescriptorThreshold]() post-processing filter, which removes point when a descriptor value exceeds a defined threshold.
 To limit computation time for this filter, map points located further than `sensorMaxRange` do not enter the filtering process.
 
 
 - **Required descriptors:**  probabilityDynamic, normals
 - **Modified descriptor:** probabilityDynamic
 - **Sensor assumed to be at the origin:** no  
-- **Impact on the number of points:** reduces number of points
+- **Impact on the number of points:** none
 
 The probabilityDynamic descriptor should be added to the input point cloud like this:
 ```yaml
@@ -180,6 +180,7 @@ icp:
 ```
 Similarly to the Input filters configuration, the `icp` config can also contain various DataPointsFilters, defined under the `readingDataPointsFilters` and `referenceDataPointsFilters` keys.
 See [this guide](https://libpointmatcher.readthedocs.io/en/latest/ICPIntro/) for a more detailed explanation on how to configure this section.
+
 ### Configuring the Post filters
 Post filters are applied to the map after adding the new point cloud.
 A good example of a filter that is typically calculated post-merge are the `SurfaceNormalDataPointsFilter` and `CutAtDescriptorThresholdDataPointsFilter`.
