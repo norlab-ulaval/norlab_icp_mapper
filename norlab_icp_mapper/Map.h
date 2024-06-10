@@ -30,8 +30,9 @@ namespace norlab_icp_mapper
 		const int BUFFER_SIZE = 2;
 		const float CELL_SIZE = 20.0;
         const int INITIAL_CELL_NB_POINTS_WHEN_UNLOADING = 100;
+        const float DEFAULT_SENSOR_MAX_RANGE = 200;
 
-		float sensorMaxRange = 200;
+		float sensorMaxRange = DEFAULT_SENSOR_MAX_RANGE;
 		bool is3D;
 		bool isOnline;
 		PM::ICPSequence& icp;
