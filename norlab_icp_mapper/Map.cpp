@@ -4,22 +4,11 @@
 #include <nabo/nabo.h>
 #include <unordered_map>
 
-norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic,
-							const float& beamHalfAngle, const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D,
-							const bool& isOnline, const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp,
+norlab_icp_mapper::Map::Map(const bool& is3D,
+							const bool& isOnline, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp,
 							std::mutex& icpMapLock):
-		minDistNewPoint(minDistNewPoint),
-		sensorMaxRange(sensorMaxRange),
-		priorDynamic(priorDynamic),
-		thresholdDynamic(thresholdDynamic),
-		beamHalfAngle(beamHalfAngle),
-		epsilonA(epsilonA),
-		epsilonD(epsilonD),
-		alpha(alpha),
-		beta(beta),
 		is3D(is3D),
 		isOnline(isOnline),
-		computeProbDynamic(computeProbDynamic),
 		icp(icp),
 		icpMapLock(icpMapLock),
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
@@ -512,25 +501,23 @@ norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getLocalPointClou
 
 void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::TransformationParameters pose, PM::DataPointsFilters postFilters)
 {
-	if(computeProbDynamic)
-	{
-		input.addDescriptor("probabilityDynamic", PM::Matrix::Constant(1, input.features.cols(), priorDynamic));
-	}
-
 	localPointCloudLock.lock();
-	if(localPointCloudEmpty.load())
+	if(isLocalPointCloudEmpty())
 	{
-		localPointCloud = input;
+        // create map with the first mapper module and use the other modules to update it
+        auto iter = mapperModuleVec.begin();
+        localPointCloud = (*iter)->createMap(input, pose);
+        ++iter;
+
+        for (; iter != mapperModuleVec.end(); ++iter) {
+            (*iter)->inPlaceUpdateMap(input, localPointCloud, pose);
+        }
 	}
 	else
 	{
-		if(computeProbDynamic)
-		{
-			computeProbabilityOfPointsBeingDynamic(input, localPointCloud, pose);
-		}
-
-		PM::DataPoints inputPointsToKeep = retrievePointsFurtherThanMinDistNewPoint(input, localPointCloud, pose);
-		localPointCloud.concatenate(inputPointsToKeep);
+        for (const auto& module:mapperModuleVec) {
+            module->inPlaceUpdateMap(input, localPointCloud, pose);
+        }
 	}
 
 	PM::DataPoints localPointCloudInSensorFrame = transformation->compute(localPointCloud, pose.inverse());
@@ -544,158 +531,6 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
 	localPointCloudEmpty.store(localPointCloud.getNbPoints() == 0);
 	newLocalPointCloudAvailable = true;
 	localPointCloudLock.unlock();
-}
-
-void norlab_icp_mapper::Map::computeProbabilityOfPointsBeingDynamic(const PM::DataPoints& input, PM::DataPoints& currentLocalPointCloud,
-																	const PM::TransformationParameters& pose) const
-{
-	typedef Nabo::NearestNeighbourSearch<float> NNS;
-	const float eps = 0.0001;
-
-	PM::DataPoints inputInSensorFrame = transformation->compute(input, pose.inverse());
-
-	PM::Matrix inputInSensorFrameRadii;
-	PM::Matrix inputInSensorFrameAngles;
-	convertToSphericalCoordinates(inputInSensorFrame, inputInSensorFrameRadii, inputInSensorFrameAngles);
-
-	PM::DataPoints currentLocalPointCloudInSensorFrame = transformation->compute(currentLocalPointCloud, pose.inverse());
-	PM::Matrix globalId(1, currentLocalPointCloud.getNbPoints());
-	int nbPointsWithinSensorMaxRange = 0;
-	for(int i = 0; i < currentLocalPointCloud.getNbPoints(); i++)
-	{
-		if(currentLocalPointCloudInSensorFrame.features.col(i).head(currentLocalPointCloudInSensorFrame.getEuclideanDim()).norm() < sensorMaxRange)
-		{
-			currentLocalPointCloudInSensorFrame.setColFrom(nbPointsWithinSensorMaxRange, currentLocalPointCloudInSensorFrame, i);
-			globalId(0, nbPointsWithinSensorMaxRange) = i;
-			nbPointsWithinSensorMaxRange++;
-		}
-	}
-	currentLocalPointCloudInSensorFrame.conservativeResize(nbPointsWithinSensorMaxRange);
-
-	PM::Matrix currentLocalPointCloudInSensorFrameRadii;
-	PM::Matrix currentLocalPointCloudInSensorFrameAngles;
-	convertToSphericalCoordinates(currentLocalPointCloudInSensorFrame, currentLocalPointCloudInSensorFrameRadii, currentLocalPointCloudInSensorFrameAngles);
-
-	std::shared_ptr<NNS> nns = std::shared_ptr<NNS>(NNS::create(inputInSensorFrameAngles));
-	PM::Matches::Dists dists(1, currentLocalPointCloudInSensorFrame.getNbPoints());
-	PM::Matches::Ids ids(1, currentLocalPointCloudInSensorFrame.getNbPoints());
-	nns->knn(currentLocalPointCloudInSensorFrameAngles, ids, dists, 1, 0, NNS::ALLOW_SELF_MATCH, 2 * beamHalfAngle);
-
-	PM::DataPoints::View viewOnProbabilityDynamic = currentLocalPointCloud.getDescriptorViewByName("probabilityDynamic");
-	PM::DataPoints::View viewOnNormals = currentLocalPointCloudInSensorFrame.getDescriptorViewByName("normals");
-	for(int i = 0; i < currentLocalPointCloudInSensorFrame.getNbPoints(); i++)
-	{
-		if(dists(i) != std::numeric_limits<float>::infinity())
-		{
-			const int inputPointId = ids(0, i);
-			const int localPointCloudPointId = globalId(0, i);
-
-			const Eigen::VectorXf inputPoint = inputInSensorFrame.features.col(inputPointId).head(inputInSensorFrame.getEuclideanDim());
-			const Eigen::VectorXf
-					localPointCloudPoint = currentLocalPointCloudInSensorFrame.features.col(i).head(currentLocalPointCloudInSensorFrame.getEuclideanDim());
-			const float delta = (inputPoint - localPointCloudPoint).norm();
-			const float d_max = epsilonA * inputPoint.norm();
-
-			const Eigen::VectorXf localPointCloudPointNormal = viewOnNormals.col(i);
-
-			const float w_v = eps + (1. - eps) * fabs(localPointCloudPointNormal.dot(localPointCloudPoint.normalized()));
-			const float w_d1 = eps + (1. - eps) * (1. - sqrt(dists(i)) / (2 * beamHalfAngle));
-
-			const float offset = delta - epsilonD;
-			float w_d2 = 1.;
-			if(delta < epsilonD || localPointCloudPoint.norm() > inputPoint.norm())
-			{
-				w_d2 = eps;
-			}
-			else
-			{
-				if(offset < d_max)
-				{
-					w_d2 = eps + (1 - eps) * offset / d_max;
-				}
-			}
-
-			float w_p2 = eps;
-			if(delta < epsilonD)
-			{
-				w_p2 = 1;
-			}
-			else
-			{
-				if(offset < d_max)
-				{
-					w_p2 = eps + (1. - eps) * (1. - offset / d_max);
-				}
-			}
-
-			if((inputPoint.norm() + epsilonD + d_max) >= localPointCloudPoint.norm())
-			{
-				const float lastDyn = viewOnProbabilityDynamic(0, localPointCloudPointId);
-
-				const float c1 = (1 - (w_v * w_d1));
-				const float c2 = w_v * w_d1;
-
-				float probDynamic;
-				float probStatic;
-				if(lastDyn < thresholdDynamic)
-				{
-					probDynamic = c1 * lastDyn + c2 * w_d2 * ((1 - alpha) * (1 - lastDyn) + beta * lastDyn);
-					probStatic = c1 * (1 - lastDyn) + c2 * w_p2 * (alpha * (1 - lastDyn) + (1 - beta) * lastDyn);
-				}
-				else
-				{
-					probDynamic = 1 - eps;
-					probStatic = eps;
-				}
-
-				viewOnProbabilityDynamic(0, localPointCloudPointId) = probDynamic / (probDynamic + probStatic);
-			}
-		}
-	}
-}
-
-norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::retrievePointsFurtherThanMinDistNewPoint(const PM::DataPoints& input,
-																										const PM::DataPoints& currentLocalPointCloud,
-																										const PM::TransformationParameters& pose) const
-{
-	typedef Nabo::NearestNeighbourSearch<float> NNS;
-
-	PM::Matches matches(PM::Matches::Dists(1, input.getNbPoints()), PM::Matches::Ids(1, input.getNbPoints()));
-	std::shared_ptr<NNS> nns = std::shared_ptr<NNS>(NNS::create(currentLocalPointCloud.features, currentLocalPointCloud.features.rows() - 1,
-																NNS::KDTREE_LINEAR_HEAP, NNS::TOUCH_STATISTICS));
-
-	nns->knn(input.features, matches.ids, matches.dists, 1, 0);
-
-	int goodPointCount = 0;
-	PM::DataPoints goodPoints(input.createSimilarEmpty());
-	for(int i = 0; i < input.getNbPoints(); ++i)
-	{
-		if(matches.dists(i) >= std::pow(minDistNewPoint, 2))
-		{
-			goodPoints.setColFrom(goodPointCount, input, i);
-			goodPointCount++;
-		}
-	}
-	goodPoints.conservativeResize(goodPointCount);
-
-	return goodPoints;
-}
-
-void norlab_icp_mapper::Map::convertToSphericalCoordinates(const PM::DataPoints& points, PM::Matrix& radii, PM::Matrix& angles) const
-{
-	radii = points.features.topRows(points.getEuclideanDim()).colwise().norm();
-	angles = PM::Matrix(2, points.getNbPoints());
-
-	for(int i = 0; i < points.getNbPoints(); i++)
-	{
-		angles(0, i) = 0;
-		if(is3D)
-		{
-			const float ratio = points.features(2, i) / radii(0, i);
-			angles(0, i) = asin(ratio);
-		}
-		angles(1, i) = atan2(points.features(1, i), points.features(0, i));
-	}
 }
 
 bool norlab_icp_mapper::Map::getNewLocalPointCloud(PM::DataPoints& localPointCloudOut)
@@ -739,11 +574,6 @@ norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getGlobalPointClo
 
 void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalPointCloud)
 {
-	if(computeProbDynamic && !newLocalPointCloud.descriptorExists("normals"))
-	{
-		throw std::runtime_error("compute prob dynamic is set to true, but field normals does not exist for map points.");
-	}
-
 	localPointCloudLock.lock();
 	localPointCloud = newLocalPointCloud;
 
@@ -755,9 +585,4 @@ void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalP
 
 	firstPoseUpdate.store(true);
 	localPointCloudLock.unlock();
-}
-
-bool norlab_icp_mapper::Map::isLocalPointCloudEmpty() const
-{
-	return localPointCloudEmpty.load();
 }
