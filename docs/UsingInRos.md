@@ -1,9 +1,9 @@
 # Using norlab_icp_mapper in ROS
 
-If you want to use norlab_icp_mapper in [ROS](http://www.ros.org/) or [ROS 2](https://docs.ros.org/en/iron/index.html), you can will need to install few more dependencies:
+If you want to use norlab_icp_mapper in [ROS](http://www.ros.org/) or [ROS 2](https://docs.ros.org/en/jazzy/index.html), you can will need to install few more dependencies:
 
-+ [libpointmatcher_ros](https://github.com/norlab-ulaval/libpointmatcher_ros) allows the conversion of pointclouds from ROS message formats to a libpointmatcher-compatible format and provides a mapping node that is already functional and that can be customized using YAML configuration files to suite your needs.
-+ [norlab_icp_mapper_ros](https://github.com/norlab-ulaval/norlab_icp_mapper_ros) is a bridge between the mapper and ROS, providing message conversions to libpointmatcher compatible format.
++ [libpointmatcher_ros](https://github.com/norlab-ulaval/libpointmatcher_ros) allows the conversion of pointclouds from ROS message formats to a libpointmatcher-compatible format.
++ [norlab_icp_mapper_ros](https://github.com/norlab-ulaval/norlab_icp_mapper_ros) is a bridge between the mapper and ROS and provides a mapping node that is already functional and that can be customized using YAML configuration files to suite your needs.
 
 ## Tutorial
 
