@@ -1,4 +1,4 @@
-# - Config file for the libpointmatcher package
+# - Config file for the norlab_icp_mapper package
 # It defines the following variables
 #  norlab_icp_mapper_INCLUDE_DIRS - include directories for norlab_icp_mapper
 #  norlab_icp_mapper_LIBRARIES    - libraries to link against
