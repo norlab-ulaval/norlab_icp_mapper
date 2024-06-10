@@ -136,7 +136,6 @@ if __name__ == "__main__":
     # Mapper configuration
     is3D = True
     isOnline = False
-    computeProbDynamic = False
     isMapping = True
     saveMapCellsOnHardDrive = False
 
