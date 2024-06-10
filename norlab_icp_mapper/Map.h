@@ -89,12 +89,6 @@ namespace norlab_icp_mapper
             this->mapperModuleVec.push_back(std::move(mapperModule));
         }
 
-        bool computesDynamicPoints() {
-            return std::any_of(mapperModuleVec.begin(), mapperModuleVec.end(), [](const auto &module) {
-                return module->className == "DynamicPointsMapperModule";
-            });
-        }
-
         void setSensorMaxRange(float inputSensorMaxRange) {
             this->sensorMaxRange = inputSensorMaxRange;
         }
