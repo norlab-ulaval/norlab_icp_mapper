@@ -328,8 +328,8 @@ void norlab_icp_mapper::Mapper::setDefaultMapperModule()
 
 void norlab_icp_mapper::Mapper::setDefaultMapUpdateConfig()
 {
-    mapUpdateCondition = "distance";
-    mapUpdateDistance = 1.0;
+    mapUpdateCondition = defaultMapUpdateCondition;
+    mapUpdateDistance = defaultMapUpdateDistance;
 }
 
 void norlab_icp_mapper::Mapper::setDefaultMapperConfig()

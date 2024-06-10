@@ -16,6 +16,9 @@ namespace norlab_icp_mapper
 	private:
 		typedef PointMatcher<float> PM;
 
+        const std::string defaultMapUpdateCondition = "distance";
+        const float defaultMapUpdateDistance = 1.0;
+
 		PM::DataPointsFilters inputFilters;
 		PM::ICPSequence icp;
 		PM::DataPointsFilters mapPostFilters;
