@@ -117,7 +117,8 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
             mapUpdateCondition = updateConditionNode["type"].as<std::string>();
             if(mapUpdateCondition == "distance")
             {
-                mapUpdateDistance = updateConditionNode["value"].as<float>();if(mapUpdateDistance < 0)
+                mapUpdateDistance = updateConditionNode["value"].as<float>();
+                if(mapUpdateDistance < 0)
                 {
                     throw YAML::Exception(updateConditionNode.Mark(), "Invalid map update distance: " + std::to_string(mapUpdateDistance));
                 }
