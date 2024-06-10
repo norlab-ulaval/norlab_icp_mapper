@@ -574,11 +574,6 @@ norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getGlobalPointClo
 
 void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalPointCloud)
 {
-	if(computesDynamicPoints() && !newLocalPointCloud.descriptorExists("normals"))
-	{
-		throw std::runtime_error("compute prob dynamic is set to true, but field normals does not exist for map points.");
-	}
-
 	localPointCloudLock.lock();
 	localPointCloud = newLocalPointCloud;
 

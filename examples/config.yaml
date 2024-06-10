@@ -54,5 +54,17 @@ mapper:
   sensorMaxRange: 200
 
 icp:
+  matcher:
+    KDTreeMatcher:
+      knn: 6
+      maxDist: 2.0
+      epsilon: 1
+
   errorMinimizer:
     IdentityErrorMinimizer:
+
+  transformationCheckers:
+    - CounterTransformationChecker:
+        maxIterationCount: 10
+
+  inspector: NullInspector

@@ -180,6 +180,12 @@ icp:
       
   errorMinimizer:
     PointToPlaneErrorMinimizer:
+  
+  transformationCheckers:
+    - CounterTransformationChecker:
+        maxIterationCount: 10
+  
+  inspector: NullInspector
 ```
 Similarly to the Input filters configuration, the `icp` config can also contain various DataPointsFilters, defined under the `readingDataPointsFilters` and `referenceDataPointsFilters` keys.
 See [this guide](https://libpointmatcher.readthedocs.io/en/latest/ICPIntro/) for a more detailed explanation on how to configure this section.

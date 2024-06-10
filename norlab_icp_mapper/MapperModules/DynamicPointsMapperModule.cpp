@@ -37,7 +37,15 @@ void DynamicPointsMapperModule::inPlaceUpdateMap(const PM::DataPoints& input, PM
     // assume the input already has the probabilityDynamic descriptor
     // can be added in yaml config with the AddDescriptorDataPointsFilter
     if(! input.descriptorExists("probabilityDynamic"))
-        throw PM::DataPoints::InvalidField("Missing field 'probabilityDynamic' in input point cloud");
+    {
+        throw PM::DataPoints::InvalidField("Missing field 'probabilityDynamic' in input point cloud. You can add it with the AddDescriptorDataPointsFilter in your input filters.");
+    }
+
+    if(! map.descriptorExists("normals"))
+    {
+        throw PM::DataPoints::InvalidField("Missing field 'normals' in map point cloud. You can add it with the SurfaceNormalDataPointsFilter in your post filters.");
+    }
+
     typedef Nabo::NearestNeighbourSearch<float> NNS;
 	const float eps = 0.0001;
 
