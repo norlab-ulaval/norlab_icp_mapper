@@ -12,7 +12,6 @@ class DynamicPointsMapperModule : public MapperModule {
 	typedef PM::Parametrizable P;
     typedef typename PM::DataPoints DataPoints;
 
-    const float priorDynamic;
     const float thresholdDynamic;
     const float alpha;
     const float beta;
@@ -34,7 +33,6 @@ public:
     inline static const PM::ParametersDoc availableParameters()
     {
         return {
-                {"priorDynamic", "A priori probability of points being dynamic.", "0.6", "0.0", "1.0", P::Comp<float>},
                 {"thresholdDynamic", "Probability at which a point is considered permanently dynamic.", "0.6", "0.0", "1.0", P::Comp<float>},
                 {"alpha", "Probability of staying static given that the point was static.", "0.8", "0.0", "1.0", P::Comp<float>},
                 {"beta", "Probability of staying dynamic given that the point was dynamic.", "0.99", "0.0", "1.0", P::Comp<float>},
