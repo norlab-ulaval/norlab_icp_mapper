@@ -18,18 +18,18 @@ input:
       removeInside: 1
 
   - AddDescriptorDataPointsFilter:
-      descriptorName: omega
+      descriptorName: probabilityDynamic
       descriptorDimension: 1
-      descriptorValues: [1]
-
-  - AddDescriptorDataPointsFilter:
-      descriptorName: deviation
-      descriptorDimension: 9
-      descriptorValues: [0.0009, 0, 0, 0, 0.0009, 0, 0, 0, 0.0009]
+      descriptorValues: [0.6] # This value is the initial probability of each point being dynamic
 
 post:
-#  - SurfaceNormalDataPointsFilter:
-#      knn: 15
+    - SurfaceNormalDataPointsFilter:
+        knn: 10
+
+    - CutAtDescriptorThresholdDataPointsFilter:
+        descName: probabilityDynamic
+        useLargerThan: 1
+        threshold: 0.65
 
 mapper:
   updateCondition:
@@ -54,35 +54,5 @@ mapper:
   sensorMaxRange: 200
 
 icp:
-  matcher:
-    KDTreeMatcher:
-      knn: 6
-      maxDist: 2.0
-      epsilon: 1
-
-
-  outlierFilters:
-    - TrimmedDistOutlierFilter:
-        ratio: 0.7
-
-
   errorMinimizer:
     IdentityErrorMinimizer:
-
-
-  transformationCheckers:
-    - DifferentialTransformationChecker:
-        minDiffRotErr: 0.001
-        minDiffTransErr: 0.01
-        smoothLength: 2
-    - CounterTransformationChecker:
-        maxIterationCount: 1
-    - BoundTransformationChecker:
-        maxRotationNorm: 10.0
-        maxTranslationNorm: 10.0
-
-  inspector:
-    NullInspector
-
-  logger:
-    NullLogger

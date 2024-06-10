@@ -127,14 +127,8 @@ To limit computation time for this filter, map points located further than `sens
 - **Sensor assumed to be at the origin:** no  
 - **Impact on the number of points:** none
 
-The probabilityDynamic descriptor should be added to the input point cloud like this:
-```yaml
-input:
-  - AddDescriptorDataPointsFilter:
-      descriptorName: probabilityDynamic 
-      descriptorDimension: 1
-      descriptorValues: [0.6] # This value is the initial probability of each point being dynamic
-```
+The required `probabilityDynamic` descriptor needs to be explicitly added to the input point cloud.
+We will do this step in the [Input filters section](#configuring-the-input-filters).
 
 | Parameter        | Description                                                        | Default value | Allowable range |
 |------------------|:-------------------------------------------------------------------|:--------------|:----------------|
@@ -150,7 +144,7 @@ input:
 
     Check the [developer's guide](MapperModuleDev.md) to start writing your own Mapper Module.
 
-### Configuring the Input filters
+### Configuring the Input filters 
 The input filters dictate what filters are applied to the scan point cloud before being processed.
 For example, to randomly remove 70 % of the input points, use this code to your yaml configuration:
 ```yaml
@@ -159,6 +153,15 @@ input:
       prob: 0.3
       randomSamplingMethod: 1
       seed: 0
+```
+
+We will also need to add the `probabilityDynamic` descriptor that is required for the DynamicPointsMapperModule:
+```yaml
+input:
+  - AddDescriptorDataPointsFilter:
+      descriptorName: probabilityDynamic 
+      descriptorDimension: 1
+      descriptorValues: [0.6] # This value is the initial probability of each point being dynamic
 ```
 
 The list of filters can contain any DataPointsFilter accepted by `libpointmatcher`.
