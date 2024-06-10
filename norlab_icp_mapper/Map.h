@@ -91,7 +91,7 @@ namespace norlab_icp_mapper
 
         bool computesDynamicPoints() {
             return std::any_of(mapperModuleVec.begin(), mapperModuleVec.end(), [](const auto &module) {
-                return module->className == "ComputeDynamicsMapperModule";
+                return module->className == "DynamicPointsMapperModule";
             });
         }
 

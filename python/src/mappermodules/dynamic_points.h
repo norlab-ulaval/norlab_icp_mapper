@@ -7,7 +7,7 @@ namespace python
 {
     namespace mappermodules
     {
-        void pybindComputeDynamics(py::module& p_module);
+        void pybindDynamicPoints(py::module& p_module);
     }
 }
 

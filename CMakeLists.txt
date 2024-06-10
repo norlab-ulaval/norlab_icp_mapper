@@ -38,7 +38,7 @@ add_library(norlab_icp_mapper
 
 #       MapperModules
         norlab_icp_mapper/MapperModules/PointDistanceMapperModule.cpp
-        norlab_icp_mapper/MapperModules/ComputeDynamicsMapperModule.cpp
+        norlab_icp_mapper/MapperModules/DynamicPointsMapperModule.cpp
         norlab_icp_mapper/MapperModules/OctreeMapperModule.cpp
         norlab_icp_mapper/MapperModules/MapperModule.cpp
         )
@@ -71,7 +71,7 @@ install(FILES norlab_icp_mapper/Mapper.h
 # Install Mapper Modules
 install(FILES
         norlab_icp_mapper/MapperModules/MapperModule.h
-        norlab_icp_mapper/MapperModules/ComputeDynamicsMapperModule.h
+        norlab_icp_mapper/MapperModules/DynamicPointsMapperModule.h
         norlab_icp_mapper/MapperModules/OctreeMapperModule.h
         norlab_icp_mapper/MapperModules/PointDistanceMapperModule.h
         DESTINATION ${INSTALL_INCLUDE_DIR}/norlab_icp_mapper/MapperModules/)

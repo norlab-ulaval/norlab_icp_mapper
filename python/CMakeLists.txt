@@ -12,7 +12,7 @@ set(PYBIND11_SOURCES
 
         #mapper modules module
         src/mappermodules/mapper_module.cpp
-        src/mappermodules/compute_dynamics.cpp
+        src/mappermodules/dynamic_points.cpp
         src/mappermodules/octree.cpp
         src/mappermodules/point_distance.cpp
 )

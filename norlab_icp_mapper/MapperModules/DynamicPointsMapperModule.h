@@ -1,12 +1,12 @@
-#ifndef NORLAB_ICP_MAPPER_COMPUTEDYNAMICSMAPPERMODULE_H
-#define NORLAB_ICP_MAPPER_COMPUTEDYNAMICSMAPPERMODULE_H
+#ifndef NORLAB_ICP_MAPPER_DYNAMICPOINTSMAPPERMODULE_H
+#define NORLAB_ICP_MAPPER_DYNAMICPOINTSMAPPERMODULE_H
 
 #include "MapperModule.h"
 
 /**
  * Implements Dynamic points removal from Pomerleau 2014
  */
-class ComputeDynamicsMapperModule : public MapperModule {
+class DynamicPointsMapperModule : public MapperModule {
 
     typedef PointMatcher<float> PM;
 	typedef PM::Parametrizable P;
@@ -45,8 +45,8 @@ public:
         };
     }
 
-    explicit ComputeDynamicsMapperModule(const PM::Parameters& params = PM::Parameters());
-    ~ComputeDynamicsMapperModule() override = default;
+    explicit DynamicPointsMapperModule(const PM::Parameters& params = PM::Parameters());
+    ~DynamicPointsMapperModule() override = default;
 
     PM::DataPoints createMap(const PM::DataPoints& input, const PM::TransformationParameters& pose) override;
     void inPlaceCreateMap(PM::DataPoints& input, const PM::TransformationParameters& pose) override;
@@ -60,4 +60,4 @@ public:
 };
 
 
-#endif //NORLAB_ICP_MAPPER_COMPUTEDYNAMICSMAPPERMODULE_H
+#endif //NORLAB_ICP_MAPPER_DYNAMICPOINTSMAPPERMODULE_H

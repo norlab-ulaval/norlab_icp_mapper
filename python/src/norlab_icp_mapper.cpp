@@ -5,7 +5,7 @@
 #include "mapper.h"
 #include "trajectory.h"
 #include "mappermodules/mapper_module.h"
-#include "mappermodules/compute_dynamics.h"
+#include "mappermodules/dynamic_points.h"
 #include "mappermodules/octree.h"
 #include "mappermodules/point_distance.h"
 
@@ -24,7 +24,7 @@ PYBIND11_MODULE(_core, module)
 
     py::module mapperModulesModule = module.def_submodule("mappermodules");
     python::mappermodules::pybindMapperModule(mapperModulesModule);
-    python::mappermodules::pybindComputeDynamics(mapperModulesModule);
+    python::mappermodules::pybindDynamicPoints(mapperModulesModule);
     python::mappermodules::pybindOctree(mapperModulesModule);
     python::mappermodules::pybindPointDistance(mapperModulesModule);
 }

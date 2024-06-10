@@ -1,8 +1,8 @@
 #include <nabo/nabo.h>
-#include "ComputeDynamicsMapperModule.h"
+#include "DynamicPointsMapperModule.h"
 
-ComputeDynamicsMapperModule::ComputeDynamicsMapperModule(const PM::Parameters& params):
-	MapperModule("ComputeDynamicsMapperModule",ComputeDynamicsMapperModule::availableParameters(), params),
+DynamicPointsMapperModule::DynamicPointsMapperModule(const PM::Parameters& params):
+	MapperModule("DynamicPointsMapperModule", DynamicPointsMapperModule::availableParameters(), params),
 	    priorDynamic(PM::Parametrizable::get<float>("priorDynamic")),
 	    thresholdDynamic(PM::Parametrizable::get<float>("thresholdDynamic")),
 	    alpha(PM::Parametrizable::get<float>("alpha")),
@@ -14,25 +14,25 @@ ComputeDynamicsMapperModule::ComputeDynamicsMapperModule(const PM::Parameters& p
 		transformation(PM::get().TransformationRegistrar.create("RigidTransformation"))
     {}
 
-PointMatcher<float>::DataPoints ComputeDynamicsMapperModule::createMap(const PM::DataPoints& input, const PM::TransformationParameters& pose)
+PointMatcher<float>::DataPoints DynamicPointsMapperModule::createMap(const PM::DataPoints& input, const PM::TransformationParameters& pose)
 {
     DataPoints outputMap(input);
     inPlaceCreateMap(outputMap, pose);
     return outputMap;
 }
 
-void ComputeDynamicsMapperModule::inPlaceCreateMap(PM::DataPoints& input, const PM::TransformationParameters& pose)
+void DynamicPointsMapperModule::inPlaceCreateMap(PM::DataPoints& input, const PM::TransformationParameters& pose)
 {
 }
 
-PointMatcher<float>::DataPoints ComputeDynamicsMapperModule::updateMap(const PM::DataPoints& input, const PM::DataPoints& map, const PM::TransformationParameters& pose)
+PointMatcher<float>::DataPoints DynamicPointsMapperModule::updateMap(const PM::DataPoints& input, const PM::DataPoints& map, const PM::TransformationParameters& pose)
 {
     DataPoints outputMap(map);
     inPlaceUpdateMap(input, outputMap, pose);
     return outputMap;
 }
 
-void ComputeDynamicsMapperModule::inPlaceUpdateMap(const PM::DataPoints& input, PM::DataPoints& map, const PM::TransformationParameters& pose)
+void DynamicPointsMapperModule::inPlaceUpdateMap(const PM::DataPoints& input, PM::DataPoints& map, const PM::TransformationParameters& pose)
 {
     // assume the input already has the probabilityDynamic descriptor
     // can be added in yaml config with the AddDescriptorDataPointsFilter
@@ -146,7 +146,7 @@ void ComputeDynamicsMapperModule::inPlaceUpdateMap(const PM::DataPoints& input, 
 
 
 
-void ComputeDynamicsMapperModule::convertToSphericalCoordinates(const PM::DataPoints& points, PM::Matrix& radii, PM::Matrix& angles) const
+void DynamicPointsMapperModule::convertToSphericalCoordinates(const PM::DataPoints& points, PM::Matrix& radii, PM::Matrix& angles) const
 {
     bool is3D = points.features.rows() - 1 == 3;
 	radii = points.features.topRows(points.getEuclideanDim()).colwise().norm();

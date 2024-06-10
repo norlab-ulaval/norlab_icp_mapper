@@ -31,7 +31,7 @@ mapper:
   sensorMaxRange: 200
 
   mapperModule:
-    - ComputeDynamicsMapperModule:
+    - DynamicPointsMapperModule:
         thresholdDynamic: 0.65
         alpha: 0.2
         beta: 0.99
@@ -112,7 +112,7 @@ The filter use the efficent spatial representation of the pointcloud by the octr
 Since the library just provides a wrapper for `libpointmatcher`, check [its docs](https://libpointmatcher.readthedocs.io/en/latest/DataFilters/#octree-grid-filter) for more details.
 
 #### Dynamic points management
-_ComputeDynamics_
+_DynamicPoints_
 
 Computes a per-point value defining the probability that the points are dynamic, originating from, e.g., walking pedestrians, or falling snow.
 The dynamic filter allows longer operations as dynamic points are not accumulating in the map.
@@ -187,7 +187,7 @@ A good example of a filter that is typically calculated post-merge are the `Surf
 The `SurfaceNormalDataPointsFilter` calculates a surface normal for every point in the map.
 Since the normals can change after updating the map with a new scan, doing this operation post-merge makes a good sense.
 The `CutAtDescriptorThresholdDataPointsFilter` removes all points that contain a descriptor value higher that the set threshold.
-Here we use it to remove dynamic points that were previously calculated with the `ComputeDynamicsMapperModule`. 
+Here we use it to remove dynamic points that were previously calculated with the `DynamicPointsMapperModule`. 
 ```yaml
 post:
     - SurfaceNormalDataPointsFilter:

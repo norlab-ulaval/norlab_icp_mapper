@@ -196,7 +196,7 @@ Open the file `mapper.config` and add the following lines in the `post` section:
 
 Then change the following MapperModule in the `mapperModule` portion of the `mapper` section:
 ```yaml
-    ComputeDynamicsMapperModule:
+    DynamicPointsMapperModule:
       thresholdDynamic: 0.65
       alpha: 0.2
       beta: 0.99
