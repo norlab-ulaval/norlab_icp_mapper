@@ -26,61 +26,61 @@ std::vector<std::pair<Eigen::Affine3d, unsigned long>> getStampedTransformations
     std::string header;
     std::getline(file, header);
 
-    std::istringstream header_stream(header);
-    std::vector<std::string> column_names;
-    std::string column_name;
+    std::istringstream headerStream(header);
+    std::vector<std::string> columnNames;
+    std::string columnName;
 
-    while(std::getline(header_stream, column_name, ','))
+    while(std::getline(headerStream, columnName, ','))
     {
-        column_names.push_back(column_name);
+        columnNames.push_back(columnName);
     }
 
     // Find the indices of required columns
-    int x_index = -1, y_index = -1, z_index = -1, qx_index = -1, qy_index = -1, qz_index = -1, qw_index = -1, sec_index = -1, nsec_index = -1;
+    int xIndex = -1, yIndex = -1, zIndex = -1, qxIndex = -1, qyIndex = -1, qzIndex = -1, qwIndex = -1, secIndex = -1, nsecIndex = -1;
 
-    for(int i = 0; i < column_names.size(); ++i)
+    for(int i = 0; i < columnNames.size(); ++i)
     {
-        if(column_names[i] == "pose.pose.position.x")
+        if(columnNames[i] == "pose.pose.position.x")
         {
-            x_index = i;
+            xIndex = i;
         }
-        else if(column_names[i] == "pose.pose.position.y")
+        else if(columnNames[i] == "pose.pose.position.y")
         {
-            y_index = i;
+            yIndex = i;
         }
-        else if(column_names[i] == "pose.pose.position.z")
+        else if(columnNames[i] == "pose.pose.position.z")
         {
-            z_index = i;
+            zIndex = i;
         }
-        else if(column_names[i] == "pose.pose.orientation.x")
+        else if(columnNames[i] == "pose.pose.orientation.x")
         {
-            qx_index = i;
+            qxIndex = i;
         }
-        else if(column_names[i] == "pose.pose.orientation.y")
+        else if(columnNames[i] == "pose.pose.orientation.y")
         {
-            qy_index = i;
+            qyIndex = i;
         }
-        else if(column_names[i] == "pose.pose.orientation.z")
+        else if(columnNames[i] == "pose.pose.orientation.z")
         {
-            qz_index = i;
+            qzIndex = i;
         }
-        else if(column_names[i] == "pose.pose.orientation.w")
+        else if(columnNames[i] == "pose.pose.orientation.w")
         {
-            qw_index = i;
+            qwIndex = i;
         }
-        else if(column_names[i] == "header.stamp.sec")
+        else if(columnNames[i] == "header.stamp.sec")
         {
-            sec_index = i;
+            secIndex = i;
         }
-        else if(column_names[i] == "header.stamp.nanosec")
+        else if(columnNames[i] == "header.stamp.nanosec")
         {
-            nsec_index = i;
+            nsecIndex = i;
         }
     }
 
     // Check if all required columns are found
-    if(x_index == -1 || y_index == -1 || z_index == -1 || qx_index == -1 || qy_index == -1 || qz_index == -1 ||
-       qw_index == -1 || sec_index == -1 || nsec_index == -1)
+    if(xIndex == -1 || yIndex == -1 || zIndex == -1 || qxIndex == -1 || qyIndex == -1 || qzIndex == -1 ||
+       qwIndex == -1 || secIndex == -1 || nsecIndex == -1)
     {
         throw std::runtime_error("Error: Required columns not found in the header.");
     }
@@ -91,7 +91,7 @@ std::vector<std::pair<Eigen::Affine3d, unsigned long>> getStampedTransformations
     using Affine3d = Eigen::Affine3d;
 
     // Containers to store data
-    std::vector<std::pair<Affine3d, unsigned long>> stamped_transformations;
+    std::vector<std::pair<Affine3d, unsigned long>> stampedTransformations;
 
     // Read the file line by line
     std::string line;
@@ -104,61 +104,61 @@ std::vector<std::pair<Eigen::Affine3d, unsigned long>> getStampedTransformations
         Quaterniond quaternion;
         unsigned long timestamp = 0;
         // Extract the required columns
-        for(int i = 0; i < column_names.size(); ++i)
+        for(int i = 0; i < columnNames.size(); ++i)
         {
             std::getline(linestream, token, ',');
             std::stringstream ss;
             ss << token;
-            if(i == x_index || i == y_index || i == z_index)
+            if(i == xIndex || i == yIndex || i == zIndex)
             {
                 // Extract position (x, y, z)
                 double value;
                 ss >> value;
-                if(i == x_index)
+                if(i == xIndex)
                 {
                     position.x() = value;
                 }
-                else if(i == y_index)
+                else if(i == yIndex)
                 {
                     position.y() = value;
                 }
-                else if(i == z_index)
+                else if(i == zIndex)
                 {
                     position.z() = value;
                 }
             }
-            else if(i == qx_index || i == qy_index || i == qz_index || i == qw_index)
+            else if(i == qxIndex || i == qyIndex || i == qzIndex || i == qwIndex)
             {
                 // Extract quaternion (x, y, z, w)
                 double value;
                 ss >> value;
-                if(i == qx_index)
+                if(i == qxIndex)
                 {
                     quaternion.x() = value;
                 }
-                else if(i == qy_index)
+                else if(i == qyIndex)
                 {
                     quaternion.y() = value;
                 }
-                else if(i == qz_index)
+                else if(i == qzIndex)
                 {
                     quaternion.z() = value;
                 }
-                else if(i == qw_index)
+                else if(i == qwIndex)
                 {
                     quaternion.w() = value;
                 }
             }
-            else if(i == sec_index || i == nsec_index)
+            else if(i == secIndex || i == nsecIndex)
             {
                 // Extract timestamp (sec, nsec)
                 unsigned long value;
                 ss >> value;
-                if(i == sec_index)
+                if(i == secIndex)
                 {
                     timestamp += value * static_cast<unsigned long>(1e9);
                 }
-                else if(i == nsec_index)
+                else if(i == nsecIndex)
                 {
                     timestamp += value;
                 }
@@ -167,30 +167,30 @@ std::vector<std::pair<Eigen::Affine3d, unsigned long>> getStampedTransformations
         Affine3d transform;
         transform.translation() = position;
         transform.linear() = quaternion.toRotationMatrix();
-        stamped_transformations.emplace_back(transform, timestamp);
+        stampedTransformations.emplace_back(transform, timestamp);
     }
-    return stamped_transformations;
+    return stampedTransformations;
 }
 
-std::vector<std::string> getScansPaths(const std::string& directory_path)
+std::vector<std::string> getScansPaths(const std::string& directoryPath)
 {
 
     // Vector to store file paths
-    std::vector<std::string> vtk_files;
+    std::vector<std::string> vtkFiles;
 
     // Iterate over the files in the directory
-    for(const auto& entry: fs::directory_iterator(directory_path))
+    for(const auto& entry: fs::directory_iterator(directoryPath))
     {
         // Check if the file has a .vtk extension
         if(entry.path().extension() == ".vtk")
         {
-            vtk_files.push_back(entry.path().string());
+            vtkFiles.push_back(entry.path().string());
         }
     }
 
-    std::sort(vtk_files.begin(), vtk_files.end());
+    std::sort(vtkFiles.begin(), vtkFiles.end());
 
-    return vtk_files;
+    return vtkFiles;
 }
 
 int main(int argc, char* argv[])
@@ -209,9 +209,9 @@ int main(int argc, char* argv[])
     fs::path dataPath = argv[1];
     fs::path configYaml = argv[2];
     auto stampedTransformations = getStampedTransformations(dataPath / "trajectory.csv");
-    auto vtk_files_paths = getScansPaths(dataPath / "scans/");
+    auto vtkFilesPaths = getScansPaths(dataPath / "scans/");
 
-    assert(stampedTransformations.size() == vtk_files_paths.size());
+    assert(stampedTransformations.size() == vtkFilesPaths.size());
 
     using namespace norlab_icp_mapper;
 
@@ -224,15 +224,15 @@ int main(int argc, char* argv[])
         auto timestamp = std::chrono::time_point<std::chrono::steady_clock>(
                 std::chrono::nanoseconds(stampedTransformations[i].second));
         PM::TransformationParameters transformationParameters(stampedTransformations[i].first.matrix().cast<float>());
-        std::string inputPath = vtk_files_paths[i];
+        std::string inputPath = vtkFilesPaths[i];
         DP inputCloud(DP::load(inputPath));
 
         mapper->processInput(inputCloud, transformationParameters, timestamp);
     }
 
-    fs::path output_path = dataPath / "map.vtk";
-    mapper->getMap().save(output_path);
-    std::cout << "Output saved to " << output_path << std::endl;
+    fs::path outputPath = dataPath / "map.vtk";
+    mapper->getMap().save(outputPath);
+    std::cout << "Output saved to " << outputPath << std::endl;
 
     return 0;
 }
