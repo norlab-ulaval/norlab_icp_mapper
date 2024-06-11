@@ -4,7 +4,7 @@
 
 typedef PointMatcher<float> PM;
 
-PM::DataPoints deskew(const PM::DataPoints& skewedCloud, const std::chrono::time_point<std::chrono::steady_clock>& cloudStamp,
+inline PM::DataPoints deskew(const PM::DataPoints& skewedCloud, const std::chrono::time_point<std::chrono::steady_clock>& cloudStamp,
                       const std::vector<StampedState>& trajectory)
 {
     PM::DataPoints::ConstView pointStamps = skewedCloud.getDescriptorViewByName("t");
@@ -37,7 +37,7 @@ PM::DataPoints deskew(const PM::DataPoints& skewedCloud, const std::chrono::time
     return deskewedCloud;
 }
 
-std::vector<StampedState> applyTransformationToStates(const Eigen::Matrix<float, 4, 4>& transformation, const std::vector<StampedState>& states)
+inline std::vector<StampedState> applyTransformationToStates(const Eigen::Matrix<float, 4, 4>& transformation, const std::vector<StampedState>& states)
 {
     std::vector<StampedState> transformedStates;
     for(unsigned int i = 0; i < states.size(); ++i)
