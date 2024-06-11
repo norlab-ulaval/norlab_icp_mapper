@@ -9,6 +9,7 @@
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/nonlinear/LevenbergMarquardtParams.h>
 #include <gtsam/navigation/ImuBias.h>
+#include <gtsam/geometry/Pose3.h>
 
 class FactorGraph
 {
@@ -17,7 +18,8 @@ public:
                 const std::chrono::time_point<std::chrono::steady_clock>& initialTimeStamp, const std::chrono::time_point<std::chrono::steady_clock>& finalTimeStamp,
                 const std::vector<ImuMeasurement>& imuMeasurements, const Eigen::Matrix<float, 4, 4>& imuToLidar);
     std::vector<StampedState> getPredictedStates() const;
-    std::vector<StampedState> optimize(const Eigen::Matrix<float, 4, 4>& registrationTransformation) const;
+    std::vector<StampedState> optimize(const Eigen::Matrix<float, 4, 4>& registrationTransformation, const int& iterationCounter) const;
+    void save(const gtsam::Values& values, const Eigen::Matrix<float, 4, 4>& registrationTransformation, const std::string& fileName) const;
 
 private:
     const gtsam::SharedDiagonal INITIAL_POSE_PRIOR_NOISE = gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector::Ones(6) * 1e-12);
@@ -28,7 +30,8 @@ private:
     const gtsam::Matrix INTEGRATION_COVARIANCE = gtsam::Matrix::Identity(3, 3) * 1e-14;
     const gtsam::SharedDiagonal REGISTRATION_NOISE = gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector::Ones(6) * 1e-12);
 
-    Eigen::Matrix<float, 4, 4> estimatedFinalLidarPose;
+    Eigen::Matrix<double, 4, 4> initialImuPose;
+    Eigen::Matrix<double, 4, 4> estimatedFinalImuPose;
     std::vector<ImuMeasurement> imuMeasurements;
     Eigen::Matrix<float, 4, 4> imuToLidar;
     unsigned int nbPoses;

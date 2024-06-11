@@ -68,11 +68,12 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
     PM::DataPoints filteredInputInSensorFrame = radiusFilter->filter(inputInSensorFrame);
     inputFilters.apply(filteredInputInSensorFrame);
 
-    FactorGraph factorGraph(poseAtStartOfScan, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar);
-    std::vector<StampedState> optimizedStates = factorGraph.getPredictedStates();
-
+    std::vector<StampedState> optimizedStates;
     if(map.isLocalPointCloudEmpty())
     {
+        FactorGraph factorGraph(poseAtStartOfScan, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar);
+        optimizedStates = factorGraph.getPredictedStates();
+
         map.updatePose(poseAtStartOfScan);
 
         updateMap(deskew(filteredInputInSensorFrame, timeStampAtStartOfScan, optimizedStates), poseAtStartOfScan, timeStampAtStartOfScan);
@@ -80,7 +81,23 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
     else
     {
         icpMapLock.lock();
-        PM::DataPoints reference = map.getIcpMap();
+        PM::DataPoints reference(map.getIcpMap());
+        const PM::Vector meanRef = reference.features.rowwise().sum() / reference.features.cols();
+        PM::TransformationParameters T_refIn_refMean = PM::Matrix::Identity(4, 4);
+        T_refIn_refMean.block(0, 3, 3, 1) = meanRef.head(3);
+        reference.features.topRows(3).colwise() -= meanRef.head(3);
+        std::shared_ptr<PM::Matcher> matcher = PM::get().MatcherRegistrar.create(icp.matcher->className, icp.matcher->parameters);
+        matcher->init(reference);
+
+        PM::TransformationParameters poseAtStartOfScan_refMean = T_refIn_refMean.inverse() * poseAtStartOfScan; // deskewing ICP
+        FactorGraph factorGraph(poseAtStartOfScan_refMean, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar); // deskewing ICP
+        std::vector<StampedState> optimizedStates_refMean = factorGraph.getPredictedStates(); // deskewing ICP
+//        PM::TransformationParameters T_refMean_dataIn = T_refIn_refMean.inverse() * poseAtStartOfScan; // normal ICP
+
+        PM::DataPoints reading(filteredInputInSensorFrame);
+        icp.readingDataPointsFilters.init();
+        icp.readingDataPointsFilters.apply(reading);
+
         icp.readingStepDataPointsFilters.init();
         PM::TransformationParameters T_iter = PM::Matrix::Identity(4, 4);
         bool iterate(true);
@@ -88,15 +105,16 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
         size_t iterationCount(0);
         while(iterate)
         {
-            PM::DataPoints stepReading(deskew(filteredInputInSensorFrame, timeStampAtStartOfScan, optimizedStates));
-            icp.readingDataPointsFilters.init();
-            icp.readingDataPointsFilters.apply(stepReading);
+            PM::DataPoints stepReading(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean)); // deskewing ICP
+//            PM::DataPoints stepReading(reading); // normal ICP
+//            icp.transformations.apply(stepReading, T_refMean_dataIn); // normal ICP
             icp.readingStepDataPointsFilters.apply(stepReading);
-            const PM::Matches matches(icp.matcher->findClosests(stepReading));
+//            icp.transformations.apply(stepReading, T_iter); // normal ICP
+            const PM::Matches matches(matcher->findClosests(stepReading));
             const PM::OutlierWeights outlierWeights(icp.outlierFilters.compute(stepReading, reference, matches));
             icp.inspector->dumpIteration(iterationCount, T_iter, reference, stepReading, matches, outlierWeights, icp.transformationCheckers);
             T_iter = icp.errorMinimizer->compute(stepReading, reference, outlierWeights, matches) * T_iter;
-            optimizedStates = factorGraph.optimize(T_iter);
+            optimizedStates_refMean = factorGraph.optimize(T_iter, iterationCount); // deskewing ICP
             try
             {
                 icp.transformationCheckers.check(T_iter, iterate);
@@ -108,6 +126,8 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
             ++iterationCount;
         }
         icpMapLock.unlock();
+
+        optimizedStates = applyTransformationToStates(T_refIn_refMean, optimizedStates_refMean);
 
         map.updatePose(poseAtStartOfScan);
 

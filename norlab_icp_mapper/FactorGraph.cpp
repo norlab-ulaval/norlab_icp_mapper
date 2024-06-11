@@ -10,7 +10,7 @@ FactorGraph::FactorGraph(const Eigen::Matrix<float, 4, 4>& initialLidarPose, con
                          const std::vector<ImuMeasurement>& imuMeasurements, const Eigen::Matrix<float, 4, 4>& imuToLidar):
         imuMeasurements(imuMeasurements), imuToLidar(imuToLidar)
 {
-    Eigen::Matrix<double, 4, 4> initialImuPose = (initialLidarPose * imuToLidar).cast<double>();
+    initialImuPose = (initialLidarPose * imuToLidar).cast<double>();
     Eigen::Matrix<float, 3, 1> initialAngularVelocity = (initialLidarPose * imuToLidar).topLeftCorner<3, 3>() * imuMeasurements[0].angularVelocity;
     Eigen::Matrix<float, 3, 1> initialImuLeverArm = (initialLidarPose * imuToLidar).topRightCorner<3, 1>() - initialLidarPose.topRightCorner<3, 1>();
     Eigen::Matrix<double, 3, 1> initialImuLinearVelocity = (initialLidarLinearVelocity + initialAngularVelocity.cross(initialImuLeverArm)).cast<double>();
@@ -59,7 +59,7 @@ FactorGraph::FactorGraph(const Eigen::Matrix<float, 4, 4>& initialLidarPose, con
 
         if(i == nbPoses - 1)
         {
-            estimatedFinalLidarPose = predictedState.pose().matrix().cast<float>() * imuToLidar.inverse();
+            estimatedFinalImuPose = predictedState.pose().matrix();
         }
     }
 }
@@ -88,16 +88,21 @@ std::vector<StampedState> FactorGraph::getPredictedStates() const
     return predictedStates;
 }
 
-std::vector<StampedState> FactorGraph::optimize(const Eigen::Matrix<float, 4, 4>& registrationTransformation) const
+std::vector<StampedState> FactorGraph::optimize(const Eigen::Matrix<float, 4, 4>& registrationTransformation, const int& iterationCounter) const
 {
-    Eigen::Matrix<float, 4, 4> finalLidarPose = registrationTransformation * estimatedFinalLidarPose; // not 100% sure
-    gtsam::Pose3 finalImuPose((finalLidarPose * imuToLidar).cast<double>());
+    Eigen::Matrix<double, 4, 4> finalImuPose = registrationTransformation.cast<double>() * estimatedFinalImuPose;
+    gtsam::Pose3 registrationConstraint(initialImuPose.inverse() * finalImuPose);
 
     gtsam::NonlinearFactorGraph graphCopy(graph);
-    graphCopy.add(gtsam::BetweenFactor<gtsam::Pose3>(1, nbPoses, finalImuPose, REGISTRATION_NOISE));
+    graphCopy.add(gtsam::BetweenFactor<gtsam::Pose3>(1, nbPoses, registrationConstraint, REGISTRATION_NOISE));
+
+//    save(initialEstimate, registrationTransformation, "/home/sp/Desktop/debug/initial_estimate_" + std::to_string(iterationCounter) + ".csv");
 
     gtsam::LevenbergMarquardtOptimizer optimizer(graphCopy, initialEstimate, optimizerParams);
     gtsam::Values result = optimizer.optimize();
+
+//    save(result, registrationTransformation, "/home/sp/Desktop/debug/optimization_result_" + std::to_string(iterationCounter) + ".csv");
+
     if(result.equals(initialEstimate, 1e-6))
     {
         throw std::runtime_error("The factor graph optimization did not converge!");
@@ -123,4 +128,28 @@ std::vector<StampedState> FactorGraph::optimize(const Eigen::Matrix<float, 4, 4>
         optimizedStates.push_back({poseStamps[i - 1], currentLidarPose, currentLidarLinearVelocity});
     }
     return optimizedStates;
+}
+
+#include <fstream>
+void FactorGraph::save(const gtsam::Values& values, const Eigen::Matrix<float, 4, 4>& registrationTransformation, const std::string& fileName) const
+{
+    Eigen::Matrix<double, 4, 4> finalImuPose = registrationTransformation.cast<double>() * estimatedFinalImuPose;
+
+    std::ofstream outputFile(fileName);
+    outputFile << "t00,t01,t02,t03,t10,t11,t12,t13,t20,t21,t22,t23,t30,t31,t32,t33" << std::endl;
+    outputFile << "# IMU poses" << std::endl;
+    for(unsigned int i = 1; i < nbPoses + 1; ++i)
+    {
+        Eigen::Matrix<float, 4, 4> currentImuPose = values.at<gtsam::Pose3>(i).matrix().cast<float>();
+        outputFile << currentImuPose(0, 0) << "," << currentImuPose(0, 1) << "," << currentImuPose(0, 2) << "," << currentImuPose(0, 3) << "," <<
+                   currentImuPose(1, 0) << "," << currentImuPose(1, 1) << "," << currentImuPose(1, 2) << "," << currentImuPose(1, 3) << "," <<
+                   currentImuPose(2, 0) << "," << currentImuPose(2, 1) << "," << currentImuPose(2, 2) << "," << currentImuPose(2, 3) << "," <<
+                   currentImuPose(3, 0) << "," << currentImuPose(3, 1) << "," << currentImuPose(3, 2) << "," << currentImuPose(3, 3) << std::endl;
+    }
+    outputFile << "# registration constraint" << std::endl;
+    outputFile << finalImuPose(0, 0) << "," << finalImuPose(0, 1) << "," << finalImuPose(0, 2) << "," << finalImuPose(0, 3) << "," <<
+               finalImuPose(1, 0) << "," << finalImuPose(1, 1) << "," << finalImuPose(1, 2) << "," << finalImuPose(1, 3) << "," <<
+               finalImuPose(2, 0) << "," << finalImuPose(2, 1) << "," << finalImuPose(2, 2) << "," << finalImuPose(2, 3) << "," <<
+               finalImuPose(3, 0) << "," << finalImuPose(3, 1) << "," << finalImuPose(3, 2) << "," << finalImuPose(3, 3) << std::endl;
+    outputFile.close();
 }

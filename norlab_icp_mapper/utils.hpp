@@ -36,3 +36,13 @@ PM::DataPoints deskew(const PM::DataPoints& skewedCloud, const std::chrono::time
 
     return deskewedCloud;
 }
+
+std::vector<StampedState> applyTransformationToStates(const Eigen::Matrix<float, 4, 4>& transformation, const std::vector<StampedState>& states)
+{
+    std::vector<StampedState> transformedStates;
+    for(unsigned int i = 0; i < states.size(); ++i)
+    {
+        transformedStates.push_back({states[i].timeStamp, transformation * states[i].pose, transformation.topLeftCorner<3, 3>() * states[i].velocity});
+    }
+    return transformedStates;
+}
