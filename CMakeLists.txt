@@ -1,6 +1,22 @@
 # 3.15 is the minimum version for scikit-build-core
 cmake_minimum_required(VERSION 3.15)
+
+# We need helpers to generate a version config file
+include(CMakePackageConfigHelpers)
+
 project(norlab_icp_mapper)
+
+## Extract version from package.xml
+file(READ "package.xml" PACKAGE_XML_CONTENT)
+string(REGEX MATCH "<version>([^<]+)</version>" VERSION_MATCH ${PACKAGE_XML_CONTENT})
+# Extract the matched version from the captured group
+if(VERSION_MATCH)
+    # CMake variable ${CMAKE_MATCH_1} contains the matched version
+    set(PROJECT_VERSION ${CMAKE_MATCH_1})
+    message(STATUS "Found package version: ${PROJECT_VERSION}")
+else()
+    message(SEND_ERROR "Package version not found in package.xml")
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -14,7 +30,7 @@ set(CMAKE_CXX_FLAGS_RELEASE        "-O4 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -DDEBUG")
 
 message(STATUS "Looking for libpointmatcher on system...")
-find_package(libpointmatcher CONFIG REQUIRED)
+find_package(libpointmatcher CONFIG 1.4.2 REQUIRED)
 set(EXTERNAL_INCLUDE_DIRS ${EXTERNAL_INCLUDE_DIRS} ${libpointmatcher_INCLUDE_DIRS})
 set(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${libpointmatcher_LIBRARIES})
 
@@ -53,6 +69,11 @@ target_link_libraries(norlab_icp_mapper
         ${YAML_CPP_LIBRARIES}
         )
 
+set_target_properties(norlab_icp_mapper PROPERTIES
+        VERSION "${PROJECT_VERSION}"
+        SOVERSION 1
+)
+
 # install target
 set(INSTALL_LIB_DIR lib CACHE PATH "Installation directory for libraries")
 set(INSTALL_INCLUDE_DIR include CACHE PATH "Installation directory for header files")
@@ -79,8 +100,14 @@ install(FILES
 configure_file(norlab_icp_mapperConfig.cmake.in
         "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/norlab_icp_mapperConfig.cmake" @ONLY
         )
+
+# The same versioning file can be used for both cases
+write_basic_package_version_file(norlab_icp_mapperConfigVersion.cmake
+		COMPATIBILITY SameMajorVersion)
+
 install(FILES
         "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/norlab_icp_mapperConfig.cmake"
+	    "${PROJECT_BINARY_DIR}/norlab_icp_mapperConfigVersion.cmake"
         DESTINATION ${DEF_INSTALL_CMAKE_DIR}
         COMPONENT dev
         )
