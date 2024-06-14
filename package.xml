@@ -1,0 +1,26 @@
+<package format="3">
+	<name>norlab_icp_mapper</name>
+	<version>2.0.0</version>
+	<description>
+		norlab_icp_mapper is a library for localization and mapping relying on the "Iterative Closest Point" algorithm.
+	</description>
+	<maintainer email="matej.boxan@gmail.com">Matej Boxan</maintainer>
+	<license>BSD</license>
+	<url type="repository">https://github.com/norlab-ulaval/norlab_icp_mapper</url>
+
+	<buildtool_depend>cmake</buildtool_depend>
+
+	<build_depend>eigen</build_depend>
+	<build_depend>libnabo</build_depend>
+	<build_depend>libpointmatcher</build_depend>
+	<build_depend>yaml-cpp</build_depend>
+
+	<exec_depend>eigen</exec_depend>
+	<exec_depend>libnabo</exec_depend>
+	<exec_depend>libpointmatcher</exec_depend>
+	<exec_depend>yaml-cpp</exec_depend>
+
+	<export>
+		<build_type>cmake</build_type>
+	</export>
+</package>
