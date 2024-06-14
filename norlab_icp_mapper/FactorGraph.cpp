@@ -31,7 +31,7 @@ FactorGraph::FactorGraph(const Eigen::Matrix<float, 4, 4>& initialLidarPose, con
 
     // IMU constraints
     poseStamps.push_back(initialTimeStamp);
-    boost::shared_ptr<gtsam::PreintegrationParams> preintegrationParams = gtsam::PreintegrationParams::MakeSharedU();
+    boost::shared_ptr<gtsam::PreintegrationParams> preintegrationParams = gtsam::PreintegrationParams::MakeSharedU(); // the map frame needs to be aligned with gravity
     preintegrationParams->setGyroscopeCovariance(GYROSCOPE_COVARIANCE);
     preintegrationParams->setAccelerometerCovariance(ACCELEROMETER_COVARIANCE);
     preintegrationParams->setIntegrationCovariance(INTEGRATION_COVARIANCE);
@@ -89,7 +89,7 @@ std::vector<StampedState> FactorGraph::getPredictedStates() const
     return predictedStates;
 }
 
-std::vector<StampedState> FactorGraph::optimize(const Eigen::Matrix<float, 4, 4>& registrationTransformation, const int& iterationCounter) const
+std::vector<StampedState> FactorGraph::optimize(const Eigen::Matrix<float, 4, 4>& registrationTransformation, const int& iterationCounter, const bool& saveGraph) const
 {
 // ====================================================== Deskewing ICP =====================================================================
 //    Eigen::Matrix<double, 4, 4> finalImuPose = registrationTransformation.cast<double>() * estimatedFinalImuPose;
@@ -98,12 +98,18 @@ std::vector<StampedState> FactorGraph::optimize(const Eigen::Matrix<float, 4, 4>
 //    gtsam::NonlinearFactorGraph graphCopy(graph);
 //    graphCopy.add(gtsam::BetweenFactor<gtsam::Pose3>(1, nbPoses, registrationConstraint, REGISTRATION_NOISE));
 //
-////    save(initialEstimate, registrationTransformation, "/home/sp/Desktop/debug/initial_estimate_" + std::to_string(iterationCounter) + ".csv");
+//    if(saveGraph)
+//    {
+//        save(initialEstimate, registrationTransformation, "/home/sp/Desktop/debug/initial_estimate_" + std::to_string(iterationCounter) + ".csv");
+//    }
 //
 //    gtsam::LevenbergMarquardtOptimizer optimizer(graphCopy, initialEstimate, optimizerParams);
 //    gtsam::Values result = optimizer.optimize();
 //
-////    save(result, registrationTransformation, "/home/sp/Desktop/debug/optimization_result_" + std::to_string(iterationCounter) + ".csv");
+//    if(saveGraph)
+//    {
+//        save(result, registrationTransformation, "/home/sp/Desktop/debug/optimization_result_" + std::to_string(iterationCounter) + ".csv");
+//    }
 //
 //    if(result.equals(initialEstimate, 1e-6))
 //    {

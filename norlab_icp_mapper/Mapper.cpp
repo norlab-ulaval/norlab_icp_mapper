@@ -60,11 +60,16 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& inputFiltersCo
     }
 }
 
+int scanCounter = 0;
+int TARGET_SCAN = 55;
+
 void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& poseAtStartOfScan,
                                              const Eigen::Matrix<float, 3, 1>& velocityAtStartOfScan, const std::vector<ImuMeasurement>& imuMeasurements,
                                              const std::chrono::time_point<std::chrono::steady_clock>& timeStampAtStartOfScan,
                                              const std::chrono::time_point<std::chrono::steady_clock>& timeStampAtEndOfScan)
 {
+    ++scanCounter;
+
     PM::DataPoints filteredInputInSensorFrame = radiusFilter->filter(inputInSensorFrame);
     inputFilters.apply(filteredInputInSensorFrame);
 
@@ -73,6 +78,12 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
     {
         FactorGraph factorGraph(poseAtStartOfScan, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar);
         optimizedStates = factorGraph.getPredictedStates();
+
+        std::cout << optimizedStates[optimizedStates.size() - 1].velocity << std::endl;
+        if(scanCounter == TARGET_SCAN)
+        {
+            exit(0);
+        }
 
         map.updatePose(poseAtStartOfScan);
 
@@ -89,10 +100,9 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
         std::shared_ptr<PM::Matcher> matcher = PM::get().MatcherRegistrar.create(icp.matcher->className, icp.matcher->parameters);
         matcher->init(reference);
 
-        PM::TransformationParameters poseAtStartOfScan_refMean = T_refIn_refMean.inverse() * poseAtStartOfScan; // deskewing ICP
-        FactorGraph factorGraph(poseAtStartOfScan_refMean, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar); // deskewing ICP
-        std::vector<StampedState> optimizedStates_refMean = factorGraph.getPredictedStates(); // deskewing ICP
-//        PM::TransformationParameters T_refMean_dataIn = T_refIn_refMean.inverse() * poseAtStartOfScan; // normal ICP
+        PM::TransformationParameters poseAtStartOfScan_refMean = T_refIn_refMean.inverse() * poseAtStartOfScan;
+        FactorGraph factorGraph(poseAtStartOfScan_refMean, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar);
+        std::vector<StampedState> optimizedStates_refMean = factorGraph.getPredictedStates();
 
         PM::DataPoints reading(filteredInputInSensorFrame);
         icp.readingDataPointsFilters.init();
@@ -103,18 +113,30 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
         bool iterate(true);
         icp.transformationCheckers.init(T_iter, iterate);
         size_t iterationCount(0);
-        while(iterate)
+        if(scanCounter == TARGET_SCAN)
         {
-            PM::DataPoints stepReading(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean)); // deskewing ICP
-//            PM::DataPoints stepReading(reading); // normal ICP
-//            icp.transformations.apply(stepReading, T_refMean_dataIn); // normal ICP
-            icp.readingStepDataPointsFilters.apply(stepReading);
-//            icp.transformations.apply(stepReading, T_iter); // normal ICP
+            std::cout << "==== ICP residual ====" << std::endl;
+            PM::DataPoints stepReading(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean));
             const PM::Matches matches(matcher->findClosests(stepReading));
             const PM::OutlierWeights outlierWeights(icp.outlierFilters.compute(stepReading, reference, matches));
-            icp.inspector->dumpIteration(iterationCount, T_iter, reference, stepReading, matches, outlierWeights, icp.transformationCheckers);
+            std::cout << icp.errorMinimizer->getResidualError(stepReading, reference, outlierWeights, matches) << std::endl;
+        }
+        while(iterate)
+        {
+            PM::DataPoints stepReading(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean));
+            icp.readingStepDataPointsFilters.apply(stepReading);
+            const PM::Matches matches(matcher->findClosests(stepReading));
+            const PM::OutlierWeights outlierWeights(icp.outlierFilters.compute(stepReading, reference, matches));
+            if(scanCounter == TARGET_SCAN)
+            {
+                icp.inspector->dumpIteration(iterationCount, T_iter, reference, stepReading, matches, outlierWeights, icp.transformationCheckers);
+            }
             T_iter = icp.errorMinimizer->compute(stepReading, reference, outlierWeights, matches) * T_iter;
-            optimizedStates_refMean = factorGraph.optimize(T_iter, iterationCount); // deskewing ICP
+            optimizedStates_refMean = factorGraph.optimize(T_iter, iterationCount, scanCounter == TARGET_SCAN);
+            if(scanCounter == TARGET_SCAN)
+            {
+                std::cout << icp.errorMinimizer->getResidualError(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean), reference, outlierWeights, matches) << std::endl;
+            }
             try
             {
                 icp.transformationCheckers.check(T_iter, iterate);
@@ -125,9 +147,19 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
             }
             ++iterationCount;
         }
+        if(scanCounter == TARGET_SCAN)
+        {
+            std::cout << "======================" << std::endl;
+        }
         icpMapLock.unlock();
 
         optimizedStates = applyTransformationToStates(T_refIn_refMean, optimizedStates_refMean);
+
+        std::cout << optimizedStates[optimizedStates.size() - 1].velocity << std::endl;
+        if(scanCounter == TARGET_SCAN)
+        {
+            exit(0);
+        }
 
         map.updatePose(poseAtStartOfScan);
 

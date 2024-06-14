@@ -18,7 +18,7 @@ public:
                 const std::chrono::time_point<std::chrono::steady_clock>& initialTimeStamp, const std::chrono::time_point<std::chrono::steady_clock>& finalTimeStamp,
                 const std::vector<ImuMeasurement>& imuMeasurements, const Eigen::Matrix<float, 4, 4>& imuToLidar);
     std::vector<StampedState> getPredictedStates() const;
-    std::vector<StampedState> optimize(const Eigen::Matrix<float, 4, 4>& registrationTransformation, const int& iterationCounter) const;
+    std::vector<StampedState> optimize(const Eigen::Matrix<float, 4, 4>& registrationTransformation, const int& iterationCounter, const bool& saveGraph) const;
     void save(const gtsam::Values& values, const Eigen::Matrix<float, 4, 4>& registrationTransformation, const std::string& fileName) const;
 
 private:
