@@ -3,7 +3,6 @@
 
 DynamicPointsMapperModule::DynamicPointsMapperModule(const PM::Parameters& params):
 	MapperModule("DynamicPointsMapperModule", DynamicPointsMapperModule::availableParameters(), params),
-	    priorDynamic(PM::Parametrizable::get<float>("priorDynamic")),
 	    thresholdDynamic(PM::Parametrizable::get<float>("thresholdDynamic")),
 	    alpha(PM::Parametrizable::get<float>("alpha")),
 	    beta(PM::Parametrizable::get<float>("beta")),
