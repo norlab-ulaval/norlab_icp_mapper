@@ -92,59 +92,59 @@ std::vector<StampedState> FactorGraph::getPredictedStates() const
 std::vector<StampedState> FactorGraph::optimize(const Eigen::Matrix<float, 4, 4>& registrationTransformation, const int& iterationCounter, const bool& saveGraph) const
 {
 // ====================================================== Deskewing ICP =====================================================================
-//    Eigen::Matrix<double, 4, 4> finalImuPose = registrationTransformation.cast<double>() * estimatedFinalImuPose;
-//    gtsam::Pose3 registrationConstraint(initialImuPose.inverse() * finalImuPose);
-//
-//    gtsam::NonlinearFactorGraph graphCopy(graph);
-//    graphCopy.add(gtsam::BetweenFactor<gtsam::Pose3>(1, nbPoses, registrationConstraint, REGISTRATION_NOISE));
-//
-//    if(saveGraph)
-//    {
-//        save(initialEstimate, registrationTransformation, "/home/sp/Desktop/debug/initial_estimate_" + std::to_string(iterationCounter) + ".csv");
-//    }
-//
-//    gtsam::LevenbergMarquardtOptimizer optimizer(graphCopy, initialEstimate, optimizerParams);
-//    gtsam::Values result = optimizer.optimize();
-//
-//    if(saveGraph)
-//    {
-//        save(result, registrationTransformation, "/home/sp/Desktop/debug/optimization_result_" + std::to_string(iterationCounter) + ".csv");
-//    }
-//
-//    if(result.equals(initialEstimate, 1e-6))
-//    {
-//        throw std::runtime_error("The factor graph optimization did not converge!");
-//    }
-//
-//    std::vector<StampedState> optimizedStates;
-//    for(unsigned int i = 1; i < nbPoses + 1; ++i)
-//    {
-//        Eigen::Matrix<float, 4, 4> currentImuPose = result.at<gtsam::Pose3>(i).matrix().cast<float>();
-//        Eigen::Matrix<float, 4, 4> currentLidarPose = currentImuPose * imuToLidar.inverse();
-//        ImuMeasurement currentImuMeasurement;
-//        if(i < nbPoses)
-//        {
-//            currentImuMeasurement = imuMeasurements[i - 1];
-//        }
-//        else
-//        {
-//            currentImuMeasurement = imuMeasurements[imuMeasurements.size() - 1];
-//        }
-//        Eigen::Matrix<float, 3, 1> currentAngularVelocity = currentImuPose.topLeftCorner<3, 3>() * currentImuMeasurement.angularVelocity;
-//        Eigen::Matrix<float, 3, 1> currentLidarLeverArm = currentLidarPose.topRightCorner<3, 1>() - currentImuPose.topRightCorner<3, 1>();
-//        Eigen::Matrix<float, 3, 1> currentLidarLinearVelocity = result.at<gtsam::Vector3>(nbPoses + i).cast<float>() + currentAngularVelocity.cross(currentLidarLeverArm);
-//        optimizedStates.push_back({poseStamps[i - 1], currentLidarPose, currentLidarLinearVelocity});
-//    }
-//    return optimizedStates;
+    Eigen::Matrix<double, 4, 4> finalImuPose = registrationTransformation.cast<double>() * estimatedFinalImuPose;
+    gtsam::Pose3 registrationConstraint(initialImuPose.inverse() * finalImuPose);
+
+    gtsam::NonlinearFactorGraph graphCopy(graph);
+    graphCopy.add(gtsam::BetweenFactor<gtsam::Pose3>(1, nbPoses, registrationConstraint, REGISTRATION_NOISE));
+
+    if(saveGraph)
+    {
+        save(initialEstimate, registrationTransformation, "/home/sp/Desktop/debug/initial_estimate_" + std::to_string(iterationCounter) + ".csv");
+    }
+
+    gtsam::LevenbergMarquardtOptimizer optimizer(graphCopy, initialEstimate, optimizerParams);
+    gtsam::Values result = optimizer.optimize();
+
+    if(saveGraph)
+    {
+        save(result, registrationTransformation, "/home/sp/Desktop/debug/optimization_result_" + std::to_string(iterationCounter) + ".csv");
+    }
+
+    if(result.equals(initialEstimate, 1e-6))
+    {
+        throw std::runtime_error("The factor graph optimization did not converge!");
+    }
+
+    std::vector<StampedState> optimizedStates;
+    for(unsigned int i = 1; i < nbPoses + 1; ++i)
+    {
+        Eigen::Matrix<float, 4, 4> currentImuPose = result.at<gtsam::Pose3>(i).matrix().cast<float>();
+        Eigen::Matrix<float, 4, 4> currentLidarPose = currentImuPose * imuToLidar.inverse();
+        ImuMeasurement currentImuMeasurement;
+        if(i < nbPoses)
+        {
+            currentImuMeasurement = imuMeasurements[i - 1];
+        }
+        else
+        {
+            currentImuMeasurement = imuMeasurements[imuMeasurements.size() - 1];
+        }
+        Eigen::Matrix<float, 3, 1> currentAngularVelocity = currentImuPose.topLeftCorner<3, 3>() * currentImuMeasurement.angularVelocity;
+        Eigen::Matrix<float, 3, 1> currentLidarLeverArm = currentLidarPose.topRightCorner<3, 1>() - currentImuPose.topRightCorner<3, 1>();
+        Eigen::Matrix<float, 3, 1> currentLidarLinearVelocity = result.at<gtsam::Vector3>(nbPoses + i).cast<float>() + currentAngularVelocity.cross(currentLidarLeverArm);
+        optimizedStates.push_back({poseStamps[i - 1], currentLidarPose, currentLidarLinearVelocity});
+    }
+    return optimizedStates;
 // ====================================================== Deskewing ICP =====================================================================
 // ====================================================== Normal ICP =====================================================================
-    std::vector<StampedState> optimizedStates = applyTransformationToStates(registrationTransformation, getPredictedStates());
-    Eigen::Matrix<float, 3, 1> initialLidarPosition = (initialImuPose.cast<float>() * imuToLidar.inverse()).topRightCorner<3, 1>();
-    Eigen::Matrix<float, 3, 1> finalLidarPosition = (registrationTransformation * estimatedFinalImuPose.cast<float>() * imuToLidar.inverse()).topRightCorner<3, 1>();
-    double dt = (optimizedStates[optimizedStates.size() - 1].timeStamp - optimizedStates[0].timeStamp).count() / 1e9;
-    Eigen::Matrix<float, 3, 1> finalLidarVelocity = (finalLidarPosition - initialLidarPosition) / dt;
-    optimizedStates[optimizedStates.size() - 1].velocity = finalLidarVelocity;
-    return optimizedStates;
+//    std::vector<StampedState> optimizedStates = applyTransformationToStates(registrationTransformation, getPredictedStates());
+//    Eigen::Matrix<float, 3, 1> initialLidarPosition = (initialImuPose.cast<float>() * imuToLidar.inverse()).topRightCorner<3, 1>();
+//    Eigen::Matrix<float, 3, 1> finalLidarPosition = (registrationTransformation * estimatedFinalImuPose.cast<float>() * imuToLidar.inverse()).topRightCorner<3, 1>();
+//    double dt = (optimizedStates[optimizedStates.size() - 1].timeStamp - optimizedStates[0].timeStamp).count() / 1e9;
+//    Eigen::Matrix<float, 3, 1> finalLidarVelocity = (finalLidarPosition - initialLidarPosition) / dt;
+//    optimizedStates[optimizedStates.size() - 1].velocity = finalLidarVelocity;
+//    return optimizedStates;
 // ====================================================== Normal ICP =====================================================================
 }
 

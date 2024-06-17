@@ -1,5 +1,4 @@
 #include "Mapper.h"
-#include <fstream>
 #include <chrono>
 #include "FactorGraph.h"
 #include "utils.hpp"
@@ -60,8 +59,34 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& inputFiltersCo
     }
 }
 
+#include <fstream>
+
+const std::string TRAJECTORY_FILE_PATH = "/home/sp/Desktop/deskewing_icp_traj.csv";
+
+void saveFinalStates(const std::vector<StampedState>& states, const bool& resetFile = false)
+{
+    std::ofstream trajectoryFile;
+    if(resetFile)
+    {
+        trajectoryFile = std::ofstream(TRAJECTORY_FILE_PATH);
+        trajectoryFile << "timestamp,t00,t01,t02,t03,t10,t11,t12,t13,t20,t21,t22,t23,t30,t31,t32,t33" << std::endl;
+    }
+    else
+    {
+        trajectoryFile = std::ofstream(TRAJECTORY_FILE_PATH, std::ios::app);
+    }
+    for(const StampedState& state: states)
+    {
+        trajectoryFile << state.timeStamp.time_since_epoch().count() << "," << state.pose(0, 0) << "," << state.pose(0, 1) << "," << state.pose(0, 2) << "," << state.pose(0, 3)
+                       << "," << state.pose(1, 0) << "," << state.pose(1, 1) << "," << state.pose(1, 2) << "," << state.pose(1, 3)
+                       << "," << state.pose(2, 0) << "," << state.pose(2, 1) << "," << state.pose(2, 2) << "," << state.pose(2, 3)
+                       << "," << state.pose(3, 0) << "," << state.pose(3, 1) << "," << state.pose(3, 2) << "," << state.pose(3, 3) << std::endl;
+    }
+    trajectoryFile.close();
+}
+
 int scanCounter = 0;
-int TARGET_SCAN = 55;
+int TARGET_SCAN = -1;
 
 void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& poseAtStartOfScan,
                                              const Eigen::Matrix<float, 3, 1>& velocityAtStartOfScan, const std::vector<ImuMeasurement>& imuMeasurements,
@@ -78,8 +103,8 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
     {
         FactorGraph factorGraph(poseAtStartOfScan, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar);
         optimizedStates = factorGraph.getPredictedStates();
+        saveFinalStates(optimizedStates, true);
 
-        std::cout << optimizedStates[optimizedStates.size() - 1].velocity << std::endl;
         if(scanCounter == TARGET_SCAN)
         {
             exit(0);
@@ -135,7 +160,8 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
             optimizedStates_refMean = factorGraph.optimize(T_iter, iterationCount, scanCounter == TARGET_SCAN);
             if(scanCounter == TARGET_SCAN)
             {
-                std::cout << icp.errorMinimizer->getResidualError(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean), reference, outlierWeights, matches) << std::endl;
+                std::cout << icp.errorMinimizer->getResidualError(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean), reference, outlierWeights, matches)
+                          << std::endl;
             }
             try
             {
@@ -154,8 +180,8 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
         icpMapLock.unlock();
 
         optimizedStates = applyTransformationToStates(T_refIn_refMean, optimizedStates_refMean);
+        saveFinalStates(optimizedStates);
 
-        std::cout << optimizedStates[optimizedStates.size() - 1].velocity << std::endl;
         if(scanCounter == TARGET_SCAN)
         {
             exit(0);

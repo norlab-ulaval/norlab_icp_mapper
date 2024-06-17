@@ -23,7 +23,7 @@ public:
 
 private:
     const gtsam::SharedDiagonal INITIAL_POSE_PRIOR_NOISE = gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector::Ones(6) * 1e-12);
-    const gtsam::SharedDiagonal INITIAL_VELOCITY_PRIOR_NOISE = gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector::Ones(3) * 1e-12);
+    const gtsam::SharedDiagonal INITIAL_VELOCITY_PRIOR_NOISE = gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector::Ones(3));
     const gtsam::SharedDiagonal BIAS_PRIOR_NOISE = gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector::Ones(6) * 1e-12);
     const gtsam::Matrix GYROSCOPE_COVARIANCE = gtsam::Matrix::Identity(3, 3) * 2.7416e-5;
     const gtsam::Matrix ACCELEROMETER_COVARIANCE = gtsam::Matrix::Identity(3, 3) * 3.4645e-5;
