@@ -103,7 +103,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
     {
         FactorGraph factorGraph(poseAtStartOfScan, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar);
         optimizedStates = factorGraph.getPredictedStates();
-        saveFinalStates(optimizedStates, true);
+//        saveFinalStates(optimizedStates, true);
 
         if(scanCounter == TARGET_SCAN)
         {
@@ -180,7 +180,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
         icpMapLock.unlock();
 
         optimizedStates = applyTransformationToStates(T_refIn_refMean, optimizedStates_refMean);
-        saveFinalStates(optimizedStates);
+//        saveFinalStates(optimizedStates);
 
         if(scanCounter == TARGET_SCAN)
         {
