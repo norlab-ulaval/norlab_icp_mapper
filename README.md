@@ -10,7 +10,7 @@ cd gtsam
 git checkout master
 mkdir build
 cd build
-cmake -DGTSAM_USE_SYSTEM_EIGEN=ON ..
+cmake -DGTSAM_USE_SYSTEM_EIGEN=ON -DGTSAM_BUILD_PYTHON=1 -DGTSAM_PYTHON_VERSION=3.10.12 ..
 make -j 6
 sudo make install
 ```
