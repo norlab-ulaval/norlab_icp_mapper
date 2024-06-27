@@ -7,6 +7,7 @@ This branch of norlab_icp_mapper requires gtsam to function. In order to install
 cd ~/repos
 git clone git@github.com:borglab/gtsam.git
 cd gtsam
+git checkout master
 mkdir build
 cd build
 cmake -DGTSAM_USE_SYSTEM_EIGEN=ON ..
