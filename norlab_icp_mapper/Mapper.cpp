@@ -217,7 +217,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 		}
 	}
 
-    if(mapUpdateFuture.wait_for(std::chrono::milliseconds (1)) == std::future_status::ready)
+    if (mapUpdateFuture.valid() && mapUpdateFuture.wait_for(std::chrono::milliseconds(1)) == std::future_status::ready)
     {
         mapUpdateFuture.get();
     }
