@@ -12,7 +12,7 @@ set(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${libpointmatcher_LIBRARIES})
 
 # norlab_icp_mapper target
 include_directories(norlab_icp_mapper ${libpointmatcher_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR})
-add_library(norlab_icp_mapper norlab_icp_mapper/Mapper.cpp norlab_icp_mapper/Map.cpp norlab_icp_mapper/Trajectory.cpp norlab_icp_mapper/RAMCellManager.cpp norlab_icp_mapper/HardDriveCellManager.cpp norlab_icp_mapper/FactorGraph.cpp)
+add_library(norlab_icp_mapper norlab_icp_mapper/Mapper.cpp norlab_icp_mapper/Map.cpp norlab_icp_mapper/RAMCellManager.cpp norlab_icp_mapper/HardDriveCellManager.cpp norlab_icp_mapper/FactorGraph.cpp)
 
 # install target
 set(INSTALL_LIB_DIR lib CACHE PATH "Installation directory for libraries")
@@ -21,7 +21,7 @@ set(DEF_INSTALL_CMAKE_DIR lib/cmake/norlab_icp_mapper CACHE PATH "Installation d
 
 install(TARGETS norlab_icp_mapper DESTINATION ${INSTALL_LIB_DIR})
 
-install(FILES norlab_icp_mapper/Mapper.h norlab_icp_mapper/Map.h  norlab_icp_mapper/Trajectory.h norlab_icp_mapper/CellManager.h norlab_icp_mapper/ImuMeasurement.h
+install(FILES norlab_icp_mapper/Mapper.h norlab_icp_mapper/Map.h norlab_icp_mapper/CellManager.h norlab_icp_mapper/ImuMeasurement.h norlab_icp_mapper/StampedState.h
         DESTINATION ${INSTALL_INCLUDE_DIR}/norlab_icp_mapper
         )
 

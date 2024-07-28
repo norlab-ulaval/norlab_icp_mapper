@@ -18,7 +18,6 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
         imuToLidar(imuToLidar),
         map(minDistNewPoint, sensorMaxRange, priorDynamic, thresholdDynamic, beamHalfAngle, epsilonA, epsilonD, alpha, beta, is3D,
             computeProbDynamic, saveMapCellsOnHardDrive, icp, icpMapLock),
-        trajectory(is3D ? 3 : 2),
         transformation(PM::get().TransformationRegistrar.create("RigidTransformation"))
 {
     loadYamlConfig(inputFiltersConfigFilePath, icpConfigFilePath, mapPostFiltersConfigFilePath);
@@ -103,7 +102,6 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
     {
         FactorGraph factorGraph(poseAtStartOfScan, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar);
         optimizedStates = factorGraph.getPredictedStates();
-//        saveFinalStates(optimizedStates, true);
 
         if(scanCounter == TARGET_SCAN)
         {
@@ -180,7 +178,6 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
         icpMapLock.unlock();
 
         optimizedStates = applyTransformationToStates(T_refIn_refMean, optimizedStates_refMean);
-//        saveFinalStates(optimizedStates);
 
         if(scanCounter == TARGET_SCAN)
         {
@@ -194,22 +191,9 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
             updateMap(deskew(filteredInputInSensorFrame, timeStampAtStartOfScan, optimizedStates), poseAtStartOfScan, timeStampAtStartOfScan);
         }
     }
-    StampedState stateAtEndOfScan = optimizedStates[optimizedStates.size() - 1];
-
-    poseLock.lock();
-    pose = stateAtEndOfScan.pose;
-    poseLock.unlock();
-
-    velocityLock.lock();
-    velocity = stateAtEndOfScan.velocity;
-    velocityLock.unlock();
 
     trajectoryLock.lock();
-    if(trajectory.getSize() == 0)
-    {
-        trajectory.addPose(poseAtStartOfScan, timeStampAtStartOfScan);
-    }
-    trajectory.addPose(stateAtEndOfScan.pose, stateAtEndOfScan.timeStamp);
+    intraScanTrajectory = optimizedStates;
     trajectoryLock.unlock();
 }
 
@@ -255,9 +239,6 @@ norlab_icp_mapper::Mapper::PM::DataPoints norlab_icp_mapper::Mapper::getMap()
 void norlab_icp_mapper::Mapper::setMap(const PM::DataPoints& newMap)
 {
     map.setGlobalPointCloud(newMap);
-    trajectoryLock.lock();
-    trajectory.clear();
-    trajectoryLock.unlock();
 }
 
 bool norlab_icp_mapper::Mapper::getNewLocalMap(PM::DataPoints& mapOut)
@@ -267,14 +248,20 @@ bool norlab_icp_mapper::Mapper::getNewLocalMap(PM::DataPoints& mapOut)
 
 norlab_icp_mapper::Mapper::PM::TransformationParameters norlab_icp_mapper::Mapper::getPose()
 {
-    std::lock_guard<std::mutex> lock(poseLock);
-    return pose;
+    std::lock_guard<std::mutex> lock(trajectoryLock);
+    return intraScanTrajectory[intraScanTrajectory.size() - 1].pose;
 }
 
 Eigen::Matrix<float, 3, 1> norlab_icp_mapper::Mapper::getVelocity()
 {
-    std::lock_guard<std::mutex> lock(velocityLock);
-    return velocity;
+    std::lock_guard<std::mutex> lock(trajectoryLock);
+    return intraScanTrajectory[intraScanTrajectory.size() - 1].velocity;
+}
+
+std::vector<StampedState> norlab_icp_mapper::Mapper::getIntraScanTrajectory()
+{
+    std::lock_guard<std::mutex> lock(trajectoryLock);
+    return intraScanTrajectory;
 }
 
 bool norlab_icp_mapper::Mapper::getIsMapping() const
@@ -285,10 +272,4 @@ bool norlab_icp_mapper::Mapper::getIsMapping() const
 void norlab_icp_mapper::Mapper::setIsMapping(const bool& newIsMapping)
 {
     isMapping.store(newIsMapping);
-}
-
-Trajectory norlab_icp_mapper::Mapper::getTrajectory()
-{
-    std::lock_guard<std::mutex> lock(trajectoryLock);
-    return trajectory;
 }

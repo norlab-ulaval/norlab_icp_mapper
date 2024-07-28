@@ -3,9 +3,9 @@
 
 #include <pointmatcher/PointMatcher.h>
 #include "Map.h"
-#include "Trajectory.h"
 #include "ImuMeasurement.h"
 #include <mutex>
+#include "StampedState.h"
 
 namespace norlab_icp_mapper
 {
@@ -25,15 +25,12 @@ namespace norlab_icp_mapper
         std::atomic_bool isMapping;
         PM::TransformationParameters imuToLidar;
         Map map;
-        PM::TransformationParameters pose;
+        std::vector<StampedState> intraScanTrajectory;
         Eigen::Matrix<float, 3, 1> velocity;
-        Trajectory trajectory;
         std::shared_ptr<PM::Transformation> transformation;
         std::shared_ptr<PM::DataPointsFilter> radiusFilter;
         std::chrono::time_point<std::chrono::steady_clock> lastTimeMapWasUpdated;
         PM::TransformationParameters lastPoseWhereMapWasUpdated;
-        std::mutex poseLock;
-        std::mutex velocityLock;
         std::mutex trajectoryLock;
         std::mutex icpMapLock;
 
@@ -57,9 +54,9 @@ namespace norlab_icp_mapper
         bool getNewLocalMap(PM::DataPoints& mapOut);
         PM::TransformationParameters getPose();
         Eigen::Matrix<float, 3, 1> getVelocity();
+        std::vector<StampedState> getIntraScanTrajectory();
         bool getIsMapping() const;
         void setIsMapping(const bool& newIsMapping);
-        Trajectory getTrajectory();
     };
 }
 
