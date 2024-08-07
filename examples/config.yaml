@@ -1,35 +1,5 @@
 input:
-  - BoundingBoxDataPointsFilter:
-      xMin: -1.5
-      xMax: 0.5
-      yMin: -1
-      yMax: 1
-      zMin: -1
-      zMax: 0.5
-      removeInside: 1
-
-  - BoundingBoxDataPointsFilter:
-      xMin: -6
-      xMax: -1.5
-      yMin: -2.5
-      yMax: 2.5
-      zMin: -1
-      zMax: 1
-      removeInside: 1
-
-  - AddDescriptorDataPointsFilter:
-      descriptorName: probabilityDynamic
-      descriptorDimension: 1
-      descriptorValues: [0.6] # This value is the initial probability of each point being dynamic
-
 post:
-    - SurfaceNormalDataPointsFilter:
-        knn: 10
-
-    - CutAtDescriptorThresholdDataPointsFilter:
-        descName: probabilityDynamic
-        useLargerThan: 1
-        threshold: 0.65
 
 mapper:
   updateCondition:
@@ -37,17 +7,9 @@ mapper:
     value: 0.05
 
   mapperModule:
-    - DynamicPointsMapperModule:
-        thresholdDynamic: 0.9
-        alpha: 0.8
-        beta: 0.99
-        beamHalfAngle: 0.01
-        epsilonA: 0.01
-        epsilonD: 0.01
-
     - OctreeMapperModule:
         buildParallel: 1
-        maxSizeByNode: 0.15
+        maxSizeByNode: 0.000005
         samplingMethod: 1
 
   sensorMaxRange: 200
