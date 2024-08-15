@@ -6,6 +6,8 @@ include(CMakePackageConfigHelpers)
 
 project(norlab_icp_mapper)
 
+enable_language(C)
+
 ## Extract version from package.xml
 file(READ "package.xml" PACKAGE_XML_CONTENT)
 string(REGEX MATCH "<version>([^<]+)</version>" VERSION_MATCH ${PACKAGE_XML_CONTENT})
@@ -42,6 +44,25 @@ endif()
 if(YAML_CPP_LIBRARIES STREQUAL "")
 	set(YAML_CPP_LIBRARIES "yaml-cpp")
 endif ()
+
+#--------------------
+# DEPENDENCY: OpenMP (optional)
+#--------------------
+set(USE_OPEN_MP TRUE CACHE BOOL "Set to TRUE to use OpenMP")
+if (USE_OPEN_MP)
+	find_package(OpenMP)
+	if (OPENMP_FOUND)
+		if(NOT MSVC)
+			add_definitions(-fopenmp -DHAVE_OPENMP)
+		endif()
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+		if (CMAKE_COMPILER_IS_GNUCC)
+			set(EXTERNAL_LIBS ${EXTERNAL_LIBS} gomp)
+    		message("-- OpenMP found, parallel computer enabled")
+		endif()
+	endif()
+endif ()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -pthread")
 
 
 # norlab_icp_mapper target
@@ -126,3 +147,6 @@ endif ()
 message(STATUS "Building example")
 add_executable(build_map_from_scans_and_trajectories examples/build_map_from_scans_and_trajectory.cpp)
 target_link_libraries(build_map_from_scans_and_trajectories norlab_icp_mapper)
+
+add_executable(profile examples/profile.cpp)
+target_link_libraries(profile norlab_icp_mapper)

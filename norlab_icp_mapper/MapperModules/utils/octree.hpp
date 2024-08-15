@@ -36,16 +36,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <future>
 #include <ciso646>
+#include <omp.h>
 
 template <typename T, std::size_t dim>
-Octree_<T, dim>::Octree_() : parent{nullptr}, depth{0} {
+Octree_<T, dim>::Octree_(bool isRoot) : depth{0}, isRoot(isRoot) {
     for (size_t i = 0; i < nbCells; ++i) cells[i] = nullptr;
 }
 
 template <typename T, std::size_t dim>
 Octree_<T, dim>::Octree_(const Octree_<T, dim>& o) : bb{o.bb.center, o.bb.radius}, depth{o.depth} {
-    if (!o.parent) parent = nullptr;
-
     if (o.isLeaf())  // Leaf case
     {
         // nullify childs
@@ -57,15 +56,13 @@ Octree_<T, dim>::Octree_(const Octree_<T, dim>& o) : bb{o.bb.center, o.bb.radius
         // Create each child recursively
         for (size_t i = 0; i < nbCells; ++i) {
             cells[i] = new Octree_<T, dim>(*(o.cells[i]));
-            // Assign parent
-            cells[i]->parent = this;
         }
     }
 }
 template <typename T, std::size_t dim>
-Octree_<T, dim>::Octree_(Octree_<T, dim>&& o) : parent{nullptr}, bb{o.bb.center, o.bb.radius}, depth{o.depth} {
+Octree_<T, dim>::Octree_(Octree_<T, dim>&& o) : bb{o.bb.center, o.bb.radius}, depth{o.depth} {
     // only allow move of root node
-    assert(o.isRoot());
+    assert(o.getIsRoot());
 
     if (o.isLeaf())  // Leaf case
     {
@@ -82,13 +79,15 @@ Octree_<T, dim>::Octree_(Octree_<T, dim>&& o) : parent{nullptr}, bb{o.bb.center,
 
 template <typename T, std::size_t dim>
 Octree_<T, dim>::~Octree_() {
-    clearTree();
+    if (!isLeaf()) {
+        for (int i = 0; i < nbCells; ++i) {
+            delete cells[i];
+        }
+    }
 }
 
 template <typename T, std::size_t dim>
 Octree_<T, dim>& Octree_<T, dim>::operator=(const Octree_<T, dim>& o) {
-    if (!o.parent) parent = nullptr;
-
     depth = o.depth;
 
     if (o.isLeaf())  // Leaf case
@@ -102,8 +101,6 @@ Octree_<T, dim>& Octree_<T, dim>::operator=(const Octree_<T, dim>& o) {
         // Create each child recursively
         for (size_t i = 0; i < nbCells; ++i) {
             cells[i] = new Octree_<T, dim>(*(o.cells[i]));
-            // Assign parent
-            cells[i]->parent = this;
         }
     }
     return *this;
@@ -112,9 +109,8 @@ Octree_<T, dim>& Octree_<T, dim>::operator=(const Octree_<T, dim>& o) {
 template <typename T, std::size_t dim>
 Octree_<T, dim>& Octree_<T, dim>::operator=(Octree_<T, dim>&& o) {
     // only allow move of root node
-    assert(o.isRoot());
+    assert(o.getIsRoot());
 
-    parent = nullptr;
     bb.center = o.bb.center;
     bb.radius = o.bb.radius;
 
@@ -141,8 +137,8 @@ bool Octree_<T, dim>::isLeaf() const {
     return (cells[0] == nullptr);
 }
 template <typename T, std::size_t dim>
-bool Octree_<T, dim>::isRoot() const {
-    return (parent == nullptr);
+bool Octree_<T, dim>::getIsRoot() const {
+    return isRoot;
 }
 template <typename T, std::size_t dim>
 bool Octree_<T, dim>::isEmpty() const {
@@ -177,8 +173,8 @@ std::size_t Octree_<T, dim>::idx(const Point& pt) const {
 }
 
 template <typename T, std::size_t dim>
-std::size_t Octree_<T, dim>::idx(const DP& pts, const Data d) const {
-    return idx(pts.features.col(d).head(dim));
+std::size_t Octree_<T, dim>::idx(const DP& pts, const Id id) const {
+    return idx(pts.features.col(id));
 }
 template <typename T, std::size_t dim>
 std::size_t Octree_<T, dim>::getDepth() const {
@@ -203,7 +199,7 @@ Octree_<T, dim>* Octree_<T, dim>::operator[](std::size_t idx) {
 }
 
 template <typename T, std::size_t dim>
-typename Octree_<T, dim>::DataContainer Octree_<T, dim>::toData(const DP& pts, const std::vector<Id>& ids) {
+typename Octree_<T, dim>::DataContainer Octree_<T, dim>::toData(const std::vector<Id>& ids) {
     return DataContainer{ids.begin(), ids.end()};
 }
 
@@ -236,26 +232,38 @@ bool Octree_<T, dim>::build(const DP& pts, std::size_t maxDataByNode, T maxSizeB
 
     for (size_t i = 0; i < nbpts; ++i) indexes.emplace_back(Id(i));
 
-    DataContainer datas = toData(pts, indexes);
+    DataContainer datas = toData(indexes);
 
     // build
-    return this->buildRecursive(pts, std::move(datas), std::move(box), maxDataByNode, maxSizeByNode, parallelBuild);
+    if (parallelBuild) {
+        buildRecursiveParallel(pts, std::move(datas), std::move(box), maxDataByNode, maxSizeByNode);
+    } else {
+        buildRecursive(pts, std::move(datas), std::move(box), maxDataByNode, maxSizeByNode);
+    }
+    return true;
 }
 
 template <typename T, std::size_t dim>
-bool Octree_<T, dim>::insert(const DP& new_pts, std::size_t maxDataByNode, T maxSizeByNode, bool parallelInsert) {
-    if (!isInsideBB(new_pts)) {
+bool Octree_<T, dim>::insert(const DP& newPts, std::size_t maxDataByNode, T maxSizeByNode, bool parallelInsert) {
+    if (!isInsideBB(newPts)) {
         return false;
     }
-    const size_t nbpts = new_pts.getNbPoints();
+
+    const size_t nbpts = newPts.getNbPoints();
     std::vector<Id> indexes;
     indexes.reserve(nbpts);
 
+    #pragma omp parallel for
     for (size_t i = 0; i < nbpts; ++i) indexes.emplace_back(Id(i));
 
-    DataContainer datas = toData(new_pts, indexes);
-
-    return insertRecursive(new_pts, std::move(datas), maxDataByNode, maxSizeByNode, parallelInsert);
+    DataContainer datas = toData(indexes);
+ 
+    if (parallelInsert) {
+        insertRecursiveParallel(newPts, std::move(datas), maxDataByNode, maxSizeByNode);
+    } else {
+        insertRecursive(newPts, std::move(datas), maxDataByNode, maxSizeByNode);
+    }
+    return true;
 }
 
 template <typename T, std::size_t dim>
@@ -270,48 +278,65 @@ void Octree_<T, dim>::clearTree() {
 }
 
 template <typename T, std::size_t dim>
-bool Octree_<T, dim>::insertRecursive(const DP& new_pts, DataContainer&& datas, std::size_t maxDataByNode, T maxSizeByNode, bool parallelInsert) {
+void Octree_<T, dim>::insertRecursive(const DP& newPts, DataContainer&& dataToInsert, std::size_t maxDataByNode, T maxSizeByNode) {
     if (isLeaf()) {
-        // Remove duplicates
-        data.reserve(datas.size() + data.size());
-        data.insert(data.end(), std::make_move_iterator(datas.begin()), make_move_iterator(datas.end()));
-        datas.clear();
-        std::sort(data.begin(), data.end());
-        data.erase(std::unique(data.begin(), data.end()), data.end());
+            data.reserve(dataToInsert.size() + data.size());
+            data.insert(data.end(), std::make_move_iterator(dataToInsert.begin()), make_move_iterator(dataToInsert.end()));
 
-        if ((bb.radius * 2.0 <= maxSizeByNode) or (datas.size() <= maxDataByNode)) {
-            return isLeaf();
-        } else {
-            return this->buildRecursive(new_pts, std::move(data), BoundingBox{bb.center, bb.radius}, maxDataByNode, maxSizeByNode, parallelInsert);
+        if (((bb.radius * 2.0 <= maxSizeByNode) or (dataToInsert.size() <= maxDataByNode)) == false) {
+            buildRecursive(newPts, std::move(data), BoundingBox{bb.center, bb.radius}, maxDataByNode, maxSizeByNode);
         }
+        return;
     }
 
     // split datas
-    const std::size_t nbData = datas.size();
+    const std::size_t nbData = dataToInsert.size();
 
-    DataContainer sDatas[nbCells];
-    for (size_t i = 0; i < nbCells; ++i) sDatas[i].reserve(nbData);
+    DataContainer splittedData[nbCells];
+    for (size_t i = 0; i < nbCells; ++i) splittedData[i].reserve(nbData);
 
-    for (auto&& d : datas) (sDatas[idx(new_pts, d)]).emplace_back(d);
+    for (auto&& d : dataToInsert) (splittedData[idx(newPts, d)]).emplace_back(d);
 
-    for (size_t i = 0; i < nbCells; ++i) sDatas[i].shrink_to_fit();
+    for (size_t i = 0; i < nbCells; ++i) splittedData[i].shrink_to_fit();
 
-    bool ret = true;
-    std::vector<std::future<void>> futures;
-
-    for (size_t i = 0; i < nbCells; ++i) {
-        auto compute = [maxDataByNode, maxSizeByNode, i, &new_pts, &sDatas, this]() {
-            this->cells[i]->insertRecursive(new_pts, std::move(sDatas[i]), maxDataByNode, maxSizeByNode, false);
-        };
-
-        if (parallelInsert)
-            futures.push_back(std::async(std::launch::async, compute));
-        else
-            compute();
+    for(int i = 0; i < nbCells; ++i) {
+        this->cells[i]->insertRecursive(newPts, std::move(splittedData[i]), maxDataByNode, maxSizeByNode);
     }
-    for (auto& f : futures) f.get();
 
-    return (!isLeaf() and ret);
+    return;
+}
+
+template <typename T, std::size_t dim>
+void Octree_<T, dim>::insertRecursiveParallel(const DP& newPts, DataContainer&& dataToInsert, std::size_t maxDataByNode, T maxSizeByNode) {
+    if (isLeaf()) {
+            data.reserve(dataToInsert.size() + data.size());
+            data.insert(data.end(), std::make_move_iterator(dataToInsert.begin()), make_move_iterator(dataToInsert.end()));
+
+        if (((bb.radius * 2.0 <= maxSizeByNode) or (dataToInsert.size() <= maxDataByNode)) == false) {
+            buildRecursive(newPts, std::move(data), BoundingBox{bb.center, bb.radius}, maxDataByNode, maxSizeByNode);
+        }
+        return;
+    }
+
+    // split dataToInsert
+    const std::size_t nbData = dataToInsert.size();
+
+    DataContainer splittedData[nbCells];
+
+    #pragma omp parallel for schedule(static, 1)
+    for (size_t i = 0; i < nbCells; ++i) splittedData[i].reserve(nbData);
+
+    for (auto&& d : dataToInsert) (splittedData[idx(newPts, d)]).emplace_back(d);
+
+    #pragma omp parallel for schedule(static, 1)
+    for (size_t i = 0; i < nbCells; ++i) splittedData[i].shrink_to_fit();
+
+    #pragma omp parallel for schedule(static, 1)
+    for(int i = 0; i < nbCells; ++i) {
+        cells[i]->insertRecursive(newPts, std::move(splittedData[i]), maxDataByNode, maxSizeByNode);
+    }
+
+    return;
 }
 
 // Offset lookup table
@@ -335,27 +360,25 @@ template <typename T>
 const typename Octree_<T, 2>::Point OctreeHelper<T, 2>::offsetTable[Octree_<T, 2>::nbCells] = {{-0.5, -0.5}, {+0.5, -0.5}, {-0.5, +0.5}, {+0.5, +0.5}};
 
 template <typename T, std::size_t dim>
-bool Octree_<T, dim>::buildRecursive(const DP& pts, DataContainer&& datas, BoundingBox&& bb, std::size_t maxDataByNode, T maxSizeByNode, bool parallelBuild) {
+void Octree_<T, dim>::buildRecursive(const DP& pts, DataContainer&& dataToBuild, BoundingBox&& bb, std::size_t maxDataByNode, T maxSizeByNode) {
     // Assign bounding box
     this->bb.center = bb.center;
     this->bb.radius = bb.radius;
 
     // Check stop condition
-    if ((bb.radius * 2.0 <= maxSizeByNode) or (datas.size() <= maxDataByNode)) {
+    if ((bb.radius * 2.0 <= maxSizeByNode) or (dataToBuild.size() <= maxDataByNode)) {
         // insert data
-        data.insert(data.end(), std::make_move_iterator(datas.begin()), make_move_iterator(datas.end()));
-        return (isLeaf());
+        data.insert(data.end(), std::make_move_iterator(dataToBuild.begin()), make_move_iterator(dataToBuild.end()));
+        return;
     }
 
-    // Split datas
-    const std::size_t nbData = datas.size();
+    // Split dataToBuild
+    DataContainer splittedData[nbCells];
+    for (size_t i = 0; i < nbCells; ++i) splittedData[i].reserve(dataToBuild.size());
 
-    DataContainer sDatas[nbCells];
-    for (size_t i = 0; i < nbCells; ++i) sDatas[i].reserve(nbData);
+    for (auto&& d : dataToBuild) (splittedData[idx(pts, d)]).emplace_back(d);
 
-    for (auto&& d : datas) (sDatas[idx(pts, d)]).emplace_back(d);
-
-    for (size_t i = 0; i < nbCells; ++i) sDatas[i].shrink_to_fit();
+    for (size_t i = 0; i < nbCells; ++i) splittedData[i].shrink_to_fit();
 
     // Compute new bounding boxes
     BoundingBox boxes[nbCells];
@@ -366,30 +389,57 @@ bool Octree_<T, dim>::buildRecursive(const DP& pts, DataContainer&& datas, Bound
         boxes[i].center = this->bb.center + offset;
     }
 
-    // For each child build recursively
-    bool ret = true;
-    std::vector<std::future<void>> futures;
+    // Build childs
+    for (int i = 0; i < nbCells; ++i) {
+        cells[i] = new Octree_<T, dim>(false);
+        cells[i]->depth = this->depth + 1;
+        cells[i]->buildRecursive(pts, std::move(splittedData[i]), std::move(boxes[i]), maxDataByNode, maxSizeByNode);
+    }
+}
 
-    for (size_t i = 0; i < nbCells; ++i) {
-        auto compute = [maxDataByNode, maxSizeByNode, i, &pts, &sDatas, &boxes, this]() {
-            this->cells[i] = new Octree_<T, dim>();
-            // Assign depth
-            this->cells[i]->depth = this->depth + 1;
-            // Assign parent
-            this->cells[i]->parent = this;
-            // next call is not parallelizable
-            this->cells[i]->buildRecursive(pts, std::move(sDatas[i]), std::move(boxes[i]), maxDataByNode, maxSizeByNode, false);
-        };
+template <typename T, std::size_t dim>
+void Octree_<T, dim>::buildRecursiveParallel(const DP& pts, DataContainer&& dataToBuild, BoundingBox&& bb, std::size_t maxDataByNode, T maxSizeByNode) {
+    // Assign bounding box
+    this->bb.center = bb.center;
+    this->bb.radius = bb.radius;
 
-        if (parallelBuild)
-            futures.push_back(std::async(std::launch::async, compute));
-        else
-            compute();
+    // Check stop condition
+    if ((bb.radius * 2.0 <= maxSizeByNode) or (dataToBuild.size() <= maxDataByNode)) {
+        // insert data
+        data.insert(data.end(), std::make_move_iterator(dataToBuild.begin()), make_move_iterator(dataToBuild.end()));
+        return;
     }
 
-    for (auto& f : futures) f.get();
+    // Split dataToBuild
+    DataContainer splittedData[nbCells];
 
-    return (!isLeaf() and ret);
+    #pragma omp parallel for schedule(static, 1)
+    for (size_t i = 0; i < nbCells; ++i) splittedData[i].reserve(dataToBuild.size());
+
+    for (auto&& d : dataToBuild) (splittedData[idx(pts, d)]).emplace_back(d);
+
+    #pragma omp parallel for schedule(static, 1)
+    for (size_t i = 0; i < nbCells; ++i) splittedData[i].shrink_to_fit();
+
+    // Compute new bounding boxes
+    BoundingBox boxes[nbCells];
+    const T half_radius = this->bb.radius * 0.5;
+
+    #pragma omp parallel for schedule(static, 1)
+    for (size_t i = 0; i < nbCells; ++i) {
+        const Point offset = OctreeHelper<T, dim>::offsetTable[i] * this->bb.radius;
+        const BoundingBox tmpBox = {this->bb.center + offset, half_radius};
+        boxes[i] = tmpBox;
+    }
+
+    // Build childs
+    #pragma omp parallel for schedule(static, 1)
+    for (int i = 0; i < nbCells; ++i) {
+        Octree_<T, dim>* child_i = new Octree_<T, dim>(false);
+        child_i->depth = this->depth + 1;
+        child_i->buildRecursive(pts, std::move(splittedData[i]), std::move(boxes[i]), maxDataByNode, maxSizeByNode);
+        cells[i] = child_i;
+    }
 }
 
 //------------------------------------------------------------------------------

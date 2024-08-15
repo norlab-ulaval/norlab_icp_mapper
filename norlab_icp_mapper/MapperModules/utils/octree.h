@@ -84,8 +84,7 @@ class Octree_ {
     using DP = typename PM::DataPoints; /**/
     using Id = typename DP::Index;      /**/
 
-    using Data = typename DP::Index; /**/
-    using DataContainer = std::vector<Data>;
+    using DataContainer = std::vector<Id>;
 
     using Point = Eigen::Matrix<T, dim, 1>;
 
@@ -98,7 +97,6 @@ class Octree_ {
         T radius;
     };
 
-    Octree_* parent;
     Octree_* cells[nbCells];
 
     /******************************************************
@@ -122,9 +120,11 @@ class Octree_ {
 
     size_t maxDataByNode;
     T maxSizeByNode;
+    bool isRoot;
+
 
    public:
-    Octree_();
+    Octree_(bool isRoot = true);
     Octree_(const Octree_<T, dim>& o);  // Deep-copy
     Octree_(Octree_<T, dim>&& o);
 
@@ -134,12 +134,12 @@ class Octree_ {
     Octree_<T, dim>& operator=(Octree_<T, dim>&& o);
 
     bool isLeaf() const;
-    bool isRoot() const;
     bool isEmpty() const;
+    bool getIsRoot() const;
     bool isInsideBB(const DP& pts) const;
 
     inline std::size_t idx(const Point& pt) const;
-    inline std::size_t idx(const DP& pts, const Data d) const;
+    inline std::size_t idx(const DP& pts, const Id d) const;
 
     std::size_t getDepth() const;
 
@@ -149,17 +149,20 @@ class Octree_ {
     DataContainer* getData();
     Octree_<T, dim>* operator[](std::size_t idx);
 
-    // Build tree from DataPoints with a specified stop parameter
     bool build(const DP& pts, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.), bool parallelBuild = false);
-    bool insert(const DP& new_pts, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.), bool parallelInsert = false);
+    bool insert(const DP& newPts, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.), bool parallelInsert = false);
+
     void clearTree();
 
-   protected:
-    // real build function
-    bool buildRecursive(const DP& pts, DataContainer&& datas, BoundingBox&& bb, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.), bool parallelBuild = false);
-    bool insertRecursive(const DP& new_pts, DataContainer&& datas, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.), bool parallelInsert = false);
 
-    inline DataContainer toData(const DP& pts, const std::vector<Id>& ids);
+   protected:
+    void buildRecursive(const DP& pts, DataContainer&& dataToBuild, BoundingBox&& bb, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.));
+    void buildRecursiveParallel(const DP& pts, DataContainer&& dataToBuild, BoundingBox&& bb, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.));
+
+    void insertRecursive(const DP& newPts, DataContainer&& dataToInsert, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.));
+    void insertRecursiveParallel(const DP& newPts, DataContainer&& dataToInsert, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.));
+
+    inline DataContainer toData(const std::vector<Id>& ids);
 
    public:
     template <typename Callback>
