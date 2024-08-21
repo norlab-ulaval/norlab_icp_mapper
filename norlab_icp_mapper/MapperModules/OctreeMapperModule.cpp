@@ -1,12 +1,14 @@
 #include "OctreeMapperModule.h"
+#include <fstream>
 
 class Timer {
 private:
     std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
     const std::string name;
+    std::ofstream* file;
 
 public:
-    Timer(const std::string& name) : name(name) { startTime = std::chrono::high_resolution_clock::now(); }
+    Timer(const std::string& name, std::ofstream* file) : name(name), file(file) { startTime = std::chrono::high_resolution_clock::now(); }
 
     double getElapsedMicroseconds() {
         auto endTime = std::chrono::high_resolution_clock::now();
@@ -15,7 +17,7 @@ public:
         return elapsed.count();
     }
 
-    ~Timer() { std::cout << name << " took " << getElapsedMicroseconds() << "ms" << std::endl; }
+    ~Timer() { *file << name << " took " << getElapsedMicroseconds() << "ms" << std::endl; }
 };
 
 OctreeMapperModule::OctreeMapperModule(const PM::Parameters& params) : MapperModule("OctreeMapperModule", OctreeMapperModule::availableParameters(), params) {
@@ -26,6 +28,13 @@ OctreeMapperModule::OctreeMapperModule(const PM::Parameters& params) : MapperMod
     maxPointByNode =  PM::Parametrizable::get<std::size_t>("maxPointByNode");
     maxSizeByNode = PM::Parametrizable::get<float>("maxSizeByNode");
     octree = Octree<float>();
+    file = std::ofstream();
+    file.open("/home/nicolaslauzon/urmom-build.txt");
+}
+
+OctreeMapperModule::~OctreeMapperModule() {
+    file.close();
+    std::cout << "Closed file" << std::endl;
 }
 
 PointMatcher<float>::DataPoints OctreeMapperModule::createMap(const PM::DataPoints& input, const PM::TransformationParameters& pose) {
@@ -50,27 +59,29 @@ void OctreeMapperModule::inPlaceUpdateMap(const PM::DataPoints& input, PM::DataP
     map.concatenate(input);
     if (!octree_is_built) {
         {
-            Timer("-- Build for pcl #" + std::to_string(i));
+            Timer titi = Timer("-- Insert pcl #" + std::to_string(i), &file);
             octree.build(map, maxPointByNode, maxSizeByNode, buildParallel);
         }
         octree_is_built = true;
     } else {
         bool insert_worked = true;
         {
-            Timer("-- Insert for pcl #" + std::to_string(i));
+            Timer titi = Timer("-- Insert pcl #" + std::to_string(i), &file);
             insert_worked = octree.insert(input, maxPointByNode, maxSizeByNode, buildParallel);
         }
         if (!insert_worked) {
             {
-                Timer("-- Build cuz cant insert for pcl #" + std::to_string(i));
+                Timer titi = Timer("-- Insert pcl #" + std::to_string(i), &file);
                 octree.clearTree();
                 octree.build(map, maxPointByNode, maxSizeByNode, buildParallel);
             }
         }
     }
-    // {
-    //     oc.build(map, maxPointByNode, maxSizeByNode, buildParallel);
-    // }
+    Octree<float> oc;
+    {
+        Timer titi = Timer("-- Build pcl #" + std::to_string(i), &file);
+        oc.build(map, maxPointByNode, maxSizeByNode, buildParallel);
+    }
 
     i++;
 }

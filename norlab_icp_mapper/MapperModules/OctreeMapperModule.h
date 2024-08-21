@@ -3,6 +3,8 @@
 
 #include "MapperModule.h"
 #include "utils/octree.h"
+#include <fstream>
+#include <strstream>
 
 class OctreeMapperModule : public MapperModule {
     typedef PointMatcher<float> PM;
@@ -15,6 +17,8 @@ class OctreeMapperModule : public MapperModule {
     bool buildParallel;
     std::size_t maxPointByNode;
     float maxSizeByNode;
+    std::ofstream file;
+
 
     
 
@@ -24,7 +28,7 @@ class OctreeMapperModule : public MapperModule {
     inline static const PM::ParametersDoc availableParameters() { return PM::get().DataPointsFilterRegistrar.getAvailableParameters(name); }
 
     explicit OctreeMapperModule(const PM::Parameters& params = PM::Parameters());
-    ~OctreeMapperModule() override = default;
+    ~OctreeMapperModule();
 
     PM::DataPoints createMap(const PM::DataPoints& input, const PM::TransformationParameters& pose) override;
     void inPlaceCreateMap(PM::DataPoints& input, const PM::TransformationParameters& pose) override;
