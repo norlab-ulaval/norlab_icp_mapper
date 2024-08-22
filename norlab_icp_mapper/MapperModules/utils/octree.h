@@ -32,7 +32,7 @@ class Octree_ {
      *****************************************************/
 
 
-    Node<T, dim>* root;
+    Node_<T, dim>* root;
 
     size_t maxDataByNode;
     T maxSizeByNode;
@@ -49,6 +49,10 @@ class Octree_ {
     bool insert(const DP& newPts);
 
     void registerDeletedData(const std::vector<Id>& deletedData);
+
+    const std::vector<Id>& getDeletedData() const;
+
+    std::vector<Node_<T, dim>*> getLeaves();
 
    public:
     template <typename Callback>

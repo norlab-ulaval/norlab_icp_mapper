@@ -37,12 +37,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <omp.h>
 
 template <typename T, std::size_t dim>
-Node<T, dim>::Node(const Octree_<T, dim>* tree) : tree(tree) {
+Node_<T, dim>::Node_(Octree_<T, dim>* tree) : tree(tree), depth(0) {
     for (size_t i = 0; i < nbCells; ++i) cells[i] = nullptr;
 }
 
 template <typename T, std::size_t dim>
-Node<T, dim>::Node(const Node<T, dim>& o) : bb{o.bb.center, o.bb.radius} {
+Node_<T, dim>::Node_(const Node_<T, dim>& o) : bb{o.bb.center, o.bb.radius} {
+	depth = o.getDepth();
     if (o.isLeaf())  // Leaf case
     {
         // nullify childs
@@ -53,30 +54,13 @@ Node<T, dim>::Node(const Node<T, dim>& o) : bb{o.bb.center, o.bb.radius} {
     {
         // Create each child recursively
         for (size_t i = 0; i < nbCells; ++i) {
-            cells[i] = new Node<T, dim>(*(o.cells[i]));
+            cells[i] = new Node_<T, dim>(*(o.cells[i]));
         }
     }
 }
-template <typename T, std::size_t dim>
-Node<T, dim>::Node(Node<T, dim>&& o) : bb{o.bb.center, o.bb.radius} {
-    // only allow move of root node
-    assert(o.getIsRoot());
-
-    if (o.isLeaf())  // Leaf case
-    {
-        // Copy data
-        data.insert(data.end(), std::make_move_iterator(o.data.begin()), std::make_move_iterator(o.data.end()));
-    }
-    // copy child ptr
-    for (size_t i = 0; i < nbCells; ++i) {
-        cells[i] = o.cells[i];
-        // Nullify ptrs
-        o.cells[i] = nullptr;
-    }
-}
 
 template <typename T, std::size_t dim>
-Node<T, dim>::~Node() {
+Node_<T, dim>::~Node_() {
     if (!isLeaf()) {
         for (int i = 0; i < nbCells; ++i) {
             delete cells[i];
@@ -85,7 +69,8 @@ Node<T, dim>::~Node() {
 }
 
 template <typename T, std::size_t dim>
-Node<T, dim>& Node<T, dim>::operator=(const Node<T, dim>& o) {
+Node_<T, dim>& Node_<T, dim>::operator=(const Node_<T, dim>& o) {
+	depth = o.getDepth();
 
     if (o.isLeaf())  // Leaf case
     {
@@ -97,48 +82,28 @@ Node<T, dim>& Node<T, dim>::operator=(const Node<T, dim>& o) {
     {
         // Create each child recursively
         for (size_t i = 0; i < nbCells; ++i) {
-            cells[i] = new Node<T, dim>(*(o.cells[i]));
+            cells[i] = new Node_<T, dim>(*(o.cells[i]));
         }
     }
     return *this;
 }
 
 template <typename T, std::size_t dim>
-Node<T, dim>& Node<T, dim>::operator=(Node<T, dim>&& o) {
-    // only allow move of root node
-    assert(o.getIsRoot());
-
-    bb.center = o.bb.center;
-    bb.radius = o.bb.radius;
-
-
-    if (o.isLeaf())  // Leaf case
-    {
-        // Copy data
-        data.insert(data.end(), std::make_move_iterator(o.data.begin()), std::make_move_iterator(o.data.end()));
-    }
-
-    // copy childs ptrs
-    for (size_t i = 0; i < nbCells; ++i) {
-        cells[i] = o.cells[i];
-        // Nullify ptrs
-        o.cells[i] = nullptr;
-    }
-
-    return *this;
-}
-
-template <typename T, std::size_t dim>
-bool Node<T, dim>::isLeaf() const {
+bool Node_<T, dim>::isLeaf() const {
     return (cells[0] == nullptr);
 }
 template <typename T, std::size_t dim>
-bool Node<T, dim>::isEmpty() const {
+bool Node_<T, dim>::isEmpty() const {
     return (data.size() == 0);
 }
 
 template <typename T, std::size_t dim>
-bool Node<T, dim>::isInsideBB(const DP& pts) const {
+int Node_<T, dim>::getDepth() const {
+	return depth;
+}
+
+template <typename T, std::size_t dim>
+bool Node_<T, dim>::isInsideBB(const DP& pts) const {
     typedef typename PM::Vector Vector;
 
     Vector minValues = pts.features.rowwise().minCoeff();
@@ -156,7 +121,7 @@ bool Node<T, dim>::isInsideBB(const DP& pts) const {
 }
 
 template <typename T, std::size_t dim>
-std::size_t Node<T, dim>::idx(const Point& pt) const {
+std::size_t Node_<T, dim>::idx(const Point& pt) const {
     size_t id = 0;
 
     for (size_t i = 0; i < dim; ++i) id |= ((pt(i) > bb.center(i)) << i);
@@ -165,30 +130,30 @@ std::size_t Node<T, dim>::idx(const Point& pt) const {
 }
 
 template <typename T, std::size_t dim>
-std::size_t Node<T, dim>::idx(const DP& pts, const Id id) const {
+std::size_t Node_<T, dim>::idx(const DP& pts, const Id id) const {
     return idx(pts.features.col(id));
 }
 template <typename T, std::size_t dim>
-T Node<T, dim>::getRadius() const {
+T Node_<T, dim>::getRadius() const {
     return bb.radius;
 }
 template <typename T, std::size_t dim>
-typename Node<T, dim>::Point Node<T, dim>::getCenter() const {
+typename Node_<T, dim>::Point Node_<T, dim>::getCenter() const {
     return bb.center;
 }
 template <typename T, std::size_t dim>
-std::vector<typename Node<T, dim>::Id>* Node<T, dim>::getData() {
+std::vector<typename Node_<T, dim>::Id>* Node_<T, dim>::getData() {
     return &data;
 }
 template <typename T, std::size_t dim>
-Node<T, dim>* Node<T, dim>::operator[](std::size_t idx) {
+Node_<T, dim>* Node_<T, dim>::operator[](std::size_t idx) {
     assert(idx < nbCells);
     return cells[idx];
 }
 
 // Build tree from DataPoints with a specified number of points by node
 template <typename T, std::size_t dim>
-bool Node<T, dim>::build(const DP& pts, std::size_t maxDataByNode, T maxSizeByNode, bool parallelBuild) {
+bool Node_<T, dim>::build(const DP& pts, std::size_t maxDataByNode, T maxSizeByNode, bool parallelBuild) {
     typedef typename PM::Vector Vector;
 
     // Build bounding box
@@ -225,7 +190,7 @@ bool Node<T, dim>::build(const DP& pts, std::size_t maxDataByNode, T maxSizeByNo
 }
 
 template <typename T, std::size_t dim>
-bool Node<T, dim>::insert(const DP& newPts, std::size_t maxDataByNode, T maxSizeByNode, bool parallelInsert) {
+bool Node_<T, dim>::insert(const DP& newPts, std::size_t maxDataByNode, T maxSizeByNode, bool parallelInsert) {
     if (!isInsideBB(newPts)) {
         return false;
     }
@@ -246,15 +211,20 @@ bool Node<T, dim>::insert(const DP& newPts, std::size_t maxDataByNode, T maxSize
 }
 
 template <typename T, std::size_t dim>
-void Node<T, dim>::insertRecursive(const DP& newPts, std::vector<Id>&& dataToInsert, std::size_t maxDataByNode, T maxSizeByNode) {
+void Node_<T, dim>::insertRecursive(const DP& newPts, std::vector<Id>&& dataToInsert, std::size_t maxDataByNode, T maxSizeByNode) {
     if (isLeaf()) {
-            data.reserve(dataToInsert.size() + data.size());
-            data.insert(data.end(), std::make_move_iterator(dataToInsert.begin()), make_move_iterator(dataToInsert.end()));
+		data.reserve(dataToInsert.size() + data.size());
+		data.insert(data.end(), std::make_move_iterator(dataToInsert.begin()), make_move_iterator(dataToInsert.end()));
 
-        if (((bb.radius * 2.0 <= maxSizeByNode) or (dataToInsert.size() <= maxDataByNode)) == false) {
+		if (data.size() <= maxDataByNode) {
+			return;
+		} else if (bb.radius * 2.0 >= maxSizeByNode) {
             buildRecursive(newPts, std::move(data), BoundingBox{bb.center, bb.radius}, maxDataByNode, maxSizeByNode);
-        }
-        return;
+			return;
+		} else {
+			subsample(data.size() - maxDataByNode);
+			return;
+		} 
     }
 
     // split datas
@@ -275,15 +245,20 @@ void Node<T, dim>::insertRecursive(const DP& newPts, std::vector<Id>&& dataToIns
 }
 
 template <typename T, std::size_t dim>
-void Node<T, dim>::insertRecursiveParallel(const DP& newPts, std::vector<Id>&& dataToInsert, std::size_t maxDataByNode, T maxSizeByNode) {
+void Node_<T, dim>::insertRecursiveParallel(const DP& newPts, std::vector<Id>&& dataToInsert, std::size_t maxDataByNode, T maxSizeByNode) {
     if (isLeaf()) {
-            data.reserve(dataToInsert.size() + data.size());
-            data.insert(data.end(), std::make_move_iterator(dataToInsert.begin()), make_move_iterator(dataToInsert.end()));
+		data.reserve(dataToInsert.size() + data.size());
+		data.insert(data.end(), std::make_move_iterator(dataToInsert.begin()), make_move_iterator(dataToInsert.end()));
 
-        if (((bb.radius * 2.0 <= maxSizeByNode) or (dataToInsert.size() <= maxDataByNode)) == false) {
+		if (data.size() <= maxDataByNode) {
+			return;
+		} else if (bb.radius * 2.0 >= maxSizeByNode) {
             buildRecursive(newPts, std::move(data), BoundingBox{bb.center, bb.radius}, maxDataByNode, maxSizeByNode);
-        }
-        return;
+			return;
+		} else {
+			subsample(data.size() - maxDataByNode);
+			return;
+		} 
     }
 
     // split dataToInsert
@@ -313,30 +288,32 @@ struct OctreeHelper;
 
 template <typename T>
 struct OctreeHelper<T, 3> {
-    static const typename Node<T, 3>::Point offsetTable[Node<T, 3>::nbCells];
+    static const typename Node_<T, 3>::Point offsetTable[Node_<T, 3>::nbCells];
 };
 template <typename T>
-const typename Node<T, 3>::Point OctreeHelper<T, 3>::offsetTable[Node<T, 3>::nbCells] = {{-0.5, -0.5, -0.5}, {+0.5, -0.5, -0.5}, {-0.5, +0.5, -0.5},
+const typename Node_<T, 3>::Point OctreeHelper<T, 3>::offsetTable[Node_<T, 3>::nbCells] = {{-0.5, -0.5, -0.5}, {+0.5, -0.5, -0.5}, {-0.5, +0.5, -0.5},
                                                                                                {+0.5, +0.5, -0.5}, {-0.5, -0.5, +0.5}, {+0.5, -0.5, +0.5},
                                                                                                {-0.5, +0.5, +0.5}, {+0.5, +0.5, +0.5}};
 
 template <typename T>
 struct OctreeHelper<T, 2> {
-    static const typename Node<T, 2>::Point offsetTable[Node<T, 2>::nbCells];
+    static const typename Node_<T, 2>::Point offsetTable[Node_<T, 2>::nbCells];
 };
 template <typename T>
-const typename Node<T, 2>::Point OctreeHelper<T, 2>::offsetTable[Node<T, 2>::nbCells] = {{-0.5, -0.5}, {+0.5, -0.5}, {-0.5, +0.5}, {+0.5, +0.5}};
+const typename Node_<T, 2>::Point OctreeHelper<T, 2>::offsetTable[Node_<T, 2>::nbCells] = {{-0.5, -0.5}, {+0.5, -0.5}, {-0.5, +0.5}, {+0.5, +0.5}};
 
 template <typename T, std::size_t dim>
-void Node<T, dim>::buildRecursive(const DP& pts, std::vector<Id>&& dataToBuild, BoundingBox&& bb, std::size_t maxDataByNode, T maxSizeByNode) {
+void Node_<T, dim>::buildRecursive(const DP& pts, std::vector<Id>&& dataToBuild, BoundingBox&& bb, std::size_t maxDataByNode, T maxSizeByNode) {
     // Assign bounding box
     this->bb.center = bb.center;
     this->bb.radius = bb.radius;
 
-    // Check stop condition
-    if ((bb.radius * 2.0 <= maxSizeByNode) or (dataToBuild.size() <= maxDataByNode)) {
-        // insert data
+    if (bb.radius * 2.0 <= maxSizeByNode || dataToBuild.size() <= maxDataByNode) {
         data.insert(data.end(), std::make_move_iterator(dataToBuild.begin()), make_move_iterator(dataToBuild.end()));
+		
+		if (data.size() > maxDataByNode) {
+			subsample(data.size() - maxDataByNode);
+		}
         return;
     }
 
@@ -359,21 +336,24 @@ void Node<T, dim>::buildRecursive(const DP& pts, std::vector<Id>&& dataToBuild, 
 
     // Build childs
     for (int i = 0; i < nbCells; ++i) {
-        cells[i] = new Node<T, dim>(tree);
+        cells[i] = new Node_<T, dim>(tree);
+        cells[i]->depth = this->depth + 1;
         cells[i]->buildRecursive(pts, std::move(splittedData[i]), std::move(boxes[i]), maxDataByNode, maxSizeByNode);
     }
 }
 
 template <typename T, std::size_t dim>
-void Node<T, dim>::buildRecursiveParallel(const DP& pts, std::vector<Id>&& dataToBuild, BoundingBox&& bb, std::size_t maxDataByNode, T maxSizeByNode) {
+void Node_<T, dim>::buildRecursiveParallel(const DP& pts, std::vector<Id>&& dataToBuild, BoundingBox&& bb, std::size_t maxDataByNode, T maxSizeByNode) {
     // Assign bounding box
     this->bb.center = bb.center;
     this->bb.radius = bb.radius;
 
-    // Check stop condition
-    if ((bb.radius * 2.0 <= maxSizeByNode) or (dataToBuild.size() <= maxDataByNode)) {
-        // insert data
+    if (bb.radius * 2.0 <= maxSizeByNode || dataToBuild.size() <= maxDataByNode) {
         data.insert(data.end(), std::make_move_iterator(dataToBuild.begin()), make_move_iterator(dataToBuild.end()));
+		
+		if (data.size() > maxDataByNode) {
+			subsample(data.size() - maxDataByNode);
+		}
         return;
     }
 
@@ -402,16 +382,16 @@ void Node<T, dim>::buildRecursiveParallel(const DP& pts, std::vector<Id>&& dataT
     // Build childs
     #pragma omp parallel for schedule(static, 1)
     for (int i = 0; i < nbCells; ++i) {
-        Node<T, dim>* child_i = new Node<T, dim>(tree);
+        Node_<T, dim>* child_i = new Node_<T, dim>(tree);
+        child_i->depth = this->depth + 1;
         child_i->buildRecursive(pts, std::move(splittedData[i]), std::move(boxes[i]), maxDataByNode, maxSizeByNode);
         cells[i] = child_i;
     }
 }
 
-//------------------------------------------------------------------------------
 template <typename T, std::size_t dim>
 template <typename Callback>
-bool Node<T, dim>::visit(Callback& cb) {
+bool Node_<T, dim>::visit(Callback& cb) {
     // Call the callback for this node (if the callback returns false, then
     // stop traversing.
     if (!cb(*this)) return false;
@@ -424,3 +404,26 @@ bool Node<T, dim>::visit(Callback& cb) {
     return true;
 }
 
+template <typename T, std::size_t dim>
+std::vector<Node_<T, dim>*> Node_<T, dim>::getLeaves() const {
+    std::vector<Node_<T, dim>*> leaves;
+    for (size_t i = 0; i < nbCells; ++i) {
+        if (cells[i]->isLeaf()) {
+            leaves.push_back(cells[i]);
+        } else {
+            const std::vector<Node_<T, dim>*> childLeaves = cells[i]->getLeaves();
+            leaves.insert(leaves.end(), childLeaves.begin(), childLeaves.end());
+        }
+    }
+    return leaves;
+}
+
+template <typename T, std::size_t dim>
+void Node_<T, dim>::subsample(int nbOfPointsToDelete) {
+	std::vector<Id> deletedPoints(nbOfPointsToDelete);
+	for (int i = 0; i < nbOfPointsToDelete; ++i) {
+		deletedPoints.emplace_back(data.back());
+		data.pop_back();
+	}
+	tree->registerDeletedData(deletedPoints);
+}

@@ -4,15 +4,13 @@
 
 template <typename T, std::size_t dim>
 Octree_<T, dim>::Octree_(std::size_t maxDataByNode, T maxSizeByNode, bool runInParallel) : maxDataByNode(maxDataByNode), maxSizeByNode(maxSizeByNode), runInParallel(runInParallel) {
-	root = new Node<T, dim>(this);
+	root = new Node_<T, dim>(this);
 }
-
 
 template <typename T, std::size_t dim>
 Octree_<T, dim>::~Octree_() {
 	delete root;
 }
-
 
 template <typename T, std::size_t dim>
 bool Octree_<T, dim>::build(const DP& pts) {
@@ -34,10 +32,18 @@ void Octree_<T, dim>::registerDeletedData(const std::vector<Id>& deletedData) {
 	}
 }
 
+template <typename T, std::size_t dim>
+const std::vector<typename Octree_<T, dim>::Id>& Octree_<T, dim>::getDeletedData() const {
+	return deletedDataFromLastModification;
+}
 
-//------------------------------------------------------------------------------
 template <typename T, std::size_t dim>
 template <typename Callback>
 bool Octree_<T, dim>::visit(Callback& cb) {
 	return root->visit(cb);
+}
+
+template <typename T, std::size_t dim>
+std::vector<Node_<T, dim>*> Octree_<T, dim>::getLeaves() {
+	return root->getLeaves();
 }

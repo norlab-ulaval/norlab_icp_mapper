@@ -13,7 +13,7 @@ template <typename T, std::size_t dim>
 class Octree_;
 
 template <typename T, std::size_t dim>
-class Node {
+class Node_ {
    public:
     using PM = PointMatcher<T>;
     using DP = typename PM::DataPoints;
@@ -29,7 +29,7 @@ class Node {
         T radius;
     };
 
-    Node* cells[nbCells];
+    Node_* cells[nbCells];
 
     /******************************************************
      *	Cells id are assigned as their position
@@ -48,21 +48,22 @@ class Node {
 
     std::vector<Id> data;
 
-    const Octree_<T, dim>* tree;
+    Octree_<T, dim>* tree;
+
+    int depth;
 
    public:
-    Node(const Octree_<T, dim>* tree);
-    Node(const Node<T, dim>& o);  // Deep-copy
-    Node(Node<T, dim>&& o);
+    Node_(Octree_<T, dim>* tree);
+    Node_(const Node_<T, dim>& o);  // Deep-copy
 
-    virtual ~Node();
+    virtual ~Node_();
 
-    Node<T, dim>& operator=(const Node<T, dim>& o);  // Deep-copy
-    Node<T, dim>& operator=(Node<T, dim>&& o);
+    Node_<T, dim>& operator=(const Node_<T, dim>& o);  // Deep-copy
 
     bool isLeaf() const;
     bool isEmpty() const;
     bool isInsideBB(const DP& pts) const;
+    int getDepth() const;
 
     inline std::size_t idx(const Point& pt) const;
     inline std::size_t idx(const DP& pts, const Id d) const;
@@ -71,7 +72,7 @@ class Node {
     Point getCenter() const;
 
     std::vector<Id>* getData();
-    Node<T, dim>* operator[](std::size_t idx);
+    Node_<T, dim>* operator[](std::size_t idx);
 
     bool build(const DP& pts, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.), bool parallelBuild = false);
     bool insert(const DP& newPts, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.), bool parallelInsert = false);
@@ -83,10 +84,18 @@ class Node {
     void insertRecursive(const DP& newPts, std::vector<Id>&& dataToInsert, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.));
     void insertRecursiveParallel(const DP& newPts, std::vector<Id>&& dataToInsert, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.));
 
+    void subsample(int nbOfPointsToDelete);
 
    public:
     template <typename Callback>
     bool visit(Callback& cb);
+
+    std::vector<Node_<T, dim>*> getLeaves() const;
 };
+
+template <typename T>
+using QuadtreeNode = Node_<T, 2>;
+template <typename T>
+using OctreeNode = Node_<T, 3>;
 
 #include "node.hpp"
