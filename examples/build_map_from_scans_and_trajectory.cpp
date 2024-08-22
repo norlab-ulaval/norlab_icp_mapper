@@ -13,6 +13,24 @@ typedef PM::DataPoints DP;
 
 namespace fs = std::filesystem;
 
+class Timer {
+private:
+    std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
+    const std::string name;
+
+public:
+    Timer(const std::string& name) : name(name) { startTime = std::chrono::high_resolution_clock::now(); }
+
+    double getElapsedMicroseconds() {
+        auto endTime = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = endTime - startTime;
+
+        return elapsed.count();
+    }
+
+    ~Timer() { std::cout << name << " took " << getElapsedMicroseconds() << "ms" << std::endl; }
+};
+
 
 std::vector<std::pair<Eigen::Affine3d, unsigned long>> getStampedTransformations(const std::string& filepath) {
     // Open the CSV file
@@ -172,8 +190,10 @@ int main(int argc, char* argv[]) {
         PM::TransformationParameters transformationParameters(stampedTransformations[i].first.matrix().cast<float>());
         std::string inputPath = vtkFilesPaths[i];
         DP inputCloud(DP::load(inputPath));
-
-        mapper->processInput(inputCloud, transformationParameters, timestamp);
+        {
+            Timer titi = Timer("/!\\ Mapper iter /!\\");
+            mapper->processInput(inputCloud, transformationParameters, timestamp);
+        }
     }
 
     fs::path outputPath = dataPath / "map.vtk";

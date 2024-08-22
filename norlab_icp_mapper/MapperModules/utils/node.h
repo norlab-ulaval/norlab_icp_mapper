@@ -10,6 +10,9 @@ inline constexpr T pow(const T base, const std::size_t exponent) {
 }
 
 template <typename T, std::size_t dim>
+class Octree_;
+
+template <typename T, std::size_t dim>
 class Node {
    public:
     using PM = PointMatcher<T>;
@@ -45,15 +48,10 @@ class Node {
 
     std::vector<Id> data;
 
-    std::size_t depth;
-
-    size_t maxDataByNode;
-    T maxSizeByNode;
-    bool isRoot;
-
+    const Octree_<T, dim>* tree;
 
    public:
-    Node(bool isRoot = true);
+    Node(const Octree_<T, dim>* tree);
     Node(const Node<T, dim>& o);  // Deep-copy
     Node(Node<T, dim>&& o);
 
@@ -64,13 +62,10 @@ class Node {
 
     bool isLeaf() const;
     bool isEmpty() const;
-    bool getIsRoot() const;
     bool isInsideBB(const DP& pts) const;
 
     inline std::size_t idx(const Point& pt) const;
     inline std::size_t idx(const DP& pts, const Id d) const;
-
-    std::size_t getDepth() const;
 
     T getRadius() const;
     Point getCenter() const;
@@ -80,9 +75,6 @@ class Node {
 
     bool build(const DP& pts, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.), bool parallelBuild = false);
     bool insert(const DP& newPts, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.), bool parallelInsert = false);
-
-    void clearTree();
-
 
    protected:
     void buildRecursive(const DP& pts, std::vector<Id>&& dataToBuild, BoundingBox&& bb, std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.));

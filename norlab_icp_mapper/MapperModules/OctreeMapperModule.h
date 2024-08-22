@@ -4,7 +4,6 @@
 #include "MapperModule.h"
 #include "utils/octree.h"
 #include <fstream>
-#include <strstream>
 
 class OctreeMapperModule : public MapperModule {
     typedef PointMatcher<float> PM;

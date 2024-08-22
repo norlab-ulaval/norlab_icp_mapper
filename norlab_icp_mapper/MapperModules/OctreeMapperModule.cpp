@@ -27,7 +27,7 @@ OctreeMapperModule::OctreeMapperModule(const PM::Parameters& params) : MapperMod
     PM::Parametrizable::get<std::size_t>("samplingMethod");
     maxPointByNode =  PM::Parametrizable::get<std::size_t>("maxPointByNode");
     maxSizeByNode = PM::Parametrizable::get<float>("maxSizeByNode");
-    octree = Octree<float>();
+    octree = Octree<float>(maxPointByNode, maxSizeByNode, buildParallel);
     file = std::ofstream();
     file.open("/home/nicolaslauzon/urmom-build.txt");
 }
@@ -60,27 +60,27 @@ void OctreeMapperModule::inPlaceUpdateMap(const PM::DataPoints& input, PM::DataP
     if (!octree_is_built) {
         {
             Timer titi = Timer("-- Insert pcl #" + std::to_string(i), &file);
-            octree.build(map, maxPointByNode, maxSizeByNode, buildParallel);
+            octree.build(map);
         }
         octree_is_built = true;
     } else {
         bool insert_worked = true;
         {
             Timer titi = Timer("-- Insert pcl #" + std::to_string(i), &file);
-            insert_worked = octree.insert(input, maxPointByNode, maxSizeByNode, buildParallel);
+            insert_worked = octree.insert(input);
         }
         if (!insert_worked) {
             {
                 Timer titi = Timer("-- Insert pcl #" + std::to_string(i), &file);
-                octree.clearTree();
-                octree.build(map, maxPointByNode, maxSizeByNode, buildParallel);
+                octree = Octree<float>(maxPointByNode, maxSizeByNode, buildParallel);
+                octree.build(map);
             }
         }
     }
     Octree<float> oc;
     {
         Timer titi = Timer("-- Build pcl #" + std::to_string(i), &file);
-        oc.build(map, maxPointByNode, maxSizeByNode, buildParallel);
+        oc.build(map);
     }
 
     i++;

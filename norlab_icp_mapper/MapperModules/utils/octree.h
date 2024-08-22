@@ -32,11 +32,13 @@ class Octree_ {
      *****************************************************/
 
 
-	Node<T, dim>* root;
+    Node<T, dim>* root;
 
     size_t maxDataByNode;
     T maxSizeByNode;
-	bool runInParallel;
+    bool runInParallel;
+
+    std::vector<Id> deletedDataFromLastModification;
 
    public:
     Octree_(std::size_t maxDataByNode = 1, T maxSizeByNode = T(0.), bool runInParallel = false);
@@ -45,6 +47,8 @@ class Octree_ {
 
     bool build(const DP& pts);
     bool insert(const DP& newPts);
+
+    void registerDeletedData(const std::vector<Id>& deletedData);
 
    public:
     template <typename Callback>

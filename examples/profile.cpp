@@ -36,15 +36,14 @@ int main() {
 	float maxSizeByNode = 0.15;
 	bool buildParallel = true;
 
-	Octree<float> oc;
+	Octree<float> oc(maxDataByNode, maxSizeByNode, buildParallel);
 	{
-		Timer("Build");
-		oc.build(pcl1, maxDataByNode, maxSizeByNode, buildParallel);
+		Timer titi = Timer("Build");
+		oc.build(pcl1);
 	}
 	{
-		Timer("Insert");
-		oc.insert(pcl2, maxDataByNode, maxSizeByNode, buildParallel);
+		Timer titi = Timer("Insert");
+		oc.insert(pcl2);
 	}
-	oc.getCenter();
 	return 0;	
 }

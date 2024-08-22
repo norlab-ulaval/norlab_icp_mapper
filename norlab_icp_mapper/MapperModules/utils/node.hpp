@@ -37,12 +37,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <omp.h>
 
 template <typename T, std::size_t dim>
-Node<T, dim>::Node(bool isRoot) : depth{0}, isRoot(isRoot) {
+Node<T, dim>::Node(const Octree_<T, dim>* tree) : tree(tree) {
     for (size_t i = 0; i < nbCells; ++i) cells[i] = nullptr;
 }
 
 template <typename T, std::size_t dim>
-Node<T, dim>::Node(const Node<T, dim>& o) : bb{o.bb.center, o.bb.radius}, depth{o.depth} {
+Node<T, dim>::Node(const Node<T, dim>& o) : bb{o.bb.center, o.bb.radius} {
     if (o.isLeaf())  // Leaf case
     {
         // nullify childs
@@ -58,7 +58,7 @@ Node<T, dim>::Node(const Node<T, dim>& o) : bb{o.bb.center, o.bb.radius}, depth{
     }
 }
 template <typename T, std::size_t dim>
-Node<T, dim>::Node(Node<T, dim>&& o) : bb{o.bb.center, o.bb.radius}, depth{o.depth} {
+Node<T, dim>::Node(Node<T, dim>&& o) : bb{o.bb.center, o.bb.radius} {
     // only allow move of root node
     assert(o.getIsRoot());
 
@@ -86,7 +86,6 @@ Node<T, dim>::~Node() {
 
 template <typename T, std::size_t dim>
 Node<T, dim>& Node<T, dim>::operator=(const Node<T, dim>& o) {
-    depth = o.depth;
 
     if (o.isLeaf())  // Leaf case
     {
@@ -112,7 +111,6 @@ Node<T, dim>& Node<T, dim>::operator=(Node<T, dim>&& o) {
     bb.center = o.bb.center;
     bb.radius = o.bb.radius;
 
-    depth = o.depth;
 
     if (o.isLeaf())  // Leaf case
     {
@@ -133,10 +131,6 @@ Node<T, dim>& Node<T, dim>::operator=(Node<T, dim>&& o) {
 template <typename T, std::size_t dim>
 bool Node<T, dim>::isLeaf() const {
     return (cells[0] == nullptr);
-}
-template <typename T, std::size_t dim>
-bool Node<T, dim>::getIsRoot() const {
-    return isRoot;
 }
 template <typename T, std::size_t dim>
 bool Node<T, dim>::isEmpty() const {
@@ -173,10 +167,6 @@ std::size_t Node<T, dim>::idx(const Point& pt) const {
 template <typename T, std::size_t dim>
 std::size_t Node<T, dim>::idx(const DP& pts, const Id id) const {
     return idx(pts.features.col(id));
-}
-template <typename T, std::size_t dim>
-std::size_t Node<T, dim>::getDepth() const {
-    return depth;
 }
 template <typename T, std::size_t dim>
 T Node<T, dim>::getRadius() const {
@@ -225,13 +215,11 @@ bool Node<T, dim>::build(const DP& pts, std::size_t maxDataByNode, T maxSizeByNo
 
     for (size_t i = 0; i < nbpts; ++i) indexes.emplace_back(Id(i));
 
-	std::vector<Id> datas = toData(indexes);
-
     // build
     if (parallelBuild) {
-        buildRecursiveParallel(pts, std::move(datas), std::move(box), maxDataByNode, maxSizeByNode);
+        buildRecursiveParallel(pts, std::move(indexes), std::move(box), maxDataByNode, maxSizeByNode);
     } else {
-        buildRecursive(pts, std::move(datas), std::move(box), maxDataByNode, maxSizeByNode);
+        buildRecursive(pts, std::move(indexes), std::move(box), maxDataByNode, maxSizeByNode);
     }
     return true;
 }
@@ -249,25 +237,12 @@ bool Node<T, dim>::insert(const DP& newPts, std::size_t maxDataByNode, T maxSize
     #pragma omp parallel for
     for (size_t i = 0; i < nbpts; ++i) indexes.emplace_back(Id(i));
 
-	std::vector<Id> datas = toData(indexes);
- 
     if (parallelInsert) {
-        insertRecursiveParallel(newPts, std::move(datas), maxDataByNode, maxSizeByNode);
+        insertRecursiveParallel(newPts, std::move(indexes), maxDataByNode, maxSizeByNode);
     } else {
-        insertRecursive(newPts, std::move(datas), maxDataByNode, maxSizeByNode);
+        insertRecursive(newPts, std::move(indexes), maxDataByNode, maxSizeByNode);
     }
     return true;
-}
-
-template <typename T, std::size_t dim>
-void Node<T, dim>::clearTree() {
-    if (!isLeaf()) {
-        for (size_t i = 0; i < nbCells; ++i) {
-            delete cells[i];
-            cells[i] = nullptr;
-        }
-    }
-    data.clear();
 }
 
 template <typename T, std::size_t dim>
@@ -384,8 +359,7 @@ void Node<T, dim>::buildRecursive(const DP& pts, std::vector<Id>&& dataToBuild, 
 
     // Build childs
     for (int i = 0; i < nbCells; ++i) {
-        cells[i] = new Node<T, dim>(false);
-        cells[i]->depth = this->depth + 1;
+        cells[i] = new Node<T, dim>(tree);
         cells[i]->buildRecursive(pts, std::move(splittedData[i]), std::move(boxes[i]), maxDataByNode, maxSizeByNode);
     }
 }
@@ -428,8 +402,7 @@ void Node<T, dim>::buildRecursiveParallel(const DP& pts, std::vector<Id>&& dataT
     // Build childs
     #pragma omp parallel for schedule(static, 1)
     for (int i = 0; i < nbCells; ++i) {
-        Node<T, dim>* child_i = new Node<T, dim>(false);
-        child_i->depth = this->depth + 1;
+        Node<T, dim>* child_i = new Node<T, dim>(tree);
         child_i->buildRecursive(pts, std::move(splittedData[i]), std::move(boxes[i]), maxDataByNode, maxSizeByNode);
         cells[i] = child_i;
     }
