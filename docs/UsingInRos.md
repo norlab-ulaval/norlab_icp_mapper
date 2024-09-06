@@ -106,9 +106,8 @@ See [How to configure the Mapper](MapperConfiguration.md) guide for more details
 
 Finally, the ROS launch file is located in `launch/mapper.launch` for ROS and `launch/mapper.launch.py` for ROS 2.
 
-<p align="center">
-   <img src="https://github.com/norlab-ulaval/Norlab_wiki/blob/main/Tutorials/3D_mapping/images/mapper_flowchart.png" alt="TODO update this outdated chart" height="450"/>
-</p>
+![Diagram light](images/diagram_dark.png#only-light)
+![Diagram dark](images/diagram_light.png#only-dark)
 
 ### Running the demo
 
