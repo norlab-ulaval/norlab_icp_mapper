@@ -106,8 +106,8 @@ See [How to configure the Mapper](MapperConfiguration.md) guide for more details
 
 Finally, the ROS launch file is located in `launch/mapper.launch` for ROS and `launch/mapper.launch.py` for ROS 2.
 
-![Diagram light](images/diagram_dark.png#only-light)
-![Diagram dark](images/diagram_light.png#only-dark)
+![Diagram light](images/diagram_light.png#only-light)
+![Diagram dark](images/diagram_dark.png#only-dark)
 
 ### Running the demo
 
