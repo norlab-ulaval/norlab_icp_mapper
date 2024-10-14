@@ -5,7 +5,7 @@
 		norlab_icp_mapper is a library for localization and mapping relying on the "Iterative Closest Point" algorithm.
 	</description>
 	<maintainer email="matej.boxan@gmail.com">Matej Boxan</maintainer>
-	<license>BSD</license>
+	<license>BSD-2.0</license>
 	<url type="repository">https://github.com/norlab-ulaval/norlab_icp_mapper</url>
 
 	<buildtool_depend>cmake</buildtool_depend>
