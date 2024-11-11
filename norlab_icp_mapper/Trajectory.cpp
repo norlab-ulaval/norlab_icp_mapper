@@ -6,10 +6,11 @@ Trajectory::Trajectory(int dimension):
 {
 }
 
-void Trajectory::addPose(Eigen::MatrixXf pose, std::chrono::time_point<std::chrono::steady_clock> timeStamp)
+void Trajectory::addPose(Eigen::MatrixXf pose, std::chrono::time_point<std::chrono::steady_clock> timeStamp, PM::TransformationParameters correction)
 {
     poses.push_back(pose);
     timeStamps.push_back(timeStamp);
+    icpCorrections.push_back(correction);
 }
 
 void Trajectory::save(std::string filename) const
@@ -30,7 +31,8 @@ void Trajectory::save(std::string filename) const
     {
         descriptorLabels.push_back(PointMatcher<float>::DataPoints::Label("orientationZ", dimension));
     }
-    Eigen::MatrixXf descriptors(dimension * dimension, poses.size());
+    descriptorLabels.push_back(PointMatcher<float>::DataPoints::Label("icpCorrection", dimension));
+    Eigen::MatrixXf descriptors(dimension * dimension + dimension, poses.size());
 
     PointMatcher<float>::DataPoints::Labels timeLabels;
     timeLabels.push_back(PointMatcher<float>::DataPoints::Label("t", 1));
@@ -45,6 +47,7 @@ void Trajectory::save(std::string filename) const
         {
             descriptors.block(2 * dimension, i, dimension, 1) = poses[i].block(0, 2, dimension, 1);
         }
+        descriptors.block(3*dimension, i, dimension, 1) = icpCorrections[i].block(0, 3, dimension, 1);
         times(0, i) = timeStamps[i].time_since_epoch().count();
     }
 
@@ -56,4 +59,5 @@ void Trajectory::clear()
 {
     poses.clear();
     timeStamps.clear();
+    icpCorrections.clear();
 }

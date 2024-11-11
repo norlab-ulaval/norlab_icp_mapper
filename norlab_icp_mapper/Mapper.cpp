@@ -192,6 +192,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 	PM::DataPoints input = transformation->compute(filteredInputInSensorFrame, estimatedPose);
 
 	PM::TransformationParameters correctedPose;
+    PM::TransformationParameters correction;
 	if(map.isLocalPointCloudEmpty())
 	{
 		correctedPose = estimatedPose;
@@ -202,7 +203,6 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 	}
 	else
 	{
-		PM::TransformationParameters correction;
 		{
 			std::lock_guard<std::mutex> icpMapLockGuard(icpMapLock);
 			correction = icp(input);
@@ -228,7 +228,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
 	int euclideanDim = is3D ? 3 : 2;
 	trajectoryLock.lock();
-	trajectory.addPose(correctedPose, timeStamp);
+	trajectory.addPose(correctedPose, timeStamp, correction);
 	trajectoryLock.unlock();
 }
 
