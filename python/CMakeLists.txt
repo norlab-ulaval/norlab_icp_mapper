@@ -1,5 +1,8 @@
-cmake_minimum_required(VERSION 3.15)
-project(src/pynorlab_icp_mapper)
+cmake_minimum_required(VERSION 3.15...3.26)
+project(src/pynorlab_icp_mapper
+    LANGUAGES CXX
+    VERSION "${SKBUILD_PROJECT_VERSION}")
+
 set(PYBIND11_SOURCES
         #main module
         src/norlab_icp_mapper.cpp
@@ -33,7 +36,6 @@ if (DEFINED SKBUILD_PROJECT_NAME)
 
         target_link_libraries(_core
                 PUBLIC
-                norlab_icp_mapper
                 ${norlab_icp_mapper_LIBRARIES}
                 ${libpointmatcher_LIBRARIES})
 
