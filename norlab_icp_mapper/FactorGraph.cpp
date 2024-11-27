@@ -6,6 +6,8 @@
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include "utils.hpp"
 
+const std::string OUTPUT_FOLDER = "/home/sp/Desktop/debug_2/";
+
 FactorGraph::FactorGraph(const Eigen::Matrix<float, 4, 4>& initialLidarPose, const Eigen::Matrix<float, 3, 1>& initialLidarLinearVelocity,
                          const std::chrono::time_point<std::chrono::steady_clock>& initialTimeStamp, const std::chrono::time_point<std::chrono::steady_clock>& finalTimeStamp,
                          const std::vector<ImuMeasurement>& imuMeasurements, const Eigen::Matrix<float, 4, 4>& imuToLidar, const bool& reconstructContinuousTrajectory):
@@ -101,7 +103,7 @@ std::vector<StampedState> FactorGraph::optimize(const Eigen::Matrix<float, 4, 4>
 
         if(saveGraph)
         {
-            save(initialEstimate, registrationTransformation, "/home/sp/Desktop/debug/initial_estimate_" + std::to_string(iterationCounter) + ".csv");
+            save(initialEstimate, registrationTransformation, OUTPUT_FOLDER + "initial_estimate_" + std::to_string(iterationCounter) + ".csv");
         }
 
         gtsam::LevenbergMarquardtOptimizer optimizer(graphCopy, initialEstimate, optimizerParams);
@@ -109,7 +111,7 @@ std::vector<StampedState> FactorGraph::optimize(const Eigen::Matrix<float, 4, 4>
 
         if(saveGraph)
         {
-            save(result, registrationTransformation, "/home/sp/Desktop/debug/optimization_result_" + std::to_string(iterationCounter) + ".csv");
+            save(result, registrationTransformation, OUTPUT_FOLDER + "optimization_result_" + std::to_string(iterationCounter) + ".csv");
         }
 
         if(result.equals(initialEstimate, 1e-6))

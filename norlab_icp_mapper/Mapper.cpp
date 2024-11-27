@@ -86,8 +86,57 @@ void saveFinalStates(const std::vector<StampedState>& states, const bool& resetF
 }
 
 int scanCounter = 0;
-int TARGET_SCAN = -1;
+int TARGET_SCAN = 95;
+const std::string DEBUG_FOLDER = "/home/sp/data/iros2024/debug/continuous_traj_run_1_decomposed/";
 
+void saveInitialPose(const PM::TransformationParameters& initialPose, const std::string& fileName)
+{
+    std::ofstream ofstream(fileName);
+    ofstream << "t00,t01,t02,t03,t10,t11,t12,t13,t20,t21,t22,t23,t30,t31,t32,t33" << std::endl;
+    ofstream << initialPose(0, 0) << "," << initialPose(0, 1) << "," << initialPose(0, 2) << "," << initialPose(0, 3) << "," <<
+             initialPose(1, 0) << "," << initialPose(1, 1) << "," << initialPose(1, 2) << "," << initialPose(1, 3) << "," <<
+             initialPose(2, 0) << "," << initialPose(2, 1) << "," << initialPose(2, 2) << "," << initialPose(2, 3) << "," <<
+             initialPose(3, 0) << "," << initialPose(3, 1) << "," << initialPose(3, 2) << "," << initialPose(3, 3) << std::endl;
+    ofstream.close();
+}
+
+void saveInitialVelocity(const Eigen::Matrix<float, 3, 1>& initialVelocity, const std::string& fileName)
+{
+    std::ofstream ofstream(fileName);
+    ofstream << "v0,v1,v2" << std::endl;
+    ofstream << initialVelocity(0, 0) << "," << initialVelocity(1, 0) << "," << initialVelocity(2, 0) << std::endl;
+    ofstream.close();
+}
+
+void saveImuMeasurement(const ImuMeasurement& measurement, const std::string& fileName)
+{
+    std::ofstream ofstream(fileName);
+    ofstream << "linear_acceleration.x,linear_acceleration.y,linear_acceleration.z,angular_velocity.x,angular_velocity.y,angular_velocity.z" << std::endl;
+    ofstream << measurement.linearAcceleration(0) << "," << measurement.linearAcceleration(1) << "," << measurement.linearAcceleration(2) << "," << measurement.angularVelocity(0)
+             << "," << measurement.angularVelocity(1) << "," << measurement.angularVelocity(2) << std::endl;
+    ofstream.close();
+}
+
+void saveFinalTimestamp(const std::chrono::time_point<std::chrono::steady_clock>& finalTimestamp, const std::string& fileName)
+{
+    std::ofstream ofstream(fileName);
+    ofstream << finalTimestamp.time_since_epoch().count() << std::endl;
+    ofstream.close();
+}
+
+void saveLidarState(const StampedState& lidarState, const std::string& fileName)
+{
+    std::ofstream ofstream(fileName);
+    ofstream << "t00,t01,t02,t03,t10,t11,t12,t13,t20,t21,t22,t23,t30,t31,t32,t33,v0,v1,v2" << std::endl;
+    ofstream << lidarState.pose(0, 0) << "," << lidarState.pose(0, 1) << "," << lidarState.pose(0, 2) << "," << lidarState.pose(0, 3) << "," <<
+             lidarState.pose(1, 0) << "," << lidarState.pose(1, 1) << "," << lidarState.pose(1, 2) << "," << lidarState.pose(1, 3) << "," <<
+             lidarState.pose(2, 0) << "," << lidarState.pose(2, 1) << "," << lidarState.pose(2, 2) << "," << lidarState.pose(2, 3) << "," <<
+             lidarState.pose(3, 0) << "," << lidarState.pose(3, 1) << "," << lidarState.pose(3, 2) << "," << lidarState.pose(3, 3) << "," <<
+             lidarState.velocity(0, 0) << "," << lidarState.velocity(1, 0) << "," << lidarState.velocity(2, 0) << std::endl;
+    ofstream.close();
+}
+
+#include <iomanip>
 void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& poseAtStartOfScan,
                                              const Eigen::Matrix<float, 3, 1>& velocityAtStartOfScan, const std::vector<ImuMeasurement>& imuMeasurements,
                                              const std::chrono::time_point<std::chrono::steady_clock>& timeStampAtStartOfScan,
@@ -97,6 +146,22 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
     PM::DataPoints filteredInputInSensorFrame = radiusFilter->filter(inputInSensorFrame);
     inputFilters.apply(filteredInputInSensorFrame);
+
+    std::cout << std::setprecision(20) << timeStampAtStartOfScan.time_since_epoch().count() << ": " << scanCounter << std::endl;
+
+//    saveInitialPose(poseAtStartOfScan, DEBUG_FOLDER + "initial_pose_" + std::to_string(timeStampAtStartOfScan.time_since_epoch().count()) + ".csv");
+//    saveInitialVelocity(velocityAtStartOfScan, DEBUG_FOLDER + "initial_velocity_" + std::to_string(timeStampAtStartOfScan.time_since_epoch().count()) + ".csv");
+//    saveFinalTimestamp(timeStampAtEndOfScan, DEBUG_FOLDER + "final_timestamp_" + std::to_string(timeStampAtStartOfScan.time_since_epoch().count()) + ".csv");
+//    for(int i = 0; i < imuMeasurements.size(); ++i)
+//    {
+//        saveImuMeasurement(imuMeasurements[i], DEBUG_FOLDER + "imu_measurement_" + std::to_string(imuMeasurements[i].timeStamp.time_since_epoch().count()) + ".csv");
+//    }
+//    filteredInputInSensorFrame.save(DEBUG_FOLDER + "scan_" + std::to_string(timeStampAtStartOfScan.time_since_epoch().count()) + ".csv");
+//    map.getLocalPointCloud().save(DEBUG_FOLDER + "map_" + std::to_string(timeStampAtStartOfScan.time_since_epoch().count()) + ".csv");
+//    for(int i = 0; i < intraScanTrajectory.size(); ++i)
+//    {
+//        saveLidarState(intraScanTrajectory[i], DEBUG_FOLDER + "lidar_state_" + std::to_string(intraScanTrajectory[i].timeStamp.time_since_epoch().count()) + ".csv");
+//    }
 
     std::vector<StampedState> optimizedStates;
     if(map.isLocalPointCloudEmpty())
