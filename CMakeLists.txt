@@ -15,9 +15,11 @@ set(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${libpointmatcher_LIBRARIES} gtsam)
 include_directories(norlab_icp_mapper ${libpointmatcher_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR})
 add_library(norlab_icp_mapper norlab_icp_mapper/Mapper.cpp norlab_icp_mapper/Map.cpp norlab_icp_mapper/RAMCellManager.cpp norlab_icp_mapper/HardDriveCellManager.cpp norlab_icp_mapper/FactorGraph.cpp)
 
-# stretch_icp_debug
 add_executable(register_single_scan register_single_scan.cpp norlab_icp_mapper/Map.cpp norlab_icp_mapper/RAMCellManager.cpp norlab_icp_mapper/HardDriveCellManager.cpp norlab_icp_mapper/FactorGraph.cpp)
 target_link_libraries(register_single_scan ${EXTERNAL_LIBS})
+
+add_executable(register_single_scan_dynamic_static_icps register_single_scan_dynamic_static_icps.cpp norlab_icp_mapper/Map.cpp norlab_icp_mapper/RAMCellManager.cpp norlab_icp_mapper/HardDriveCellManager.cpp norlab_icp_mapper/FactorGraph.cpp)
+target_link_libraries(register_single_scan_dynamic_static_icps ${EXTERNAL_LIBS})
 
 # install target
 set(INSTALL_LIB_DIR lib CACHE PATH "Installation directory for libraries")

@@ -34,6 +34,7 @@ namespace norlab_icp_mapper
         PM::TransformationParameters lastPoseWhereMapWasUpdated;
         std::mutex trajectoryLock;
         std::mutex icpMapLock;
+        float linearVelocityNoise;
 
         bool shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime, const PM::TransformationParameters& currentPose,
                              const float& currentOverlap) const;
@@ -44,7 +45,7 @@ namespace norlab_icp_mapper
                const std::string& mapUpdateCondition, const float& mapUpdateOverlap, const float& mapUpdateDelay, const float& mapUpdateDistance,
                const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle,
                const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& computeProbDynamic, const bool& isMapping,
-               const bool& saveMapCellsOnHardDrive, const PM::TransformationParameters& imuToLidar, const bool& reconstructContinuousTrajectory);
+               const bool& saveMapCellsOnHardDrive, const PM::TransformationParameters& imuToLidar, const bool& reconstructContinuousTrajectory, const float& linearVelocityNoise);
         void loadYamlConfig(const std::string& inputFiltersConfigFilePath, const std::string& icpConfigFilePath,
                             const std::string& mapPostFiltersConfigFilePath);
         void processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& poseAtStartOfScan, const Eigen::Matrix<float, 3, 1>& velocityAtStartOfScan,

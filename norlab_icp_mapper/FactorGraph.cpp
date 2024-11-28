@@ -10,7 +10,8 @@ const std::string OUTPUT_FOLDER = "/home/sp/Desktop/debug_2/";
 
 FactorGraph::FactorGraph(const Eigen::Matrix<float, 4, 4>& initialLidarPose, const Eigen::Matrix<float, 3, 1>& initialLidarLinearVelocity,
                          const std::chrono::time_point<std::chrono::steady_clock>& initialTimeStamp, const std::chrono::time_point<std::chrono::steady_clock>& finalTimeStamp,
-                         const std::vector<ImuMeasurement>& imuMeasurements, const Eigen::Matrix<float, 4, 4>& imuToLidar, const bool& reconstructContinuousTrajectory):
+                         const std::vector<ImuMeasurement>& imuMeasurements, const Eigen::Matrix<float, 4, 4>& imuToLidar, const bool& reconstructContinuousTrajectory,
+                         const float& linearVelocityNoise):
         imuMeasurements(imuMeasurements), imuToLidar(imuToLidar), reconstructContinuousTrajectory(reconstructContinuousTrajectory)
 {
     initialImuPose = (initialLidarPose * imuToLidar).cast<double>();
@@ -26,7 +27,7 @@ FactorGraph::FactorGraph(const Eigen::Matrix<float, 4, 4>& initialLidarPose, con
     // priors
     graph.add(gtsam::PriorFactor<gtsam::Pose3>(1, gtsam::Pose3(initialImuPose), INITIAL_POSE_PRIOR_NOISE));
     initialEstimate.insert(1, gtsam::Pose3(initialImuPose));
-    graph.add(gtsam::PriorFactor<gtsam::Vector3>(nbPoses + 1, initialImuLinearVelocity, INITIAL_VELOCITY_PRIOR_NOISE));
+    graph.add(gtsam::PriorFactor<gtsam::Vector3>(nbPoses + 1, initialImuLinearVelocity, gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector::Ones(3) * linearVelocityNoise)));
     initialEstimate.insert(nbPoses + 1, initialImuLinearVelocity);
     graph.add(gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(2 * nbPoses + 1, imuBias, BIAS_PRIOR_NOISE));
     initialEstimate.insert(2 * nbPoses + 1, imuBias);

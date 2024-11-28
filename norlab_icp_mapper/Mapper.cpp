@@ -8,7 +8,8 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
                                   const float& mapUpdateDelay, const float& mapUpdateDistance, const float& minDistNewPoint, const float& sensorMaxRange,
                                   const float& priorDynamic, const float& thresholdDynamic, const float& beamHalfAngle, const float& epsilonA,
                                   const float& epsilonD, const float& alpha, const float& beta, const bool& is3D, const bool& computeProbDynamic, const bool& isMapping,
-                                  const bool& saveMapCellsOnHardDrive, const PM::TransformationParameters& imuToLidar, const bool& reconstructContinuousTrajectory):
+                                  const bool& saveMapCellsOnHardDrive, const PM::TransformationParameters& imuToLidar, const bool& reconstructContinuousTrajectory,
+                                  const float& linearVelocityNoise):
         mapUpdateCondition(mapUpdateCondition),
         mapUpdateOverlap(mapUpdateOverlap),
         mapUpdateDelay(mapUpdateDelay),
@@ -19,7 +20,8 @@ norlab_icp_mapper::Mapper::Mapper(const std::string& inputFiltersConfigFilePath,
         map(minDistNewPoint, sensorMaxRange, priorDynamic, thresholdDynamic, beamHalfAngle, epsilonA, epsilonD, alpha, beta, is3D,
             computeProbDynamic, saveMapCellsOnHardDrive, icp, icpMapLock),
         transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
-        reconstructContinuousTrajectory(reconstructContinuousTrajectory)
+        reconstructContinuousTrajectory(reconstructContinuousTrajectory),
+        linearVelocityNoise(linearVelocityNoise)
 {
     loadYamlConfig(inputFiltersConfigFilePath, icpConfigFilePath, mapPostFiltersConfigFilePath);
 
@@ -63,30 +65,8 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& inputFiltersCo
 
 const std::string TRAJECTORY_FILE_PATH = "/home/sp/Desktop/deskewing_icp_traj.csv";
 
-void saveFinalStates(const std::vector<StampedState>& states, const bool& resetFile = false)
-{
-    std::ofstream trajectoryFile;
-    if(resetFile)
-    {
-        trajectoryFile = std::ofstream(TRAJECTORY_FILE_PATH);
-        trajectoryFile << "timestamp,t00,t01,t02,t03,t10,t11,t12,t13,t20,t21,t22,t23,t30,t31,t32,t33" << std::endl;
-    }
-    else
-    {
-        trajectoryFile = std::ofstream(TRAJECTORY_FILE_PATH, std::ios::app);
-    }
-    for(const StampedState& state: states)
-    {
-        trajectoryFile << state.timeStamp.time_since_epoch().count() << "," << state.pose(0, 0) << "," << state.pose(0, 1) << "," << state.pose(0, 2) << "," << state.pose(0, 3)
-                       << "," << state.pose(1, 0) << "," << state.pose(1, 1) << "," << state.pose(1, 2) << "," << state.pose(1, 3)
-                       << "," << state.pose(2, 0) << "," << state.pose(2, 1) << "," << state.pose(2, 2) << "," << state.pose(2, 3)
-                       << "," << state.pose(3, 0) << "," << state.pose(3, 1) << "," << state.pose(3, 2) << "," << state.pose(3, 3) << std::endl;
-    }
-    trajectoryFile.close();
-}
-
 int scanCounter = 0;
-int TARGET_SCAN = 95;
+int TARGET_SCAN = -1;
 const std::string DEBUG_FOLDER = "/home/sp/data/iros2024/debug/continuous_traj_run_1_decomposed/";
 
 void saveInitialPose(const PM::TransformationParameters& initialPose, const std::string& fileName)
@@ -136,7 +116,6 @@ void saveLidarState(const StampedState& lidarState, const std::string& fileName)
     ofstream.close();
 }
 
-#include <iomanip>
 void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& poseAtStartOfScan,
                                              const Eigen::Matrix<float, 3, 1>& velocityAtStartOfScan, const std::vector<ImuMeasurement>& imuMeasurements,
                                              const std::chrono::time_point<std::chrono::steady_clock>& timeStampAtStartOfScan,
@@ -146,8 +125,6 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
     PM::DataPoints filteredInputInSensorFrame = radiusFilter->filter(inputInSensorFrame);
     inputFilters.apply(filteredInputInSensorFrame);
-
-    std::cout << std::setprecision(20) << timeStampAtStartOfScan.time_since_epoch().count() << ": " << scanCounter << std::endl;
 
 //    saveInitialPose(poseAtStartOfScan, DEBUG_FOLDER + "initial_pose_" + std::to_string(timeStampAtStartOfScan.time_since_epoch().count()) + ".csv");
 //    saveInitialVelocity(velocityAtStartOfScan, DEBUG_FOLDER + "initial_velocity_" + std::to_string(timeStampAtStartOfScan.time_since_epoch().count()) + ".csv");
@@ -167,7 +144,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
     if(map.isLocalPointCloudEmpty())
     {
         FactorGraph factorGraph(poseAtStartOfScan, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar,
-                                reconstructContinuousTrajectory);
+                                reconstructContinuousTrajectory, linearVelocityNoise);
         optimizedStates = factorGraph.getPredictedStates();
 
         if(scanCounter == TARGET_SCAN)
@@ -192,7 +169,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
         PM::TransformationParameters poseAtStartOfScan_refMean = T_refIn_refMean.inverse() * poseAtStartOfScan;
         FactorGraph factorGraph(poseAtStartOfScan_refMean, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar,
-                                reconstructContinuousTrajectory);
+                                reconstructContinuousTrajectory, linearVelocityNoise);
         std::vector<StampedState> optimizedStates_refMean = factorGraph.getPredictedStates();
 
         PM::DataPoints reading(filteredInputInSensorFrame);

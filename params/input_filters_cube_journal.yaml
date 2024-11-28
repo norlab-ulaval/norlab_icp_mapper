@@ -1,0 +1,15 @@
+- ObservationDirectionDataPointsFilter:
+
+- BoundingBoxDataPointsFilter:
+      xMin: -0.5
+      xMax: 0.5
+      yMin: -0.4
+      yMax: 0.4
+      zMin: -0.27
+      zMax: 0.23
+      removeInside: 1
+
+- VoxelGridDataPointsFilter:
+    vSizeX: 0.15
+    vSizeY: 0.15
+    vSizeZ: 0.15
