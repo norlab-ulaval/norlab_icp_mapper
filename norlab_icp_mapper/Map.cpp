@@ -6,8 +6,7 @@
 
 norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMaxRange, const float& priorDynamic, const float& thresholdDynamic,
                             const float& beamHalfAngle, const float& epsilonA, const float& epsilonD, const float& alpha, const float& beta, const bool& is3D,
-                            const bool& computeProbDynamic, const bool& saveCellsOnHardDrive, PM::ICPSequence& icp,
-                            std::mutex& icpMapLock):
+                            const bool& computeProbDynamic, const bool& saveCellsOnHardDrive):
         minDistNewPoint(minDistNewPoint),
         sensorMaxRange(sensorMaxRange),
         priorDynamic(priorDynamic),
@@ -19,8 +18,6 @@ norlab_icp_mapper::Map::Map(const float& minDistNewPoint, const float& sensorMax
         beta(beta),
         is3D(is3D),
         computeProbDynamic(computeProbDynamic),
-        icp(icp),
-        icpMapLock(icpMapLock),
         transformation(PM::get().TransformationRegistrar.create("RigidTransformation")),
         newLocalPointCloudAvailable(false),
         localPointCloudEmpty(true),
@@ -87,10 +84,6 @@ void norlab_icp_mapper::Map::loadCells(int startRow, int endRow, int startColumn
     {
         localPointCloud.concatenate(newChunk);
 
-        icpMapLock.lock();
-        setIcpMap(localPointCloud);
-        icpMapLock.unlock();
-
         localPointCloudEmpty.store(false);
         newLocalPointCloudAvailable = true;
     }
@@ -153,10 +146,6 @@ void norlab_icp_mapper::Map::unloadCells(int startRow, int endRow, int startColu
         }
     }
     localPointCloud.conservativeResize(localPointCloudNbPoints);
-
-    icpMapLock.lock();
-    setIcpMap(localPointCloud);
-    icpMapLock.unlock();
 
     if(!loadedCellIds.empty())
     {
@@ -483,10 +472,6 @@ void norlab_icp_mapper::Map::updateLocalPointCloud(PM::DataPoints input, PM::Tra
     postFilters.apply(localPointCloudInSensorFrame);
     localPointCloud = transformation->compute(localPointCloudInSensorFrame, pose);
 
-    icpMapLock.lock();
-    setIcpMap(localPointCloud);
-    icpMapLock.unlock();
-
     localPointCloudEmpty.store(localPointCloud.getNbPoints() == 0);
     newLocalPointCloudAvailable = true;
     localPointCloudLock.unlock();
@@ -693,10 +678,6 @@ void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalP
     localPointCloudLock.lock();
     localPointCloud = newLocalPointCloud;
 
-    icpMapLock.lock();
-    setIcpMap(localPointCloud);
-    icpMapLock.unlock();
-
     localPointCloudEmpty.store(localPointCloud.getNbPoints() == 0);
 
     firstPoseUpdate.store(true);
@@ -706,21 +687,4 @@ void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalP
 bool norlab_icp_mapper::Map::isLocalPointCloudEmpty() const
 {
     return localPointCloudEmpty.load();
-}
-
-void norlab_icp_mapper::Map::setIcpMap(const PM::DataPoints& newIcpMap)
-{
-    if(newIcpMap.getNbPoints() > 0)
-    {
-        icp.inspector->addStat("MapPointCount", newIcpMap.features.cols());
-        icpMap = newIcpMap;
-        icp.referenceDataPointsFilters.init();
-        icp.referenceDataPointsFilters.apply(icpMap);
-        icp.matcher->init(icpMap);
-    }
-}
-
-norlab_icp_mapper::Map::PM::DataPoints norlab_icp_mapper::Map::getIcpMap() const
-{
-    return icpMap;
 }

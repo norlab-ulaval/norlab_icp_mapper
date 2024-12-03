@@ -15,7 +15,8 @@ namespace norlab_icp_mapper
         typedef PointMatcher<float> PM;
 
         PM::DataPointsFilters inputFilters;
-        PM::ICPSequence icp;
+        PM::ICPSequence icpDynamic;
+        PM::ICPSequence icpStatic;
         PM::DataPointsFilters mapPostFilters;
         std::string mapUpdateCondition;
         float mapUpdateOverlap;

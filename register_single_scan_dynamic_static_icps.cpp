@@ -240,14 +240,16 @@ int main(int argc, char** argv)
     std::chrono::time_point<std::chrono::steady_clock> timeStampAtEndOfScan = loadFinalTimestamp(FINAL_TIMESTAMP_FILE_NAME);
     std::vector<ImuMeasurement> imuMeasurements = loadImuMeasurements(IMU_MEASUREMENTS_FOLDER, timeStampAtStartOfScan, timeStampAtEndOfScan);
 
-    std::vector<StampedState> optimizedStatesDynamic;
+    std::vector<StampedState> optimizedStates;
     if(reference.getNbPoints() == 0)
     {
         FactorGraph factorGraph(poseAtStartOfScan, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, IMU_TO_LIDAR, true, 1.0);
-        optimizedStatesDynamic = factorGraph.getPredictedStates();
+        optimizedStates = factorGraph.getPredictedStates();
     }
     else
     {
+        icpDynamic.referenceDataPointsFilters.init();
+        icpDynamic.referenceDataPointsFilters.apply(reference);
         const PM::Vector meanRef = reference.features.rowwise().sum() / reference.features.cols();
         PM::TransformationParameters T_refIn_refMean = PM::Matrix::Identity(4, 4);
         T_refIn_refMean.block(0, 3, 3, 1) = meanRef.head(3);
@@ -257,8 +259,8 @@ int main(int argc, char** argv)
 
         PM::TransformationParameters poseAtStartOfScan_refMean = T_refIn_refMean.inverse() * poseAtStartOfScan;
 
-        FactorGraph factorGraphDynamic(poseAtStartOfScan_refMean, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, IMU_TO_LIDAR, true, 1.0);
-        std::vector<StampedState> optimizedStates_refMean_dynamic = factorGraphDynamic.getPredictedStates();
+        FactorGraph factorGraph(poseAtStartOfScan_refMean, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, IMU_TO_LIDAR, true, 1.0);
+        std::vector<StampedState> optimizedStates_refMean = factorGraph.getPredictedStates();
 
         icpDynamic.readingDataPointsFilters.init();
         icpDynamic.readingDataPointsFilters.apply(reading);
@@ -269,13 +271,13 @@ int main(int argc, char** argv)
         icpDynamic.transformationCheckers.init(T_iter_dynamic, iterateDynamic);
         size_t iterationCountDynamic(0);
         std::cout << "==== Dynamic ICP residual ====" << std::endl;
-        PM::DataPoints stepReadingDynamic(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean_dynamic));
+        PM::DataPoints stepReadingDynamic(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean));
         PM::Matches matchesDynamic(matcher->findClosests(stepReadingDynamic));
         PM::OutlierWeights outlierWeightsDynamic(icpDynamic.outlierFilters.compute(stepReadingDynamic, reference, matchesDynamic));
         std::cout << icpDynamic.errorMinimizer->getResidualError(stepReadingDynamic, reference, outlierWeightsDynamic, matchesDynamic) << std::endl;
         while(iterateDynamic)
         {
-            stepReadingDynamic = deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean_dynamic);
+            stepReadingDynamic = deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean);
             icpDynamic.readingStepDataPointsFilters.apply(stepReadingDynamic);
             matchesDynamic = matcher->findClosests(stepReadingDynamic);
             outlierWeightsDynamic = icpDynamic.outlierFilters.compute(stepReadingDynamic, reference, matchesDynamic);
@@ -315,8 +317,8 @@ int main(int argc, char** argv)
             std::cout << "=============================" << std::endl;
 
             T_iter_dynamic = T_iter_static * T_iter_dynamic;
-            optimizedStates_refMean_dynamic = factorGraphDynamic.optimize(T_iter_dynamic, iterationCountDynamic, true);
-            std::cout << icpDynamic.errorMinimizer->getResidualError(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean_dynamic), reference, outlierWeightsDynamic,
+            optimizedStates_refMean = factorGraph.optimize(T_iter_dynamic, iterationCountDynamic, true);
+            std::cout << icpDynamic.errorMinimizer->getResidualError(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean), reference, outlierWeightsDynamic,
                                                                      matchesDynamic) << std::endl;
             try
             {
@@ -332,11 +334,11 @@ int main(int argc, char** argv)
         std::cout << "Dynamic ICP converged in " << iterationCountDynamic << " iterations" << std::endl;
         std::cout << "=============================" << std::endl;
 
-        optimizedStatesDynamic = applyTransformationToStates(T_refIn_refMean, optimizedStates_refMean_dynamic);
+        optimizedStates = applyTransformationToStates(T_refIn_refMean, optimizedStates_refMean);
     }
 
-    Eigen::Vector3f firstPosition = optimizedStatesDynamic[0].pose.topRightCorner<3, 1>();
-    Eigen::Vector3f lastPosition = optimizedStatesDynamic[optimizedStatesDynamic.size() - 1].pose.topRightCorner<3, 1>();
+    Eigen::Vector3f firstPosition = optimizedStates[0].pose.topRightCorner<3, 1>();
+    Eigen::Vector3f lastPosition = optimizedStates[optimizedStates.size() - 1].pose.topRightCorner<3, 1>();
     std::cout << "The estimated displacement during the scan is " << (lastPosition - firstPosition).norm() << " meters" << std::endl;
 
     return 0;

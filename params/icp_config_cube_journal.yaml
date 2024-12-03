@@ -8,7 +8,7 @@ outlierFilters:
  - VarTrimmedDistOutlierFilter:
     minRatio: 0.5
     maxRatio: 0.7
-# - TimeOutlierFilter:
+ - TimeOutlierFilter:
 
 errorMinimizer:
   PointToPlaneErrorMinimizer:

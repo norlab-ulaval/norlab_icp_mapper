@@ -37,13 +37,17 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& inputFiltersCo
 {
     if(!icpConfigFilePath.empty())
     {
-        std::ifstream ifs(icpConfigFilePath.c_str());
-        icp.loadFromYaml(ifs);
-        ifs.close();
+        std::ifstream ifsDynamic(icpConfigFilePath.c_str());
+        icpDynamic.loadFromYaml(ifsDynamic);
+        ifsDynamic.close();
+        std::ifstream ifsStatic(icpConfigFilePath.c_str());
+        icpStatic.loadFromYaml(ifsStatic);
+        ifsStatic.close();
     }
     else
     {
-        icp.setDefault();
+        icpDynamic.setDefault();
+        icpStatic.setDefault();
     }
 
     if(!inputFiltersConfigFilePath.empty())
@@ -143,8 +147,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
     std::vector<StampedState> optimizedStates;
     if(map.isLocalPointCloudEmpty())
     {
-        FactorGraph factorGraph(poseAtStartOfScan, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar,
-                                reconstructContinuousTrajectory, linearVelocityNoise);
+        FactorGraph factorGraph(poseAtStartOfScan, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar, true, linearVelocityNoise);
         optimizedStates = factorGraph.getPredictedStates();
 
         if(scanCounter == TARGET_SCAN)
@@ -159,67 +162,111 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
     else
     {
         PM::DataPoints reference(map.getLocalPointCloud());
-        icp.referenceDataPointsFilters.init();
-        icp.referenceDataPointsFilters.apply(reference);
+        icpDynamic.referenceDataPointsFilters.init();
+        icpDynamic.referenceDataPointsFilters.apply(reference);
         const PM::Vector meanRef = reference.features.rowwise().sum() / reference.features.cols();
         PM::TransformationParameters T_refIn_refMean = PM::Matrix::Identity(4, 4);
         T_refIn_refMean.block(0, 3, 3, 1) = meanRef.head(3);
         reference.features.topRows(3).colwise() -= meanRef.head(3);
-        std::shared_ptr<PM::Matcher> matcher = PM::get().MatcherRegistrar.create(icp.matcher->className, icp.matcher->parameters);
+        std::shared_ptr<PM::Matcher> matcher = PM::get().MatcherRegistrar.create(icpDynamic.matcher->className, icpDynamic.matcher->parameters);
         matcher->init(reference);
 
         PM::TransformationParameters poseAtStartOfScan_refMean = T_refIn_refMean.inverse() * poseAtStartOfScan;
-        FactorGraph factorGraph(poseAtStartOfScan_refMean, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar,
-                                reconstructContinuousTrajectory, linearVelocityNoise);
+        FactorGraph factorGraph(poseAtStartOfScan_refMean, velocityAtStartOfScan, timeStampAtStartOfScan, timeStampAtEndOfScan, imuMeasurements, imuToLidar, true,
+                                linearVelocityNoise);
         std::vector<StampedState> optimizedStates_refMean = factorGraph.getPredictedStates();
 
         PM::DataPoints reading(filteredInputInSensorFrame);
-        icp.readingDataPointsFilters.init();
-        icp.readingDataPointsFilters.apply(reading);
+        icpDynamic.readingDataPointsFilters.init();
+        icpDynamic.readingDataPointsFilters.apply(reading);
 
-        icp.readingStepDataPointsFilters.init();
-        PM::TransformationParameters T_iter = PM::Matrix::Identity(4, 4);
-        bool iterate(true);
-        icp.transformationCheckers.init(T_iter, iterate);
-        size_t iterationCount(0);
+        icpDynamic.readingStepDataPointsFilters.init();
+        PM::TransformationParameters T_iter_dynamic = PM::Matrix::Identity(4, 4);
+        bool iterateDynamic(true);
+        icpDynamic.transformationCheckers.init(T_iter_dynamic, iterateDynamic);
+        size_t iterationCountDynamic(0);
         if(scanCounter == TARGET_SCAN)
         {
-            std::cout << "==== ICP residual ====" << std::endl;
-            PM::DataPoints stepReading(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean));
-            PM::Matches matches(matcher->findClosests(stepReading));
-            PM::OutlierWeights outlierWeights(icp.outlierFilters.compute(stepReading, reference, matches));
-            std::cout << icp.errorMinimizer->getResidualError(stepReading, reference, outlierWeights, matches) << std::endl;
+            std::cout << "==== Dynamic ICP residual ====" << std::endl;
+            PM::DataPoints stepReadingDynamic(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean));
+            PM::Matches matchesDynamic(matcher->findClosests(stepReadingDynamic));
+            PM::OutlierWeights outlierWeightsDynamic(icpDynamic.outlierFilters.compute(stepReadingDynamic, reference, matchesDynamic));
+            std::cout << icpDynamic.errorMinimizer->getResidualError(stepReadingDynamic, reference, outlierWeightsDynamic, matchesDynamic) << std::endl;
         }
-        while(iterate)
+        while(iterateDynamic)
         {
-            PM::DataPoints stepReading(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean));
-            icp.readingStepDataPointsFilters.apply(stepReading);
-            PM::Matches matches(matcher->findClosests(stepReading));
-            PM::OutlierWeights outlierWeights(icp.outlierFilters.compute(stepReading, reference, matches));
+            PM::DataPoints stepReadingDynamic(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean));
+            icpDynamic.readingStepDataPointsFilters.apply(stepReadingDynamic);
+            PM::Matches matchesDynamic(matcher->findClosests(stepReadingDynamic));
+            PM::OutlierWeights outlierWeightsDynamic(icpDynamic.outlierFilters.compute(stepReadingDynamic, reference, matchesDynamic));
             if(scanCounter == TARGET_SCAN)
             {
-                icp.inspector->dumpIteration(iterationCount, T_iter, reference, stepReading, matches, outlierWeights, icp.transformationCheckers);
+                icpDynamic.inspector->dumpIteration(iterationCountDynamic, T_iter_dynamic, reference, stepReadingDynamic, matchesDynamic, outlierWeightsDynamic,
+                                                    icpDynamic.transformationCheckers);
             }
-            T_iter = icp.errorMinimizer->compute(stepReading, reference, outlierWeights, matches) * T_iter;
-            optimizedStates_refMean = factorGraph.optimize(T_iter, iterationCount, scanCounter == TARGET_SCAN);
+
+            PM::TransformationParameters T_iter_static = PM::Matrix::Identity(4, 4);
+            bool iterateStatic(true);
+            icpStatic.transformationCheckers.init(T_iter_static, iterateStatic);
+            size_t iterationCountStatic(0);
             if(scanCounter == TARGET_SCAN)
             {
-                std::cout << icp.errorMinimizer->getResidualError(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean), reference, outlierWeights, matches)
-                          << std::endl;
+                std::cout << "==== Static ICP residual ====" << std::endl;
+                PM::DataPoints stepReadingStatic(stepReadingDynamic);
+                PM::Matches matchesStatic(matcher->findClosests(stepReadingStatic));
+                PM::OutlierWeights outlierWeightsStatic(icpStatic.outlierFilters.compute(stepReadingStatic, reference, matchesStatic));
+                std::cout << icpStatic.errorMinimizer->getResidualError(stepReadingStatic, reference, outlierWeightsStatic, matchesStatic) << std::endl;
+            }
+            while(iterateStatic)
+            {
+                PM::DataPoints stepReadingStatic(stepReadingDynamic);
+                icpStatic.transformations.apply(stepReadingStatic, T_iter_static);
+                PM::Matches matchesStatic(matcher->findClosests(stepReadingStatic));
+                PM::OutlierWeights outlierWeightsStatic(icpStatic.outlierFilters.compute(stepReadingStatic, reference, matchesStatic));
+                PM::TransformationParameters correction = icpStatic.errorMinimizer->compute(stepReadingStatic, reference, outlierWeightsStatic, matchesStatic);
+                T_iter_static = correction * T_iter_static;
+                if(scanCounter == TARGET_SCAN)
+                {
+                    icpStatic.transformations.apply(stepReadingStatic, correction);
+                    std::cout << icpStatic.errorMinimizer->getResidualError(stepReadingStatic, reference, outlierWeightsStatic, matchesStatic) << std::endl;
+                }
+                try
+                {
+                    icpStatic.transformationCheckers.check(T_iter_static, iterateStatic);
+                }
+                catch(...)
+                {
+                    iterateStatic = false;
+                }
+                ++iterationCountStatic;
+            }
+            if(scanCounter == TARGET_SCAN)
+            {
+                std::cout << "Static ICP converged in " << iterationCountStatic << " iterations" << std::endl;
+                std::cout << "=============================" << std::endl;
+            }
+
+            T_iter_dynamic = T_iter_static * T_iter_dynamic;
+            optimizedStates_refMean = factorGraph.optimize(T_iter_dynamic, iterationCountDynamic, true);
+            if(scanCounter == TARGET_SCAN)
+            {
+                std::cout << icpDynamic.errorMinimizer->getResidualError(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean), reference, outlierWeightsDynamic,
+                                                                         matchesDynamic) << std::endl;
             }
             try
             {
-                icp.transformationCheckers.check(T_iter, iterate);
+                icpDynamic.transformationCheckers.check(T_iter_dynamic, iterateDynamic);
             }
             catch(...)
             {
-                iterate = false;
+                iterateDynamic = false;
             }
-            ++iterationCount;
+            ++iterationCountDynamic;
         }
         if(scanCounter == TARGET_SCAN)
         {
-            std::cout << "======================" << std::endl;
+            std::cout << "Dynamic ICP converged in " << iterationCountDynamic << " iterations" << std::endl;
+            std::cout << "=============================" << std::endl;
         }
 
         optimizedStates = applyTransformationToStates(T_refIn_refMean, optimizedStates_refMean);
@@ -231,7 +278,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 
         map.updatePose(poseAtStartOfScan);
 
-        if(shouldUpdateMap(timeStampAtStartOfScan, poseAtStartOfScan, icp.errorMinimizer->getOverlap()))
+        if(shouldUpdateMap(timeStampAtStartOfScan, poseAtStartOfScan, icpStatic.errorMinimizer->getOverlap()))
         {
             updateMap(deskew(filteredInputInSensorFrame, timeStampAtStartOfScan, optimizedStates), poseAtStartOfScan, timeStampAtStartOfScan);
         }

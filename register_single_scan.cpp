@@ -10,7 +10,7 @@
 const std::string ICP_CONFIG_FILE_PATH = "/home/sp/repos/norlab_icp_mapper/params/icp_config_cube_journal.yaml";
 const PM::TransformationParameters IMU_TO_LIDAR = (PM::TransformationParameters(4, 4)
         << 0.0, -1.0, 0.0, 0.087, 1.0, 0.0, 0.0, -0.02, 0.0, 0.0, 1.0, -0.04, 0.0, 0.0, 0.0, 1.0).finished();
-const bool RECONSTRUCT_CONTINUOUS_TRAJECTORY = true;
+const bool RECONSTRUCT_CONTINUOUS_TRAJECTORY = false;
 
 const std::string SCAN_FILE_NAME = "/home/sp/data/iros2024/debug/continuous_traj_run_1_decomposed/scan_1689175621955010048.csv";
 const std::string MAP_FILE_NAME = "/home/sp/data/iros2024/debug/continuous_traj_run_1_decomposed/map_1689175621955010048.csv";
@@ -245,6 +245,8 @@ int main(int argc, char** argv)
     }
     else
     {
+        icp.referenceDataPointsFilters.init();
+        icp.referenceDataPointsFilters.apply(reference);
         const PM::Vector meanRef = reference.features.rowwise().sum() / reference.features.cols();
         PM::TransformationParameters T_refIn_refMean = PM::Matrix::Identity(4, 4);
         T_refIn_refMean.block(0, 3, 3, 1) = meanRef.head(3);
@@ -265,21 +267,26 @@ int main(int argc, char** argv)
         bool iterate(true);
         icp.transformationCheckers.init(T_iter, iterate);
         size_t iterationCount(0);
-        std::cout << "==== ICP residual ====" << std::endl;
-        PM::DataPoints stepReading(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean));
-        PM::Matches matches(matcher->findClosests(stepReading));
-        PM::OutlierWeights outlierWeights(icp.outlierFilters.compute(stepReading, reference, matches));
-        std::cout << icp.errorMinimizer->getResidualError(stepReading, reference, outlierWeights, matches) << std::endl;
+//        std::cout << "==== ICP residual ====" << std::endl;
+//        PM::DataPoints stepReading(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean));
+//        PM::Matches matches(matcher->findClosests(stepReading));
+//        PM::OutlierWeights outlierWeights(icp.outlierFilters.compute(stepReading, reference, matches));
+//        std::cout << icp.errorMinimizer->getResidualError(stepReading, reference, outlierWeights, matches) << std::endl;
         while(iterate)
         {
-            stepReading = deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean);
+            PM::DataPoints stepReading(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean));
             icp.readingStepDataPointsFilters.apply(stepReading);
-            matches = matcher->findClosests(stepReading);
-            outlierWeights = icp.outlierFilters.compute(stepReading, reference, matches);
+            PM::Matches matches(matcher->findClosests(stepReading));
+            PM::OutlierWeights outlierWeights(icp.outlierFilters.compute(stepReading, reference, matches));
+//            stepReading = deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean);
+//            icp.readingStepDataPointsFilters.apply(stepReading);
+//            matches = matcher->findClosests(stepReading);
+//            outlierWeights = icp.outlierFilters.compute(stepReading, reference, matches);
             icp.inspector->dumpIteration(iterationCount, T_iter, reference, stepReading, matches, outlierWeights, icp.transformationCheckers);
             T_iter = icp.errorMinimizer->compute(stepReading, reference, outlierWeights, matches) * T_iter;
             optimizedStates_refMean = factorGraph.optimize(T_iter, iterationCount, true);
-            std::cout << icp.errorMinimizer->getResidualError(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean), reference, outlierWeights, matches) << std::endl;
+            std::cout << "Correction direction:" << std::endl << T_iter.topRightCorner<3, 1>() << std::endl << std::endl;
+//            std::cout << icp.errorMinimizer->getResidualError(deskew(reading, timeStampAtStartOfScan, optimizedStates_refMean), reference, outlierWeights, matches) << std::endl;
             try
             {
                 icp.transformationCheckers.check(T_iter, iterate);
@@ -290,8 +297,8 @@ int main(int argc, char** argv)
             }
             ++iterationCount;
         }
-        std::cout << "ICP converged in " << iterationCount << " iterations" << std::endl;
-        std::cout << "=============================" << std::endl;
+//        std::cout << "ICP converged in " << iterationCount << " iterations" << std::endl;
+//        std::cout << "=============================" << std::endl;
 
         optimizedStates = applyTransformationToStates(T_refIn_refMean, optimizedStates_refMean);
     }
