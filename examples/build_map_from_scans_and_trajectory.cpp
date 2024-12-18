@@ -227,6 +227,7 @@ int main(int argc, char* argv[])
         std::string inputPath = vtkFilesPaths[i];
         DP inputCloud(DP::load(inputPath));
 
+        mapper->applyInputFilters(inputCloud);
         mapper->processInput(inputCloud, transformationParameters, timestamp);
     }
 
@@ -236,5 +237,3 @@ int main(int argc, char* argv[])
 
     return 0;
 }
-
-
