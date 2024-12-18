@@ -162,6 +162,7 @@ if __name__ == "__main__":
         inputPath = vtk_files_paths[i]
         inputCloud = DP.load(inputPath)
 
+        mapper.applyInputFilters(inputCloud)
         mapper.processInput(inputCloud, T, timestamp)
 
     output_path = os.path.join(dataPath, "map_python.vtk")
