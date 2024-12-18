@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit-build-core"]
+requires = ["scikit-build-core>=0.9.8,<0.9.9"]
 build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]
@@ -14,4 +14,3 @@ classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
 ]
-
