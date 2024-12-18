@@ -50,8 +50,6 @@ if (DEFINED SKBUILD_PROJECT_NAME)
                 ${norlab_icp_mapper_LIBRARIES}
                 ${libpointmatcher_LIBRARIES})
 
-        add_dependencies(_core norlab_icp_mapper)
-
         install(TARGETS _core LIBRARY DESTINATION ${SKBUILD_PROJECT_NAME})
     else ()
         message(FATAL_ERROR "pybind11 is required!")
