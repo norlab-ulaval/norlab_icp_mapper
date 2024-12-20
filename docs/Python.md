@@ -10,7 +10,7 @@ pip install .
 
 Now test your installation with
 ```bash
-python -c "from pynorlab_icp_mapper import *"
+python -c "from norlab_icp_mapper import *"
 ```
 
 You can then run an example that builds a map from consecutive scans, similarly to the one described in [Example: building a map from lidar scans](RunningExample.md).
