@@ -5,7 +5,7 @@ import numpy as np
 from pyquaternion import Quaternion
 from pathlib import Path
 from pypointmatcher import pointmatcher as pm
-from pynorlab_icp_mapper import Mapper
+from norlab_icp_mapper import Mapper
 from tqdm import tqdm
 
 PM = pm.PointMatcher
