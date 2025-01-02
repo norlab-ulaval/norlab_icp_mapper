@@ -2,11 +2,13 @@
 #include "MapperModules/PointDistanceMapperModule.h"
 #include "MapperModules/OctreeMapperModule.h"
 #include "MapperModules/DynamicPointsMapperModule.h"
+#include "MapperModules/VoxelDownsamplingMapperModule.h"
 #include <fstream>
 #include <chrono>
 #include <yaml-cpp/node/iterator.h>
 
 void norlab_icp_mapper::Mapper::fillRegistrar() {
+    ADD_TO_REGISTRAR(MapperModule, VoxelDownsamplingMapperModule, VoxelDownsamplingMapperModule);
     ADD_TO_REGISTRAR(MapperModule, PointDistanceMapperModule, PointDistanceMapperModule);
     ADD_TO_REGISTRAR(MapperModule, OctreeMapperModule, OctreeMapperModule);
     ADD_TO_REGISTRAR(MapperModule, DynamicPointsMapperModule, DynamicPointsMapperModule);
@@ -100,7 +102,7 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
     if (node["mapper"])
     {
         YAML::Node mapperNode = node["mapper"];
-        
+
         if(mapperNode["updateCondition"])
         {
             YAML::Node updateConditionNode = mapperNode["updateCondition"];
