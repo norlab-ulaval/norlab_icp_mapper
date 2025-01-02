@@ -5,6 +5,7 @@
 #include "MapperModule.h"
 #include <unordered_map>
 
+// got this hashing of eigen vector from kiss-icp : https://github.com/PRBonn/kiss-icp/blob/main/cpp/kiss_icp/core/VoxelUtils.hpp
 using Voxel = Eigen::Vector3i;
 template <>
 struct std::hash<Voxel> {
