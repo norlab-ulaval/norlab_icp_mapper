@@ -203,10 +203,10 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensor
 	}
 	else
 	{
-		{
-			std::lock_guard<std::mutex> icpMapLockGuard(icpMapLock);
-			correction = icp(input);
-		}
+        {
+            std::lock_guard<std::mutex> icpMapLockGuard(icpMapLock);
+            correction = icp(input);
+        }
 		correctedPose = correction * estimatedPose;
 
 		map.updatePose(correctedPose);
