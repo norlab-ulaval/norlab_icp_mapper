@@ -5,18 +5,19 @@ import numpy as np
 from pyquaternion import Quaternion
 from pathlib import Path
 from pypointmatcher import pointmatcher as pm
-from pynorlab_icp_mapper import Mapper
+from norlab_icp_mapper import Mapper
 from tqdm import tqdm
 
 PM = pm.PointMatcher
 DP = PM.DataPoints
 
+
 def get_stamped_transformations(filepath):
     # Open the CSV file
-    file = open(filepath, 'r')
+    file = open(filepath, "r")
 
     # Read the header line to get column indices
-    header = file.readline().strip().split(',')
+    header = file.readline().strip().split(",")
 
     column_names = header
 
@@ -52,9 +53,17 @@ def get_stamped_transformations(filepath):
             nsec_index = i
 
     # Check if all required columns are found
-    if (x_index == -1 or y_index == -1 or z_index == -1 or qx_index == -1 or
-            qy_index == -1 or qz_index == -1 or qw_index == -1 or sec_index == -1 or
-            nsec_index == -1):
+    if (
+        x_index == -1
+        or y_index == -1
+        or z_index == -1
+        or qx_index == -1
+        or qy_index == -1
+        or qz_index == -1
+        or qw_index == -1
+        or sec_index == -1
+        or nsec_index == -1
+    ):
         raise Exception("Error: Required columns not found in the header.")
 
     # Containers to store data
@@ -101,9 +110,11 @@ def get_stamped_transformations(filepath):
                 if i == sec_index:
                     timestamp += datetime.timedelta(seconds=value)
                 elif i == nsec_index:
-                    timestamp += datetime.timedelta(microseconds=int(value/1000))
+                    timestamp += datetime.timedelta(microseconds=int(value / 1000))
 
-        q = Quaternion(quaternion[3], quaternion[0], quaternion[1], quaternion[2])  # wxyz
+        q = Quaternion(
+            quaternion[3], quaternion[0], quaternion[1], quaternion[2]
+        )  # wxyz
         rotation = q.rotation_matrix
         stamped_transformations.append((position, rotation, timestamp))
 
@@ -128,7 +139,9 @@ def get_scans_paths(directory_path):
 if __name__ == "__main__":
     dataPath = os.path.relpath(input("Please provide a data path: "))
     configPath = os.path.relpath(input("Please provide a config path: "))
-    stamped_transformations = get_stamped_transformations(os.path.join(dataPath, "icp_odom.csv"))
+    stamped_transformations = get_stamped_transformations(
+        os.path.join(dataPath, "icp_odom.csv")
+    )
     vtk_files_paths = get_scans_paths(os.path.join(dataPath, "scans"))
 
     assert len(stamped_transformations) == len(vtk_files_paths)
@@ -149,9 +162,9 @@ if __name__ == "__main__":
         inputPath = vtk_files_paths[i]
         inputCloud = DP.load(inputPath)
 
+        mapper.applyInputFilters(inputCloud)
         mapper.processInput(inputCloud, T, timestamp)
 
     output_path = os.path.join(dataPath, "map_python.vtk")
     print(f"Success! Map saved to {output_path}")
     mapper.getMap().save(output_path)
-

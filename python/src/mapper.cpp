@@ -9,7 +9,8 @@ namespace python
         {
             using Mapper = norlab_icp_mapper::Mapper;
             py::class_<Mapper>(p_module, "Mapper")
-                    .def("processInput", &Mapper::processInput, py::arg("inputInSensorFrame"), py::arg("estimatedPose"), py::arg("timeStamp"))
+                    .def("applyInputFilters", &Mapper::applyInputFilters, py::arg("inputInSensorFrame"))
+                    .def("processInput", &Mapper::processInput, py::arg("filteredInputInSensorFrame"), py::arg("estimatedPose"), py::arg("timeStamp"))
                     .def("getMap", &Mapper::getMap)
                     .def("setMap", &Mapper::setMap, py::arg("newMap"))
                     .def("getNewLocalMap", &Mapper::getNewLocalMap, py::arg("mapOut"))
