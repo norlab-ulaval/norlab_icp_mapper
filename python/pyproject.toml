@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit-build-core"]
+requires = ["scikit-build-core>=0.9.8,<0.9.9"]
 build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]
@@ -7,11 +7,10 @@ sdist.cmake = true
 cmake.verbose = true
 
 [project]
-version = "2.0.1"
-name = "pynorlab_icp_mapper"
+version = "2.1.0"
+name = "norlab_icp_mapper"
 dependencies = ["numpy>=1.20", "pypointmatcher>=1.4.3"]
 classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
 ]
-
