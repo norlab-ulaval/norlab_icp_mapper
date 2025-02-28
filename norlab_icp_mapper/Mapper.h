@@ -52,6 +52,7 @@ namespace norlab_icp_mapper
 	public:
 		Mapper(const std::string& configFilePath, const bool& is3D, const bool& isOnline,
 			   const bool& isMapping, const bool& saveMapCellsOnHardDrive);
+		void applyInputFilters(PM::DataPoints& inputInSensorFrame);
 		void processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,
 						  const std::chrono::time_point<std::chrono::steady_clock>& timeStamp);
 		PM::DataPoints getMap();

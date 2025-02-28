@@ -100,7 +100,7 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
     if (node["mapper"])
     {
         YAML::Node mapperNode = node["mapper"];
-        
+
         if(mapperNode["updateCondition"])
         {
             YAML::Node updateConditionNode = mapperNode["updateCondition"];
@@ -184,11 +184,16 @@ void norlab_icp_mapper::Mapper::loadYamlConfig(const std::string& configFilePath
     ifs.close();
 }
 
-void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& inputInSensorFrame, const PM::TransformationParameters& estimatedPose,
+void norlab_icp_mapper::Mapper::applyInputFilters(PM::DataPoints& inputInSensorFrame)
+{
+    radiusFilter->inPlaceFilter(inputInSensorFrame);
+    inputFilters.apply(inputInSensorFrame);
+}
+
+
+void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& filteredInputInSensorFrame, const PM::TransformationParameters& estimatedPose,
 											 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp)
 {
-	PM::DataPoints filteredInputInSensorFrame = radiusFilter->filter(inputInSensorFrame);
-	inputFilters.apply(filteredInputInSensorFrame);
 	PM::DataPoints input = transformation->compute(filteredInputInSensorFrame, estimatedPose);
 
 	PM::TransformationParameters correctedPose;
