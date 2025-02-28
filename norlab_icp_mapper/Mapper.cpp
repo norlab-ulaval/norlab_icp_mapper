@@ -4,6 +4,7 @@
 #include "MapperModules/DynamicPointsMapperModule.h"
 #include <fstream>
 #include <chrono>
+#include <exception>
 #include <yaml-cpp/node/iterator.h>
 
 void norlab_icp_mapper::Mapper::fillRegistrar() {
@@ -198,6 +199,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& filteredInput
 
 	PM::TransformationParameters correctedPose;
     PM::TransformationParameters correction;
+    bool icpCompletion = true;
 	if(map.isLocalPointCloudEmpty())
 	{
 		correctedPose = estimatedPose;
@@ -208,18 +210,34 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& filteredInput
 	}
 	else
 	{
+        try
         {
             std::lock_guard<std::mutex> icpMapLockGuard(icpMapLock);
             correction = icp(input);
+            correctedPose = correction * estimatedPose;
+            icpCompletion = true;
         }
-		correctedPose = correction * estimatedPose;
-
+        catch(const typename PointMatcherSupport::MinNumMatchesError::MinNumMatchesError &)
+        {
+            std::cout << "Caught MinNumMatchesError." << std::endl;
+            correctedPose = estimatedPose;
+            icpCompletion = false;
+        }
 		map.updatePose(correctedPose);
-
-		if(shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
-		{
-			updateMap(transformation->compute(input, correction), correctedPose, timeStamp);
-		}
+        if (icpCompletion == true)
+        {
+            if(shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
+            {
+                updateMap(transformation->compute(input, correction), correctedPose, timeStamp);
+            }
+        }
+        else
+        {
+            if(shouldUpdateMap(timeStamp, correctedPose, 0.5))
+            {
+                updateMap(input, correctedPose, timeStamp);
+            }
+        }
 	}
 
     if (mapUpdateFuture.valid() && mapUpdateFuture.wait_for(std::chrono::milliseconds(1)) == std::future_status::ready)
