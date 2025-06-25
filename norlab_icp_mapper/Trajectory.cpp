@@ -27,7 +27,7 @@ void Trajectory::save(std::string filename) const
 
             auto timestamp = timeStamps.at(i);
 
-            // export timeestamp
+            // export timestamp
             file << timestamp.time_since_epoch().count() << " ";
             // export x y z
             file << pose(0, 3) << " " << pose(1, 3) << " " << pose(2, 3) << " ";
