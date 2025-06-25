@@ -24,6 +24,7 @@ void Trajectory::save(std::string filename) const
     featureLabels.push_back(PointMatcher<float>::DataPoints::Label("pad", 1));
 
     Eigen::MatrixXf features(dimension, poses.size() + 1);
+    Eigen::MatrixXf features(dimension + 1, poses.size());
 
     PointMatcher<float>::DataPoints::Labels descriptorLabels;
     descriptorLabels.push_back(PointMatcher<float>::DataPoints::Label("orientationX", dimension));
