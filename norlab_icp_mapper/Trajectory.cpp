@@ -21,7 +21,9 @@ void Trajectory::save(std::string filename) const
     {
         featureLabels.push_back(PointMatcher<float>::DataPoints::Label("z", 1));
     }
-    Eigen::MatrixXf features(dimension, poses.size());
+    featureLabels.push_back(PointMatcher<float>::DataPoints::Label("pad", 1));
+
+    Eigen::MatrixXf features(dimension, poses.size() + 1);
 
     PointMatcher<float>::DataPoints::Labels descriptorLabels;
     descriptorLabels.push_back(PointMatcher<float>::DataPoints::Label("orientationX", dimension));
@@ -38,7 +40,9 @@ void Trajectory::save(std::string filename) const
 
     for(size_t i = 0; i < poses.size(); ++i)
     {
-        features.col(i) = poses[i].topRightCorner(dimension, 1);
+        Eigen::Vector4f col;
+        col << poses[i].topRightCorner(dimension, 1), 1.0;
+        features.col(i) = col;
         descriptors.block(0, i, dimension, 1) = poses[i].block(0, 0, dimension, 1);
         descriptors.block(dimension, i, dimension, 1) = poses[i].block(0, 1, dimension, 1);
         if(dimension == 3)
