@@ -215,6 +215,21 @@ Moreover, you can adjust the deskewing behavior by changing these two parameters
 - `deskewing_round_to_nanosecs`: defines the time resolution at which the deskewing TFs are rounded. This is used to reduce the number of TFs that are queried from the TF buffer. A value of 50000 means that the TFs are rounded to the nearest 50 microseconds.
 
 
+#### Changing the map's topic density
+The ROS wrapper publishes the map on the `/map` topic, given that there exists at least one active subscriber.
+As the map messages can get relatively large, especially when visualizating over a remote connection, the map message is downsampled with a voxel-based octree approach.
+The parameter controlling this behaviour is dynamic and can be modified when mapping using the `compression_voxel_size` parameter.
+The default value is set to `0.5`.
+Try launching the following command to get show a denser map:
+
+=== "ROS"
+    TODO
+
+=== "ROS 2"
+    ```shell
+    ros2 param set /mapper_node/compression_voxel_size 0.05
+    ```
+
 #### Saving the map
 
 You can save the map by calling the `/save_map` service. Similarly, use the `/save_trajectory` service to save the trajectory.
