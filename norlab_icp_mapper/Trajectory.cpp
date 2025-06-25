@@ -27,7 +27,7 @@ void Trajectory::save(std::string filename) const
 
             auto timestamp = timeStamps.at(i);
 
-            // export timeestamp
+            // export timestamp
             file << timestamp.time_since_epoch().count() << " ";
             // export x y z
             file << pose(0, 3) << " " << pose(1, 3) << " " << pose(2, 3) << " ";
@@ -46,7 +46,9 @@ void Trajectory::save(std::string filename) const
         {
             featureLabels.push_back(PointMatcher<float>::DataPoints::Label("z", 1));
         }
-        Eigen::MatrixXf features(dimension, poses.size());
+        featureLabels.push_back(PointMatcher<float>::DataPoints::Label("pad", 1));
+
+        Eigen::MatrixXf features(dimension + 1, poses.size());
 
         PointMatcher<float>::DataPoints::Labels descriptorLabels;
         descriptorLabels.push_back(PointMatcher<float>::DataPoints::Label("orientationX", dimension));
@@ -58,12 +60,14 @@ void Trajectory::save(std::string filename) const
         Eigen::MatrixXf descriptors(dimension * dimension, poses.size());
 
         PointMatcher<float>::DataPoints::Labels timeLabels;
-        timeLabels.push_back(PointMatcher<float>::DataPoints::Label("time", 1));
+        timeLabels.push_back(PointMatcher<float>::DataPoints::Label("t", 1));
         Eigen::Matrix<std::int64_t, 1, Eigen::Dynamic> times(1, poses.size());
 
         for(size_t i = 0; i < poses.size(); ++i)
         {
-            features.col(i) = poses[i].topRightCorner(dimension, 1);
+            Eigen::Vector4f col;
+            col << poses[i].topRightCorner(dimension, 1), 1.0;
+            features.col(i) = col;
             descriptors.block(0, i, dimension, 1) = poses[i].block(0, 0, dimension, 1);
             descriptors.block(dimension, i, dimension, 1) = poses[i].block(0, 1, dimension, 1);
             if(dimension == 3)
