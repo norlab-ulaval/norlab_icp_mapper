@@ -9,80 +9,70 @@ If you want to use norlab_icp_mapper in [ROS](http://www.ros.org/) or [ROS 2](ht
 
 This tutorial is based on a 3D Mapping tutorial created by [Simon-Pierre Deschênes](https://norlab.ulaval.ca/people/sp_deschenes/) (Thanks 🎉).
 
+!!! warning
+    Note that the ROS 1 version of this tutorial is not longer maintained. Some example launch files and configuration can be found [here](https://github.com/norlab-ulaval/mapper_config_template.git).
+
+
 ### Copying the demonstration data
 
 Assuming you completed the [Example: building a map from lidar scans](RunningExample.md) tutorial, we will now process ROS bag files.
 Download the demonstration data using:
 
 === "ROS"
-TODO
+    TODO
 
 === "ROS 2"
-`shell
+    ```shell
     cd ~/
     wget -O demo.zip "http://norlab.s3.valeria.science/demo.zip?AWSAccessKeyId=XMBLP3A0338XN5LASKV2&Expires=2290342833&Signature=NXn1f%2BeJ7NptrzUkNzHtEvdicjc%3D"
     unzip demo.zip
     rm demo.zip
-    `
+    ```
 
 ### Fetching libpointmatcher_ros
 
 === "ROS"
-`shell
+    ```shell
     cd ~/
     mkdir -p catkin_ws/src && cd catkin_ws/src/
     git clone -b melodic https://github.com/norlab-ulaval/libpointmatcher_ros.git
-    `
+    ```
 
 === "ROS 2"
-`shell
+    ```shell
     cd ~/
     mkdir -p ros2_ws/src && cd ros2_ws/src/
     git clone https://github.com/norlab-ulaval/libpointmatcher_ros.git
-    `
+    ```
 
 ### Fetching norlab_icp_mapper_ros
 
 === "ROS"
-`shell
+    ```shell
     cd ~/catkin_ws/src/
     git clone -b melodic https://github.com/norlab-ulaval/norlab_icp_mapper_ros.git
-    `
+    ```
 
 === "ROS 2"
-`shell
+    ```shell
     cd ~/ros2_ws/src/
     git clone https://github.com/norlab-ulaval/norlab_icp_mapper_ros.git
-    `
-
-### Fetching mapper_config_template
-
-=== "ROS"
-`shell
-    cd ~/catkin_ws/src/
-    git clone -b melodic https://github.com/norlab-ulaval/mapper_config_template.git
-    `
-
-=== "ROS 2"
-`shell
-    cd ~/ros2_ws/src/
-    git clone https://github.com/norlab-ulaval/mapper_config_template.git
-    `
+    ```
 
 ### Compiling ros workspace
 
 === "ROS"
-`shell
+    ```shell
     cd ~/catkin_ws/
     catkin_make
-    `
+    ```
 
 === "ROS 2"
-`shell
+    ```shell
     cd ~/ros2_ws/
     colcon build --symlink-install
     source ~/ros2_ws/install/setup.bash
-    `
+    ```
 
 ### Mapping basics
 
@@ -114,20 +104,20 @@ Finally, the ROS launch file is located in `launch/mapper.launch` for ROS and `l
 ### Running the demo
 
 === "ROS"
-`shell
+    ```shell
     roscore
     rosparam set use_sim_time true
     roslaunch mapper_config_template mapper.launch
     rviz -d ~/demo/config.rviz
     rosbag play ~/demo/demo.bag --clock --keep-alive
-    `
+    ```
 
 === "ROS 2"
-`shell
+    ```shell
     ros2 launch mapper_config_template mapper.launch.py
     rviz2 -d ~/demo/config.rviz
     ros2 bag play ~/demo/demo --clock
-    `
+    ```
 
 ![Final map](images/ros_trajectory.png)
 
@@ -210,54 +200,34 @@ DynamicPointsMapperModule:
 
 #### Deskewing the input point cloud
 
-Unlike the other mapping modueles, deskewing is part of the ROS 2 wrapper `norlab_icp_mapper_ros'.
+Unlike the other mapping modules, deskewing is part of the ROS 2 wrapper `norlab_icp_mapper_ros`.
 This is due to the fact that deskewing requires TF2 interpolations which must happen inside the ROS ecosystem.
-To enable deskewing, set the `deskew`parameter to`true`in the`mapper.launch.py` file.
+To enable deskewing, set the `deskew`parameter to `true`in the `mapper.launch.py` file:
+
+```python
+"compression_voxel_size": 0.2,
+"deskew": False -> True,
+```
+
 Moreover, you can adjust the deskewing behavior by changing these two parameters:
 
 - `expected_unique_deskewing_TF_number`: defines the number of unique TFs that are expected to be used for deskewing. This number is used to prealocated memory space in a hash map and while an incorrect value might cause slowdowns, it is not that important.
 - `deskewing_round_to_nanosecs`: defines the time resolution at which the deskewing TFs are rounded. This is used to reduce the number of TFs that are queried from the TF buffer. A value of 50000 means that the TFs are rounded to the nearest 50 microseconds.
 
-`````yaml
-
-````python
-    deskew = True
-
-```yaml
-- SurfaceNormalDataPointsFilter:
-    knn: 10
-
-- CutAtDescriptorThresholdDataPointsFilter:
-    descName: probabilityDynamic
-    useLargerThan: 1
-    threshold: 0.65
-`````
-
-Then change the following MapperModule in the `mapperModule` portion of the `mapper` section:
-
-```yaml
-DynamicPointsMapperModule:
-  thresholdDynamic: 0.65
-  alpha: 0.2
-  beta: 0.99
-  beamHalfAngle: 0.01
-  epsilonA: 0.01
-  epsilonD: 0.01
-```
 
 #### Saving the map
 
 You can save the map by calling the `/save_map` service. Similarly, use the `/save_trajectory` service to save the trajectory.
 === "ROS"
-`shell
-    rosservice call /save_map "map_file_name:
-        data: '$HOME/demo/demo.vtk'"
-    `
+    ```shell
+    rosservice call /save_map "map_file_name: data: '$HOME/demo/demo.vtk'"
+    ```
+
 
 === "ROS 2"
-`shell
+    ```shell
     ros2 service call /save_map norlab_icp_mapper_ros/srv/SaveMap "{map_file_name: {data: '$HOME/demo/demo.vtk'}}"
-    `
+    ```
 
 ### Final Result
 
