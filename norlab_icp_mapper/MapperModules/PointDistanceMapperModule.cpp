@@ -27,11 +27,12 @@ PointMatcher<float>::DataPoints PointDistanceMapperModule::updateMap(const PM::D
 
 bool itsValid(float r, float g, float b)
 {
-	if(r == 0.0 &&  g == 0.0 && b == 1.0)
+	if((r == 0.0 &&  g == 0.0 && b == 1.0) || (r == 0.0 &&  g == 0.0 && b == 0.0))
 		return false;
 
 	return true;
 }
+
 
 void PointDistanceMapperModule::inPlaceUpdateMap(const PM::DataPoints& input, PM::DataPoints& map, const PM::TransformationParameters& pose)
 {
@@ -46,6 +47,23 @@ void PointDistanceMapperModule::inPlaceUpdateMap(const PM::DataPoints& input, PM
 
 	int inputPointsToKeepPointCount = 0;
 	PM::DataPoints inputPointsToKeep(input.createSimilarEmpty());
+	// -------------------------------------------------------------------------------------------------
+
+
+	// for(int i = 0; i < input.getNbPoints(); ++i)
+	// {
+	// 	if(matches.dists(i) >= std::pow(minDistNewPoint, 2))
+	// 	{
+	// 		inputPointsToKeep.setColFrom(inputPointsToKeepPointCount, input, i);
+	// 		inputPointsToKeepPointCount++;
+	// 	}
+	// }
+	// inputPointsToKeep.conservativeResize(inputPointsToKeepPointCount);
+    // map.concatenate(inputPointsToKeep);
+
+	// -------------------------------------------------------------------------------------------------
+
+
 
 	float powMinDistNewPoint = std::pow(minDistNewPoint, 2);
 	float colorMinDistNewPoint = powMinDistNewPoint/1000;
@@ -74,16 +92,16 @@ void PointDistanceMapperModule::inPlaceUpdateMap(const PM::DataPoints& input, PM
 			{
 				if (mapR > inputR)
 				{
-					outputR = 0.2*inputR+0.8*mapR;
-					outputG = 0.2*inputG+0.8*mapG;
-					outputB = 0.2*inputB+0.8*mapB;
+					outputR = mapR;
+					outputG = mapG;
+					outputB = mapB;
 
 				}
 				else
 				{
-					outputR = 0.8*inputR+0.2*mapR;
-					outputG = 0.8*inputG+0.2*mapG;
-					outputB = 0.8*inputB+0.2*mapB;
+					outputR = inputR;
+					outputG = inputG;
+					outputB = inputB;
 				}
 			}
 			else
@@ -93,7 +111,7 @@ void PointDistanceMapperModule::inPlaceUpdateMap(const PM::DataPoints& input, PM
 				outputB = inputB;
 			}
 		}
-			
+
 		map.descriptors(0, matches.ids(i)) = outputR;
 		map.descriptors(1, matches.ids(i)) = outputG;
 		map.descriptors(2, matches.ids(i)) = outputB;
@@ -112,5 +130,8 @@ void PointDistanceMapperModule::inPlaceUpdateMap(const PM::DataPoints& input, PM
 	}
 	inputPointsToKeep.conservativeResize(inputPointsToKeepPointCount);
     map.concatenate(inputPointsToKeep);
+
+
+
 }
 
