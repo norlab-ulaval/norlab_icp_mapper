@@ -191,9 +191,11 @@ void norlab_icp_mapper::Mapper::applyInputFilters(PM::DataPoints& inputInSensorF
 }
 
 
-void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& filteredInputInSensorFrame, const PM::TransformationParameters& estimatedPose,
-											 const std::chrono::time_point<std::chrono::steady_clock>& timeStamp)
+norlab_icp_mapper::MapperState norlab_icp_mapper::Mapper::processInput(
+    const PM::DataPoints& filteredInputInSensorFrame, const PM::TransformationParameters& estimatedPose,
+    const std::chrono::time_point<std::chrono::steady_clock>& timeStamp)
 {
+    auto state = norlab_icp_mapper::MapperState::LOCALIZING;
 	PM::DataPoints input = transformation->compute(filteredInputInSensorFrame, estimatedPose);
 
 	PM::TransformationParameters correctedPose;
@@ -204,6 +206,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& filteredInput
 		map.updatePose(correctedPose);
 
 		updateMap(input, correctedPose, timeStamp);
+		state = norlab_icp_mapper::MapperState::MAPPING;
 	}
 	else
 	{
@@ -219,6 +222,7 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& filteredInput
 		if(shouldUpdateMap(timeStamp, correctedPose, icp.errorMinimizer->getOverlap()))
 		{
 			updateMap(transformation->compute(input, correction), correctedPose, timeStamp);
+			state = norlab_icp_mapper::MapperState::MAPPING;
 		}
 	}
 
@@ -235,6 +239,8 @@ void norlab_icp_mapper::Mapper::processInput(const PM::DataPoints& filteredInput
 	trajectoryLock.lock();
 	trajectory.addPose(correctedPose, timeStamp);
 	trajectoryLock.unlock();
+
+	return state;
 }
 
 bool norlab_icp_mapper::Mapper::shouldUpdateMap(const std::chrono::time_point<std::chrono::steady_clock>& currentTime,
