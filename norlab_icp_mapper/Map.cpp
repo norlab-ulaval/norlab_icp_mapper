@@ -585,4 +585,5 @@ void norlab_icp_mapper::Map::setGlobalPointCloud(const PM::DataPoints& newLocalP
 
 	firstPoseUpdate.store(true);
 	localPointCloudLock.unlock();
+	newLocalPointCloudAvailable = true;
 }
