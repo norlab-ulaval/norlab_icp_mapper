@@ -6,7 +6,7 @@ include(CMakePackageConfigHelpers)
 
 project(norlab_icp_mapper)
 
-## Extract version from package.xml
+# # Extract version from package.xml
 file(READ "package.xml" PACKAGE_XML_CONTENT)
 string(REGEX MATCH "<version>([^<]+)</version>" VERSION_MATCH ${PACKAGE_XML_CONTENT})
 # Extract the matched version from the captured group
@@ -37,12 +37,11 @@ set(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${libpointmatcher_LIBRARIES})
 message(STATUS "Looking for yaml-cpp on system...")
 find_package(yaml-cpp CONFIG REQUIRED)
 if(TARGET yaml-cpp::yaml-cpp)
-	set(YAML_CPP_LIBRARIES "yaml-cpp::yaml-cpp")
+    set(YAML_CPP_LIBRARIES "yaml-cpp::yaml-cpp")
 endif()
 if(YAML_CPP_LIBRARIES STREQUAL "")
-	set(YAML_CPP_LIBRARIES "yaml-cpp")
+    set(YAML_CPP_LIBRARIES "yaml-cpp")
 endif ()
-
 
 # norlab_icp_mapper target
 add_library(norlab_icp_mapper
@@ -56,6 +55,7 @@ add_library(norlab_icp_mapper
         norlab_icp_mapper/MapperModules/PointDistanceMapperModule.cpp
         norlab_icp_mapper/MapperModules/DynamicPointsMapperModule.cpp
         norlab_icp_mapper/MapperModules/OctreeMapperModule.cpp
+        norlab_icp_mapper/MapperModules/VoxelDownsamplingMapperModule.cpp
         norlab_icp_mapper/MapperModules/MapperModule.cpp
         )
 target_include_directories(norlab_icp_mapper PUBLIC
@@ -95,6 +95,7 @@ install(FILES
         norlab_icp_mapper/MapperModules/DynamicPointsMapperModule.h
         norlab_icp_mapper/MapperModules/OctreeMapperModule.h
         norlab_icp_mapper/MapperModules/PointDistanceMapperModule.h
+        norlab_icp_mapper/MapperModules/VoxelDownsamplingMapperModule.h
         DESTINATION ${INSTALL_INCLUDE_DIR}/norlab_icp_mapper/MapperModules/)
 
 configure_file(norlab_icp_mapperConfig.cmake.in
@@ -103,11 +104,11 @@ configure_file(norlab_icp_mapperConfig.cmake.in
 
 # The same versioning file can be used for both cases
 write_basic_package_version_file(norlab_icp_mapperConfigVersion.cmake
-		COMPATIBILITY SameMajorVersion)
+  COMPATIBILITY SameMajorVersion)
 
 install(FILES
         "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/norlab_icp_mapperConfig.cmake"
-	    "${PROJECT_BINARY_DIR}/norlab_icp_mapperConfigVersion.cmake"
+     "${PROJECT_BINARY_DIR}/norlab_icp_mapperConfigVersion.cmake"
         DESTINATION ${DEF_INSTALL_CMAKE_DIR}
         COMPONENT dev
         )
@@ -125,7 +126,7 @@ endif ()
 
 set(BUILD_EXAMPLE false CACHE BOOL "Set to true to build an example program")
 if(BUILD_EXAMPLE)
-	message(STATUS "Building example")
+    message(STATUS "Building example")
     add_executable(build_map_from_scans_and_trajectories examples/build_map_from_scans_and_trajectory.cpp)
     target_link_libraries(build_map_from_scans_and_trajectories norlab_icp_mapper)
 endif()
